@@ -1,6 +1,6 @@
 // Service worker: lưu sẵn ứng dụng để mở nhanh và dùng được khi mất mạng.
 // Đổi VERSION mỗi khi phát hành để trình duyệt tải bản mới.
-const VERSION = 'plan-video-v3';
+const VERSION = 'plan-video-v4';
 const APP_FILES = [
   './',
   'index.html',
@@ -20,6 +20,8 @@ const APP_FILES = [
   'js/dub-ui.js',
   'js/montage.js',
   'js/montage-ui.js',
+  'js/auto-video.js',
+  'js/auto-ui.js',
   'js/ui-utils.js',
 ];
 

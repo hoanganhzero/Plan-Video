@@ -7,6 +7,23 @@ Công cụ web giúp **bất kỳ ai** lên kịch bản và tạo prompt chuẩ
 
 Không cần cài đặt, không cần biết viết prompt, không cần biết code.
 
+## ⚡ Tạo nhanh – chỉ cần ảnh + ý tưởng
+
+Tab **⚡ Tạo nhanh** (màn hình đầu tiên): tải **ảnh khuôn mặt/dáng người** và **ảnh sản phẩm**, viết ý tưởng, rồi chọn:
+
+| | 🆓 Làm trong Flow | 🚀 Tự động hoàn toàn |
+|---|---|---|
+| Chi phí | Dùng tín dụng gói Google AI Pro | Phí Gemini API theo giây video (cần bật billing) |
+| Bạn làm gì | Tải 2 ảnh lên Flow (*Ingredients to Video*), dán prompt từng cảnh | Bấm 1 nút, chờ vài phút |
+| Kết quả | Kịch bản + prompt giữ đúng người & sản phẩm | Video quảng cáo hoàn chỉnh có tiêu đề, phụ đề tiếng Việt |
+
+Chế độ tự động: AI xem ảnh và viết kịch bản → tạo **ảnh khung đầu** mỗi cảnh có đúng người + sản phẩm → **Veo** biến ảnh thành clip 8 giây có tiếng → tự **ghép phim** và tải video về.
+
+- Bấm **🔍 Kiểm tra key & chọn model**: ứng dụng hỏi Google xem key dùng được model video/ảnh nào và tự chọn (Google đổi tên model khá thường xuyên).
+- Trước khi tạo, ứng dụng báo **chi phí ước tính** và hỏi lại. Giá tham khảo (9/2026): Veo 3.1 Fast ~0,10–0,12 USD/giây, Veo 3.1 ~0,40 USD/giây – kiểm tra trang giá chính thức của Google.
+- Cảnh lỗi có nút **Thử lại**; nếu trình duyệt không tải được video trực tiếp, ứng dụng đưa link để tải thủ công rồi thêm ở tab Ghép phim.
+- Ảnh được gửi tới Google để tạo video. Chỉ dùng ảnh của bạn hoặc người đã đồng ý.
+
 ## Cách dùng (5 bước)
 
 1. **Ý tưởng** – Chọn loại video (phim ngắn, video ca nhạc, phim hoạt hình, nhạc thiếu nhi, quảng cáo, vlog, quán ăn, giáo dục, tự do), chọn giọng tiếng Việt và viết một câu ý tưởng – hoặc bấm một **gợi ý có sẵn**.
@@ -82,7 +99,7 @@ icons/                  Biểu tượng ứng dụng
 css/style.css           Giao diện (hỗ trợ điện thoại & chế độ tối)
 js/templates.js         Các mẫu video, phong cách, cảm xúc
 js/prompt-builder.js    Tạo prompt chuẩn Flow/Veo từ kịch bản
-js/gemini.js            Gemini API: viết kịch bản, nhận dạng + dịch video, đọc giọng (TTS)
+js/gemini.js            Gemini API: kịch bản, dịch video, giọng đọc, tạo ảnh, tạo video (Veo)
 js/dubbing.js           Logic lồng tiếng: phụ đề SRT, xếp lịch giọng đọc, mã hoá WAV
 js/dub-ui.js            Tab Lồng tiếng: ghép âm thanh, nghe thử, xuất video
 js/app.js               Bước 1–3, dự án, mạng xã hội
@@ -90,6 +107,8 @@ js/projects.js          Thư viện nhiều dự án (lưu trong trình duyệt)
 js/social.js            Tiêu đề / mô tả / hashtag khi không dùng AI
 js/montage.js           Logic ghép phim: dòng thời gian, phụ đề, chuyển cảnh
 js/montage-ui.js        Tab Ghép phim: vẽ khung hình, trộn âm thanh, xuất video
+js/auto-video.js        Điều phối tự động: ảnh khung đầu → Veo → tải video, ước tính chi phí
+js/auto-ui.js           Tab Tạo nhanh: ảnh người/sản phẩm, Flow hoặc tự động
 js/ui-utils.js          Tiện ích giao diện dùng chung
 tests/                  Kiểm thử (npm test)
 ```

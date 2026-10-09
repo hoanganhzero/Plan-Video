@@ -30,8 +30,12 @@ async function request(url, { apiKey, body, fetchImpl = fetch, retries = 3, slee
       await sleep((hinted ? Number(hinted[1]) : 5 * 2 ** attempt) * 1000);
       continue;
     }
-    if (res.status === 429) throw new Error('Đã hết lượt dùng Gemini miễn phí trong phút này, hãy đợi một lát rồi thử lại.');
+    if (/billing|paid (tier|plan)|FAILED_PRECONDITION|free tier/i.test(detail) && res.status !== 429) {
+      throw new Error('Tính năng này cần bật thanh toán (billing) cho Gemini API key tại aistudio.google.com → Billing.');
+    }
+    if (res.status === 429) throw new Error('Đã hết lượt dùng Gemini trong phút này (hoặc model này cần bật thanh toán), hãy đợi một lát rồi thử lại.');
     if (res.status === 400 && /API key/i.test(detail)) throw new Error('Gemini API key không đúng, hãy kiểm tra lại.');
+    if (res.status === 404) throw new Error(`Không tìm thấy model hoặc tài nguyên (lỗi 404). Model có thể đã đổi tên – bấm "Kiểm tra key" để tự chọn lại. ${detail.slice(0, 200)}`);
     throw new Error(`Gemini báo lỗi ${res.status}. ${detail.slice(0, 300)}`);
   }
 }
@@ -65,6 +69,10 @@ Voice for each scene:
   in about 6 seconds (one sentence, or 1-2 short lyric lines). Leave it empty for silent shots.
 - For music videos and kids songs, write original, rhyming, easy-to-sing lyrics that
   continue from scene to scene like one song. Kids content must be simple, gentle and safe.
+When photos are attached: the person photo shows the real presenter/main character and the
+product photo shows the real product. Describe them precisely (face, hair, body, clothing;
+product shape, colors, packaging, label) in "character" and "product", and build every scene
+around them. Never change the person's identity or the product's look.
 Return ONLY JSON matching the schema.`;
 
 const STORYBOARD_SCHEMA = {
@@ -73,6 +81,7 @@ const STORYBOARD_SCHEMA = {
     title: { type: 'STRING' },
     character: { type: 'STRING', description: 'Detailed, consistent visual description of the main character in English (age, face, hair, clothing). Empty if no character.' },
     setting: { type: 'STRING', description: 'Main location and time of day in English.' },
+    product: { type: 'STRING', description: 'Precise visual description of the product in English (shape, colors, packaging, label). Empty if no product.' },
     scenes: {
       type: 'ARRAY',
       items: {
@@ -90,10 +99,11 @@ const STORYBOARD_SCHEMA = {
       },
     },
   },
-  required: ['title', 'character', 'setting', 'scenes'],
+  required: ['title', 'character', 'setting', 'product', 'scenes'],
 };
 
-export async function generateStoryboard({ apiKey, model = DEFAULT_MODEL, project, sceneCount, templateName = '', fetchImpl, sleep }) {
+// images: [{ role: 'person' | 'product', mimeType, data (base64) }] – ảnh người/sản phẩm để AI mô tả chính xác.
+export async function generateStoryboard({ apiKey, model = DEFAULT_MODEL, project, sceneCount, templateName = '', images = [], fetchImpl, sleep }) {
   if (!apiKey) throw new Error('Bạn chưa nhập Gemini API key.');
 
   const userPrompt = [
@@ -104,7 +114,10 @@ export async function generateStoryboard({ apiKey, model = DEFAULT_MODEL, projec
     `Voice language: ${findById(VOICE_LANGUAGES, project.voiceLanguage).prompt}`,
     project.character ? `Main character (keep it): ${project.character}` : '',
     project.setting ? `Setting (keep it): ${project.setting}` : '',
+    project.product ? `Product (keep it): ${project.product}` : '',
+    images.length ? `Attached photos, in order: ${images.map((img, i) => `#${i + 1} ${img.role === 'product' ? 'product photo' : 'photo of the main character / presenter'}`).join(', ')}` : '',
   ].filter(Boolean).join('\n');
+  const imageParts = images.map((img) => ({ inlineData: { mimeType: img.mimeType, data: img.data } }));
 
   const data = await request(`${API_BASE}/${encodeURIComponent(model)}:generateContent`, {
     apiKey,
@@ -112,7 +125,7 @@ export async function generateStoryboard({ apiKey, model = DEFAULT_MODEL, projec
     sleep,
     body: {
       systemInstruction: { parts: [{ text: STORYBOARD_PROMPT }] },
-      contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+      contents: [{ role: 'user', parts: [...imageParts, { text: userPrompt }] }],
       generationConfig: { responseMimeType: 'application/json', responseSchema: STORYBOARD_SCHEMA, temperature: 0.9 },
     },
   });
@@ -128,6 +141,7 @@ export function parseStoryboard(text) {
     title: json.title || '',
     character: json.character || '',
     setting: json.setting || '',
+    product: json.product || '',
     scenes: json.scenes.map((s, i) => ({
       title: s.title || `Cảnh ${i + 1}`,
       goal: s.goal || '',
@@ -320,4 +334,114 @@ export async function synthesizeSpeech({ apiKey, model = DEFAULT_TTS_MODEL, text
     samples: pcm16ToFloat32(base64ToBytes(part.inlineData.data)),
     sampleRate: parseSampleRate(part.inlineData.mimeType),
   };
+}
+
+// ---------------------------------------------------------------------------
+// 4. Tạo ảnh & tạo video tự động (cần bật thanh toán cho API key)
+// ---------------------------------------------------------------------------
+
+// Hỏi Google xem key này dùng được những model nào.
+export async function listModels({ apiKey, fetchImpl, sleep }) {
+  if (!apiKey) throw new Error('Bạn chưa nhập Gemini API key.');
+  const models = [];
+  let pageToken = '';
+  do {
+    const data = await request(`${API_BASE}?pageSize=1000${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`, { apiKey, fetchImpl, sleep, method: 'GET' });
+    models.push(...(data.models || []));
+    pageToken = data.nextPageToken || '';
+  } while (pageToken);
+  return models.map((m) => ({ id: String(m.name || '').replace(/^models\//, ''), methods: m.supportedGenerationMethods || [] }));
+}
+
+function firstMatch(ids, patterns) {
+  for (const re of patterns) {
+    const hit = ids.find((id) => re.test(id));
+    if (hit) return hit;
+  }
+  return '';
+}
+
+// Tự chọn model tạo video (Veo) và model tạo ảnh phù hợp nhất trong danh sách.
+export function pickModels(models) {
+  const video = models.filter((m) => m.methods.includes('predictLongRunning') && /veo/i.test(m.id)).map((m) => m.id);
+  const image = models.filter((m) => m.methods.includes('generateContent') && /image/i.test(m.id) && !/imagen/i.test(m.id)).map((m) => m.id);
+  return {
+    video: firstMatch(video, [/veo-3\.1-fast/, /veo-3\.1-lite/, /veo-3\.1/, /veo-\d.*fast/, /veo/]),
+    image: firstMatch(image, [/flash-lite-image/, /flash-image/, /nano-banana/, /image/]),
+    omni: models.some((m) => /omni/i.test(m.id)),
+  };
+}
+
+// Tạo ảnh (khung hình đầu) từ prompt + ảnh tham chiếu người/sản phẩm.
+export async function generateImage({ apiKey, model, prompt, images = [], aspectRatio, fetchImpl, sleep }) {
+  if (!model) throw new Error('Chưa chọn được model tạo ảnh. Bấm "Kiểm tra key" trước.');
+  const data = await request(`${API_BASE}/${encodeURIComponent(model)}:generateContent`, {
+    apiKey,
+    fetchImpl,
+    sleep,
+    body: {
+      contents: [{ role: 'user', parts: [...images.map((img) => ({ inlineData: { mimeType: img.mimeType, data: img.data } })), { text: prompt }] }],
+      generationConfig: {
+        responseModalities: ['TEXT', 'IMAGE'],
+        ...(aspectRatio ? { imageConfig: { aspectRatio } } : {}),
+      },
+    },
+  });
+  const part = data?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data);
+  if (!part) {
+    const reason = data?.candidates?.[0]?.finishReason || data?.promptFeedback?.blockReason || '';
+    throw new Error(`AI không tạo được ảnh${reason ? ` (${reason})` : ''}. Thử ảnh khác hoặc viết lại mô tả.`);
+  }
+  return { mimeType: part.inlineData.mimeType || 'image/png', data: part.inlineData.data };
+}
+
+// Bắt đầu tạo video (Veo, chạy nền trên máy chủ Google). Trả về tên "operation" để theo dõi.
+export async function startVideo({ apiKey, model, prompt, image, aspectRatio = '16:9', fetchImpl, sleep }) {
+  if (!model) throw new Error('Chưa chọn được model tạo video. Bấm "Kiểm tra key" trước.');
+  const instance = { prompt };
+  if (image) instance.image = { bytesBase64Encoded: image.data, mimeType: image.mimeType };
+  const parameters = { aspectRatio };
+  if (image) parameters.personGeneration = 'allow_adult';
+  const op = await request(`${API_BASE}/${encodeURIComponent(model)}:predictLongRunning`, {
+    apiKey,
+    fetchImpl,
+    sleep,
+    body: { instances: [instance], parameters },
+  });
+  if (!op.name) throw new Error('Google không nhận yêu cầu tạo video.');
+  return op.name;
+}
+
+// Đợi video tạo xong (thường 1–4 phút), trả về đường dẫn tải video.
+export async function waitForVideo({ apiKey, operation, fetchImpl, sleep = wait, interval = 10000, timeout = 10 * 60 * 1000, onTick }) {
+  const started = Date.now();
+  for (;;) {
+    const op = await request(`${API_ROOT}/v1beta/${operation}`, { apiKey, fetchImpl, sleep, method: 'GET' });
+    if (op.done) {
+      if (op.error) throw new Error(`Tạo video thất bại: ${op.error.message || op.error.code}`);
+      const res = op.response?.generateVideoResponse || op.response || {};
+      const uri = res.generatedSamples?.[0]?.video?.uri || res.videos?.[0]?.uri || res.generatedVideos?.[0]?.video?.uri;
+      if (!uri) {
+        const reasons = res.raiMediaFilteredReasons?.join(' ') || '';
+        throw new Error(`Google chặn video này theo chính sách an toàn${reasons ? `: ${reasons}` : ''}. Hãy đổi ảnh hoặc mô tả cảnh.`);
+      }
+      return uri;
+    }
+    const elapsed = Date.now() - started;
+    if (elapsed > timeout) throw new Error('Tạo video quá lâu, hãy thử lại cảnh này.');
+    onTick?.(elapsed);
+    await sleep(interval);
+  }
+}
+
+// Tải video về trình duyệt. Nếu Google không cho tải trực tiếp, trả về link để người dùng tự mở.
+export async function downloadVideo({ apiKey, uri, fetchImpl = fetch }) {
+  const withKey = `${uri}${uri.includes('?') ? '&' : '?'}key=${encodeURIComponent(apiKey)}`;
+  for (const attempt of [() => fetchImpl(withKey), () => fetchImpl(uri, { headers: { 'x-goog-api-key': apiKey } })]) {
+    try {
+      const res = await attempt();
+      if (res.ok) return { blob: await res.blob(), url: withKey };
+    } catch { /* thử cách khác */ }
+  }
+  return { blob: null, url: withKey };
 }
