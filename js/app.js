@@ -1,48 +1,25 @@
-import { TEMPLATES, STYLES, MOODS, findById } from './templates.js';
-import { createProject, scenesFromTemplate, buildAllPrompts, totalDuration, exportText } from './prompt-builder.js';
+import { TEMPLATES, STYLES, MOODS, VOICE_LANGUAGES, VOICE_TYPES, findById } from './templates.js';
+import { createProject, scenesFromTemplate, buildAllPrompts, totalDuration, exportText, MAX_SCENES } from './prompt-builder.js';
 import { generateStoryboard, DEFAULT_MODEL } from './gemini.js';
-
-const STORAGE_KEY = 'plan-video:project';
-const KEY_STORAGE = 'plan-video:gemini-key';
-const MODEL_STORAGE = 'plan-video:gemini-model';
-
-const $ = (sel) => document.querySelector(sel);
-
-const storage = {
-  get(key) { try { return localStorage.getItem(key); } catch { return null; } },
-  set(key, value) { try { localStorage.setItem(key, value); } catch { /* chế độ ẩn danh */ } },
-};
+import { $, storage, STORAGE_KEYS, escapeHtml, toast, setStatus as setStatusEl, fillOptions, download, slugify, bindApiKeyInputs, getApiKey } from './ui-utils.js';
+import { initDubbing } from './dub-ui.js';
 
 let project = loadProject();
 
 function loadProject() {
   try {
-    const saved = JSON.parse(storage.get(STORAGE_KEY));
+    const saved = JSON.parse(storage.get(STORAGE_KEYS.project));
     if (saved && typeof saved === 'object') return createProject(saved);
   } catch { /* bỏ qua dữ liệu hỏng */ }
   return createProject();
 }
 
 function save() {
-  storage.set(STORAGE_KEY, JSON.stringify(project));
-}
-
-function escapeHtml(text) {
-  return String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
-
-function toast(message) {
-  const el = $('#toast');
-  el.textContent = message;
-  el.classList.add('show');
-  clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => el.classList.remove('show'), 1800);
+  storage.set(STORAGE_KEYS.project, JSON.stringify(project));
 }
 
 function setStatus(message, isError = false) {
-  const el = $('#status');
-  el.textContent = message;
-  el.classList.toggle('error', isError);
+  setStatusEl($('#status'), message, isError);
 }
 
 // ---------- Điều hướng ----------
@@ -61,7 +38,7 @@ document.querySelectorAll('.step').forEach((btn) => {
       toast('Hãy tạo kịch bản ở bước 1 trước nhé');
       return;
     }
-    goTo(step === 'guide' ? 'guide' : Number(step));
+    goTo(['guide', 'dub'].includes(step) ? step : Number(step));
   });
 });
 
@@ -78,15 +55,15 @@ function renderTemplates() {
 $('#template-list').addEventListener('click', (e) => {
   const card = e.target.closest('.card');
   if (!card) return;
-  project.templateId = card.dataset.id;
-  $('#scene-count').value = findById(TEMPLATES, project.templateId).beats.length;
+  const template = findById(TEMPLATES, card.dataset.id);
+  project.templateId = template.id;
+  Object.assign(project, template.defaults || {});
+  $('#style').value = project.styleId;
+  $('#mood').value = project.moodId;
+  $('#scene-count').value = template.beats.length;
   renderTemplates();
   save();
 });
-
-function fillOptions(select, list, selected) {
-  select.innerHTML = list.map((o) => `<option value="${o.id}" ${o.id === selected ? 'selected' : ''}>${escapeHtml(o.name)}</option>`).join('');
-}
 
 const FIELDS = {
   '#idea': 'idea',
@@ -97,6 +74,7 @@ const FIELDS = {
   '#style': 'styleId',
   '#mood': 'moodId',
   '#aspect': 'aspectRatio',
+  '#voice-language': 'voiceLanguage',
 };
 
 // Đưa dữ liệu dự án lên form (gọi lại được nhiều lần, ví dụ khi mở file .json).
@@ -104,6 +82,7 @@ function syncForm() {
   renderTemplates();
   fillOptions($('#style'), STYLES, project.styleId);
   fillOptions($('#mood'), MOODS, project.moodId);
+  fillOptions($('#voice-language'), VOICE_LANGUAGES, project.voiceLanguage);
   for (const [sel, key] of Object.entries(FIELDS)) $(sel).value = project[key];
   $('#scene-count').value = project.scenes.length || findById(TEMPLATES, project.templateId).beats.length;
 }
@@ -112,15 +91,14 @@ function bindForm() {
   for (const [sel, key] of Object.entries(FIELDS)) {
     $(sel).addEventListener('input', (e) => { project[key] = e.target.value; save(); });
   }
-  $('#api-key').value = storage.get(KEY_STORAGE) || '';
-  $('#model').value = storage.get(MODEL_STORAGE) || '';
-  $('#api-key').addEventListener('input', (e) => storage.set(KEY_STORAGE, e.target.value.trim()));
-  $('#model').addEventListener('input', (e) => storage.set(MODEL_STORAGE, e.target.value.trim()));
+  bindApiKeyInputs();
+  $('#model').value = storage.get(STORAGE_KEYS.model) || '';
+  $('#model').addEventListener('input', (e) => storage.set(STORAGE_KEYS.model, e.target.value.trim()));
 }
 
 function sceneCount() {
   const n = parseInt($('#scene-count').value, 10);
-  return Number.isFinite(n) ? Math.max(1, Math.min(12, n)) : 5;
+  return Number.isFinite(n) ? Math.max(1, Math.min(MAX_SCENES, n)) : 6;
 }
 
 function requireIdea() {
@@ -144,7 +122,7 @@ $('#btn-template').addEventListener('click', () => {
 
 $('#btn-ai').addEventListener('click', async () => {
   if (!requireIdea()) return;
-  const apiKey = $('#api-key').value.trim();
+  const apiKey = getApiKey();
   if (!apiKey) {
     $('#ai-box').open = true;
     setStatus('Hãy nhập Gemini API key (miễn phí) để dùng AI.', true);
@@ -162,6 +140,7 @@ $('#btn-ai').addEventListener('click', async () => {
       model: $('#model').value.trim() || DEFAULT_MODEL,
       project,
       sceneCount: sceneCount(),
+      templateName: findById(TEMPLATES, project.templateId).name,
     });
     project.scenes = result.scenes;
     if (!project.title.trim()) project.title = result.title;
@@ -182,7 +161,8 @@ $('#btn-ai').addEventListener('click', async () => {
 const SCENE_FIELDS = [
   { key: 'camera', label: 'Góc máy', placeholder: 'VD: Close-up, slow push-in' },
   { key: 'action', label: 'Hành động / nội dung cảnh', placeholder: 'Mô tả điều xảy ra trong cảnh', rows: 3 },
-  { key: 'dialogue', label: 'Lời thoại (không bắt buộc)', placeholder: 'VD: Chào buổi sáng!' },
+  { key: 'voiceType', label: 'Loại giọng', options: VOICE_TYPES },
+  { key: 'dialogue', label: 'Lời thoại / lời hát (tiếng Việt có dấu)', placeholder: 'VD: Chào buổi sáng!' },
   { key: 'sound', label: 'Âm thanh (không bắt buộc)', placeholder: 'VD: birds chirping, coffee pouring' },
 ];
 
@@ -203,7 +183,9 @@ function renderScenes() {
       <div class="grid">
         ${SCENE_FIELDS.map((f) => `
           <label class="${f.rows ? 'full' : ''}">${f.label}
-            ${f.rows
+            ${f.options
+              ? `<select data-key="${f.key}">${f.options.map((o) => `<option value="${o.id}" ${o.id === (scene[f.key] || 'dialogue') ? 'selected' : ''}>${o.name}</option>`).join('')}</select>`
+              : f.rows
               ? `<textarea data-key="${f.key}" rows="${f.rows}" placeholder="${escapeHtml(f.placeholder)}">${escapeHtml(scene[f.key])}</textarea>`
               : `<input data-key="${f.key}" value="${escapeHtml(scene[f.key])}" placeholder="${escapeHtml(f.placeholder)}">`}
           </label>`).join('')}
@@ -237,7 +219,7 @@ $('#scene-list').addEventListener('click', (e) => {
 });
 
 $('#btn-add-scene').addEventListener('click', () => {
-  project.scenes.push({ title: `Cảnh ${project.scenes.length + 1}`, goal: '', camera: 'Medium shot', action: '', dialogue: '', sound: '' });
+  project.scenes.push({ title: `Cảnh ${project.scenes.length + 1}`, goal: '', camera: 'Medium shot', action: '', voiceType: 'dialogue', dialogue: '', sound: '' });
   save();
   renderScenes();
 });
@@ -278,17 +260,8 @@ $('#prompt-list').addEventListener('click', (e) => {
 
 $('#btn-copy-all').addEventListener('click', () => copy(exportText(project)));
 
-function download(filename, content, type) {
-  const url = URL.createObjectURL(new Blob([content], { type }));
-  const a = Object.assign(document.createElement('a'), { href: url, download: filename });
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 function fileBase() {
-  const slug = (project.title || 'video').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd')
-    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  return slug || 'video';
+  return slugify(project.title);
 }
 
 $('#btn-export-txt').addEventListener('click', () => download(`${fileBase()}.txt`, exportText(project), 'text/plain;charset=utf-8'));
@@ -309,6 +282,16 @@ $('#import-json').addEventListener('change', async (e) => {
     toast('File không hợp lệ');
   }
   e.target.value = '';
+});
+
+const dubbing = initDubbing({ getVoiceLanguage: () => project.voiceLanguage });
+
+$('#btn-voice-script').addEventListener('click', () => {
+  if (!dubbing.loadFromProject(project)) {
+    toast('Chưa có lời thoại/thuyết minh nào trong kịch bản (lời hát không đọc được)');
+    return;
+  }
+  goTo('dub');
 });
 
 bindForm();

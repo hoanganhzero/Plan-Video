@@ -157,7 +157,7 @@ button:disabled { opacity: .6; cursor: wait; }
   font-size: .85rem;
   font-weight: 600;
 }
-.prompt-text {
+.prompt-text, .code-block {
   margin: 10px 0 0;
   white-space: pre-wrap;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -183,3 +183,30 @@ button:disabled { opacity: .6; cursor: wait; }
   pointer-events: none;
 }
 .toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ---------- Lồng tiếng ---------- */
+#dub-video {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  margin-top: 12px;
+  background: #000;
+  border-radius: var(--radius);
+}
+#dub-video[hidden] { display: none; }
+.segment {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-top: 10px;
+}
+.segment-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.segment-head input[type=number] { width: 80px; padding: 6px 8px; }
+.segment-head .speaker { width: auto; flex: 1; min-width: 120px; padding: 6px 8px; }
+.segment-actions { display: flex; gap: 6px; align-items: center; margin-left: auto; }
+label.inline { flex-direction: row; align-items: center; gap: 6px; font-weight: 400; }
+.original { margin: 0 0 6px; font-size: .9rem; color: var(--muted); font-style: italic; }
+.warn { color: #d97706; font-size: .85rem; }
+.ok { color: #16a34a; font-size: .85rem; }
+input[type=range] { padding: 0; }

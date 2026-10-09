@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createProject, scenesFromTemplate, buildScenePrompt, buildAllPrompts, exportText, totalDuration } from '../js/prompt-builder.js';
-import { parseStoryboard, generateStoryboard } from '../js/gemini.js';
+import { parseStoryboard, generateStoryboard, transcribeAndTranslate, synthesizeSpeech } from '../js/gemini.js';
 import { TEMPLATES } from '../js/templates.js';
 
 test('every template produces scenes with the idea filled in', () => {
@@ -19,7 +19,7 @@ test('scene count pads or truncates the template', () => {
   const padded = scenesFromTemplate(project, 7);
   assert.equal(padded.length, 7);
   assert.equal(padded[6].title, 'Cảnh 7');
-  assert.equal(scenesFromTemplate(project, 99).length, 12);
+  assert.equal(scenesFromTemplate(project, 99).length, 30);
 });
 
 test('character description is repeated in every prompt', () => {
@@ -40,7 +40,7 @@ test('prompt contains camera, style, audio, dialogue and no-text rule', () => {
   assert.match(prompt, /^Close-up\. Tea is poured\./);
   assert.match(prompt, /Style: cinematic/);
   assert.match(prompt, /Audio: pouring water, soft piano\./);
-  assert.match(prompt, /Dialogue: "Mời 'bạn'"/);
+  assert.match(prompt, /speaks in Vietnamese with a natural Northern Vietnamese \(Hanoi\) accent.*: "Mời 'bạn'"/);
   assert.match(prompt, /No subtitles/);
 });
 
@@ -73,4 +73,70 @@ test('generateStoryboard calls Gemini with the key in a header', async () => {
   assert.match(called.url, /gemini-2\.5-flash:generateContent$/);
   assert.equal(called.init.headers['x-goog-api-key'], 'k');
   assert.ok(!called.url.includes('key='));
+});
+
+test('voice lines describe singing, narration and accent', () => {
+  const south = createProject({ voiceLanguage: 'vi-south' });
+  assert.match(buildScenePrompt(south, { camera: 'c', action: 'a', voiceType: 'sing', dialogue: 'Con cò bé bé' }),
+    /sings in Vietnamese with a natural Southern Vietnamese \(Saigon\) accent.*Lyrics: "Con cò bé bé"/);
+  assert.match(buildScenePrompt(south, { camera: 'c', action: 'a', voiceType: 'narration', dialogue: 'Ngày xửa ngày xưa' }),
+    /Voice-over narration in Vietnamese/);
+  assert.doesNotMatch(buildScenePrompt(south, { camera: 'c', action: 'a', voiceType: 'sing', dialogue: '' }), /Lyrics/);
+});
+
+test('new genre templates exist with defaults and singing scenes', () => {
+  for (const id of ['story', 'musicvideo', 'animation', 'kidsong']) {
+    const t = TEMPLATES.find((x) => x.id === id);
+    assert.ok(t, id);
+    assert.ok(t.defaults.styleId);
+  }
+  const kids = scenesFromTemplate(createProject({ templateId: 'kidsong', idea: 'con vịt' }));
+  assert.ok(kids.some((s) => s.voiceType === 'sing'));
+  assert.equal(kids.at(-1).dialogue, 'Tạm biệt các bé nhé!');
+});
+
+function okResponse(json) {
+  return { ok: true, json: async () => json, headers: new Map() };
+}
+
+test('generateStoryboard retries on 429 then succeeds', async () => {
+  let calls = 0;
+  const waits = [];
+  const fakeFetch = async () => {
+    calls++;
+    if (calls === 1) return { ok: false, status: 429, text: async () => '{"retryDelay": "7s"}' };
+    const body = { title: 'T', character: '', setting: '', scenes: [{ title: 'A', goal: '', camera: 'c', action: 'a', voiceType: 'sing', dialogue: 'la la', sound: '' }] };
+    return okResponse({ candidates: [{ content: { parts: [{ text: JSON.stringify(body) }] } }] });
+  };
+  const sb = await generateStoryboard({ apiKey: 'k', project: createProject({ idea: 'x' }), sceneCount: 1, fetchImpl: fakeFetch, sleep: async (ms) => waits.push(ms) });
+  assert.equal(calls, 2);
+  assert.deepEqual(waits, [7000]);
+  assert.equal(sb.scenes[0].voiceType, 'sing');
+});
+
+test('transcribeAndTranslate sends small video inline', async () => {
+  let sent;
+  const fakeFetch = async (url, init) => {
+    sent = JSON.parse(init.body);
+    return okResponse({ candidates: [{ content: { parts: [{ text: JSON.stringify({ sourceLanguage: 'Tiếng Anh', segments: [{ start: 1, end: 2, speaker: 'A', gender: 'male', original: 'Hi', vietnamese: 'Chào' }] }) }] } }] });
+  };
+  const file = new Blob([new Uint8Array([1, 2, 3])], { type: 'video/mp4' });
+  const res = await transcribeAndTranslate({ apiKey: 'k', file, fetchImpl: fakeFetch });
+  assert.equal(res.segments[0].vietnamese, 'Chào');
+  assert.equal(sent.contents[0].parts[0].inlineData.mimeType, 'video/mp4');
+  assert.equal(sent.contents[0].parts[0].inlineData.data, 'AQID');
+});
+
+test('synthesizeSpeech decodes PCM audio and asks for the accent', async () => {
+  let sent;
+  const pcm = Buffer.from(new Int16Array([0, 16384, -32768]).buffer).toString('base64');
+  const fakeFetch = async (url, init) => {
+    sent = JSON.parse(init.body);
+    return okResponse({ candidates: [{ content: { parts: [{ inlineData: { mimeType: 'audio/L16;codec=pcm;rate=24000', data: pcm } }] } }] });
+  };
+  const out = await synthesizeSpeech({ apiKey: 'k', text: 'Xin chào', voice: 'Puck', voiceLanguage: 'vi-central', fetchImpl: fakeFetch });
+  assert.equal(out.sampleRate, 24000);
+  assert.deepEqual([...out.samples], [0, 0.5, -1]);
+  assert.equal(sent.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName, 'Puck');
+  assert.match(sent.contents[0].parts[0].text, /Central Vietnamese \(Hue\)[\s\S]*Xin chào$/);
 });
