@@ -13,6 +13,7 @@ export const TEMPLATES = [
     icon: '🎬',
     description: 'Phim có mở đầu, biến cố, xung đột, cao trào và kết thúc.',
     defaults: { styleId: 'cinematic', moodId: 'mystery' },
+    ideas: ['Chú mèo con đi lạc tìm đường về nhà giữa phố cổ Hà Nội', 'Cô gái tìm lại lá thư người bà để lại trong căn nhà cũ', 'Cậu bé đánh giày và chiếc đồng hồ thần kỳ', 'Hai người lạ trú mưa chung dưới mái hiên Sài Gòn'],
     beats: [
       { title: 'Mở cảnh', goal: 'Toàn cảnh giới thiệu thế giới của phim.', camera: 'Establishing wide shot, slow crane down', action: 'The world of the story is revealed. Story: {idea}' },
       { title: 'Giới thiệu nhân vật', goal: 'Cận mặt nhân vật chính, cho thấy tính cách.', camera: 'Medium close-up, shallow depth of field', action: 'Introduce the main character in their everyday life. Story: {idea}', voiceType: 'narration' },
@@ -28,6 +29,7 @@ export const TEMPLATES = [
     icon: '🎤',
     description: 'MV: ca sĩ hát xen cảnh kể chuyện theo bài hát.',
     defaults: { styleId: 'cinematic', moodId: 'epic' },
+    ideas: ['Bài hát về mùa thu Hà Nội và mối tình đầu', 'Bài hát về mẹ và quê nhà miền Tây', 'Bài hát sôi động về tuổi trẻ và những chuyến đi', 'Bản tình ca buồn dưới mưa Sài Gòn'],
     beats: [
       { title: 'Intro', goal: 'Không khí mở đầu, chưa hát.', camera: 'Aerial drone shot, slowly descending', action: 'An atmospheric opening that sets the feeling of a song about {idea}' },
       { title: 'Verse 1 – Hát', goal: 'Ca sĩ hát câu đầu, cận mặt.', camera: 'Close-up on the singer, slow dolly in', action: 'The main character sings softly and emotionally, a song about {idea}', voiceType: 'sing' },
@@ -44,6 +46,7 @@ export const TEMPLATES = [
     icon: '🧸',
     description: 'Hoạt hình 3D/anime: thế giới, nhân vật, cuộc phiêu lưu.',
     defaults: { styleId: 'pixar', moodId: 'fun' },
+    ideas: ['Chú voi con nhút nhát học cách kết bạn trong rừng', 'Robot nhỏ đi tìm hạt giống cuối cùng trên Trái Đất', 'Cuộc phiêu lưu của hạt gạo từ cánh đồng đến bát cơm', 'Bé rùa chạy thi với các bạn trong khu vườn'],
     beats: [
       { title: 'Thế giới', goal: 'Toàn cảnh thế giới hoạt hình đầy màu sắc.', camera: 'Sweeping wide establishing shot', action: 'A colorful animated world. Story: {idea}' },
       { title: 'Nhân vật chính', goal: 'Nhân vật xuất hiện dễ thương, chào khán giả.', camera: 'Medium shot, eye level', action: 'The main character appears and waves happily. Story: {idea}', voiceType: 'dialogue', dialogue: 'Xin chào các bạn!' },
@@ -59,6 +62,7 @@ export const TEMPLATES = [
     icon: '🎵',
     description: 'Bài hát cho bé: con vật dễ thương, lời đơn giản, vui tươi.',
     defaults: { styleId: 'kids', moodId: 'fun' },
+    ideas: ['Một con vịt xoè ra hai cái cánh', 'Bé học đếm từ 1 đến 10 cùng các con vật', 'Bé đánh răng mỗi sáng thật vui', 'Các bạn trái cây nhảy múa trong vườn'],
     beats: [
       { title: 'Mở đầu', goal: 'Các con vật nhảy múa chào bé.', camera: 'Wide shot, bouncy camera', action: 'Cute cartoon characters dance happily to introduce a kids song about {idea}' },
       { title: 'Đoạn 1', goal: 'Nhân vật hát câu đầu tiên.', camera: 'Medium shot, facing camera', action: 'The main character sings cheerfully while doing simple hand movements, a kids song about {idea}', voiceType: 'sing' },
@@ -73,6 +77,7 @@ export const TEMPLATES = [
     icon: '🛍️',
     description: 'Giới thiệu sản phẩm: thu hút → vấn đề → giải pháp → kêu gọi mua.',
     defaults: { styleId: 'commercial', moodId: 'warm' },
+    ideas: ['Ly cà phê muối Huế thơm ngon cho dân văn phòng', 'Đôi giày chạy bộ siêu nhẹ cho người mới tập', 'Son môi màu đỏ cam rạng rỡ mùa hè', 'Bình giữ nhiệt giữ đá lạnh suốt 24 giờ'],
     beats: [
       { title: 'Mở đầu gây chú ý', goal: 'Cận cảnh sản phẩm thật đẹp, gây tò mò trong 2 giây đầu.', camera: 'Extreme close-up, slow push-in', action: 'A dramatic reveal of {idea}, light glinting across its surface' },
       { title: 'Vấn đề', goal: 'Cho thấy khó khăn mà khách hàng đang gặp.', camera: 'Medium shot, handheld', action: 'The main character looks frustrated by an everyday problem that {idea} solves' },
@@ -87,6 +92,7 @@ export const TEMPLATES = [
     icon: '✈️',
     description: 'Khám phá một địa điểm: toàn cảnh → đến nơi → trải nghiệm → hoàng hôn.',
     defaults: { styleId: 'realistic', moodId: 'warm' },
+    ideas: ['Phố cổ Hội An lung linh đèn lồng', 'Ruộng bậc thang Mù Cang Chải mùa lúa chín', 'Vịnh Hạ Long trên du thuyền', 'Chợ nổi Cái Răng lúc bình minh'],
     beats: [
       { title: 'Toàn cảnh', goal: 'Cảnh flycam nhìn từ trên cao xuống địa điểm.', camera: 'Aerial drone shot, slowly flying forward', action: 'A breathtaking aerial view of {idea}' },
       { title: 'Đến nơi', goal: 'Nhân vật đến nơi, ngắm nhìn xung quanh.', camera: 'Tracking shot following from behind', action: 'The main character arrives at {idea}, looking around in awe' },
@@ -101,6 +107,7 @@ export const TEMPLATES = [
     icon: '🍜',
     description: 'Quảng bá món ăn hoặc quán: nguyên liệu → chế biến → thưởng thức.',
     defaults: { styleId: 'cinematic', moodId: 'warm' },
+    ideas: ['Phở bò Hà Nội nước dùng ninh 12 tiếng', 'Bánh mì Sài Gòn giòn rụm', 'Bún bò Huế cay nồng', 'Bánh xèo miền Tây vàng giòn'],
     beats: [
       { title: 'Mặt tiền quán', goal: 'Không khí quán ăn mời gọi.', camera: 'Wide shot, slow dolly in', action: 'A cozy, inviting restaurant serving {idea}, warm lights, people chatting' },
       { title: 'Nguyên liệu', goal: 'Nguyên liệu tươi ngon.', camera: 'Overhead top-down shot', action: 'Fresh ingredients for {idea} arranged beautifully on a wooden table' },
@@ -115,6 +122,7 @@ export const TEMPLATES = [
     icon: '🎓',
     description: 'Giải thích một khái niệm đơn giản bằng hình ảnh trực quan.',
     defaults: { styleId: 'pixar', moodId: 'fun' },
+    ideas: ['Vì sao bầu trời có màu xanh?', 'Cây xanh tạo ra không khí như thế nào?', 'Vì sao cần ngủ đủ giấc?', 'Tiết kiệm tiền đơn giản cho người mới đi làm'],
     beats: [
       { title: 'Câu hỏi', goal: 'Đặt câu hỏi gây tò mò.', camera: 'Medium shot, facing camera', action: 'The main character asks the audience a curious question about {idea}', voiceType: 'dialogue' },
       { title: 'Minh hoạ 1', goal: 'Hình ảnh minh hoạ ý chính đầu tiên.', camera: 'Slow zoom in', action: 'A clear visual metaphor showing the first key idea of {idea}', voiceType: 'narration' },
@@ -127,6 +135,7 @@ export const TEMPLATES = [
     name: 'Tự do',
     icon: '✏️',
     description: 'Tự viết từng cảnh theo ý bạn.',
+    ideas: ['Một ngày của tôi ở thành phố', 'Khoảnh khắc đẹp nhất mùa hè'],
     beats: [
       { title: 'Cảnh 1', goal: 'Tự mô tả cảnh này.', camera: 'Wide shot', action: '{idea}' },
       { title: 'Cảnh 2', goal: 'Tự mô tả cảnh này.', camera: 'Medium shot', action: '' },

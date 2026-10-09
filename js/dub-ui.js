@@ -3,7 +3,7 @@
 import { VOICE_LANGUAGES } from './templates.js';
 import { VOICES, normalizeSegments, assignVoices, segmentsFromProject, toSrt, layoutClips, encodeWav, ffmpegCommand } from './dubbing.js';
 import { transcribeAndTranslate, synthesizeSpeech, DEFAULT_MODEL, DEFAULT_TTS_MODEL } from './gemini.js';
-import { $, storage, STORAGE_KEYS, escapeHtml, toast, setStatus, fillOptions, download, slugify, getApiKey } from './ui-utils.js';
+import { $, storage, STORAGE_KEYS, escapeHtml, toast, setStatus, fillOptions, download, slugify, getApiKey, pickRecorderType, recorderExtension } from './ui-utils.js';
 
 const DUB_STORAGE = 'plan-video:dub';
 const MIX_RATE = 48000;
@@ -372,12 +372,6 @@ export function initDubbing({ getVoiceLanguage }) {
     download(`${baseName()}-vi.srt`, toSrt(state.segments), 'application/x-subrip;charset=utf-8');
   });
 
-  function pickRecorderType() {
-    // Chỉ dùng MP4 khi có H.264 (xem được trên mọi điện thoại), nếu không thì WebM.
-    const types = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
-    return types.find((t) => window.MediaRecorder?.isTypeSupported(t)) || '';
-  }
-
   // Phát video (tắt tiếng) cùng giọng lồng tiếng và ghi lại thành file mới, ngay trong trình duyệt.
   $('#btn-export-video').addEventListener('click', () => runBusy($('#btn-export-video'), async () => {
     stopPreview();
@@ -421,7 +415,7 @@ export function initDubbing({ getVoiceLanguage }) {
     ctx.close();
     video.muted = false;
 
-    const ext = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
+    const ext = recorderExtension(mimeType);
     download(`${baseName()}-long-tieng-viet.${ext}`, new Blob(chunks, { type: mimeType.split(';')[0] }));
     status(`Đã xuất video lồng tiếng (.${ext}).`);
   }));

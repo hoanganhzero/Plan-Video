@@ -141,6 +141,52 @@ export function parseStoryboard(text) {
 }
 
 // ---------------------------------------------------------------------------
+// 1b. Nội dung đăng mạng xã hội
+// ---------------------------------------------------------------------------
+
+const SOCIAL_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    youtubeTitle: { type: 'STRING', description: 'Catchy Vietnamese YouTube title, max 90 characters' },
+    youtubeDescription: { type: 'STRING', description: 'Vietnamese YouTube description, 3-6 short lines, ends with hashtags' },
+    tiktokCaption: { type: 'STRING', description: 'Short Vietnamese TikTok caption with emoji and 3-5 hashtags, max 150 characters' },
+    hashtags: { type: 'ARRAY', items: { type: 'STRING' }, description: '6-10 hashtags starting with #, Vietnamese without diacritics plus a few English' },
+  },
+  required: ['youtubeTitle', 'youtubeDescription', 'tiktokCaption', 'hashtags'],
+};
+
+export async function generateSocialPost({ apiKey, model = DEFAULT_MODEL, project, templateName = '', fetchImpl, sleep }) {
+  if (!apiKey) throw new Error('Bạn chưa nhập Gemini API key.');
+  const summary = [
+    `Video type: ${templateName || project.templateId}`,
+    `Title: ${project.title}`,
+    `Idea: ${project.idea}`,
+    'Scenes:',
+    ...project.scenes.map((s, i) => `${i + 1}. ${s.title}: ${s.action}${s.dialogue ? ` | "${s.dialogue}"` : ''}`),
+  ].join('\n');
+  const data = await request(`${API_BASE}/${encodeURIComponent(model)}:generateContent`, {
+    apiKey,
+    fetchImpl,
+    sleep,
+    body: {
+      systemInstruction: { parts: [{ text: 'You write engaging, honest Vietnamese social media posts for short AI-made videos (YouTube, TikTok, Facebook). Use natural Vietnamese with correct diacritics. No clickbait lies. For kids content keep it parent-friendly. Return ONLY JSON matching the schema.' }] },
+      contents: [{ role: 'user', parts: [{ text: summary }] }],
+      generationConfig: { responseMimeType: 'application/json', responseSchema: SOCIAL_SCHEMA, temperature: 0.8 },
+    },
+  });
+  const json = parseJson(responseText(data));
+  const hashtags = (Array.isArray(json.hashtags) ? json.hashtags : [])
+    .map((t) => String(t).trim().replace(/^#*/, '#').replace(/\s+/g, ''))
+    .filter((t) => t.length > 1);
+  return {
+    youtubeTitle: json.youtubeTitle || '',
+    youtubeDescription: json.youtubeDescription || '',
+    tiktokCaption: json.tiktokCaption || '',
+    hashtags,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // 2. Nhận dạng lời nói trong video + dịch sang tiếng Việt
 // ---------------------------------------------------------------------------
 

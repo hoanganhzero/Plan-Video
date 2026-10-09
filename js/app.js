@@ -1,21 +1,25 @@
 import { TEMPLATES, STYLES, MOODS, VOICE_LANGUAGES, VOICE_TYPES, findById } from './templates.js';
-import { createProject, scenesFromTemplate, buildAllPrompts, totalDuration, exportText, MAX_SCENES } from './prompt-builder.js';
-import { generateStoryboard, DEFAULT_MODEL } from './gemini.js';
-import { $, storage, STORAGE_KEYS, escapeHtml, toast, setStatus as setStatusEl, fillOptions, download, slugify, bindApiKeyInputs, getApiKey } from './ui-utils.js';
+import {
+  createProject, scenesFromTemplate, buildAllPrompts, totalDuration, exportText, MAX_SCENES,
+  buildCharacterSheetPrompt, buildFramePrompt, progress,
+} from './prompt-builder.js';
+import { createLibrary } from './projects.js';
+import { socialFallback } from './social.js';
+import { generateStoryboard, generateSocialPost, DEFAULT_MODEL } from './gemini.js';
+import {
+  $, storage, STORAGE_KEYS, escapeHtml, toast, setStatus as setStatusEl, fillOptions, download, slugify,
+  bindApiKeyInputs, getApiKey, copyText,
+} from './ui-utils.js';
 import { initDubbing } from './dub-ui.js';
+import { initMontage } from './montage-ui.js';
 
-let project = loadProject();
-
-function loadProject() {
-  try {
-    const saved = JSON.parse(storage.get(STORAGE_KEYS.project));
-    if (saved && typeof saved === 'object') return createProject(saved);
-  } catch { /* bỏ qua dữ liệu hỏng */ }
-  return createProject();
-}
+const library = createLibrary(storage);
+let project = library.openCurrent();
+library.setCurrent(project.id);
 
 function save() {
-  storage.set(STORAGE_KEYS.project, JSON.stringify(project));
+  library.save(project);
+  $('#current-project-name').textContent = project.title || 'Video không tên';
 }
 
 function setStatus(message, isError = false) {
@@ -23,11 +27,19 @@ function setStatus(message, isError = false) {
 }
 
 // ---------- Điều hướng ----------
+const NAMED_STEPS = ['guide', 'dub', 'edit', 'projects'];
+
 function goTo(step) {
   document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('active', p.id === `step-${step}`));
-  document.querySelectorAll('.step').forEach((b) => b.classList.toggle('active', b.dataset.step === String(step)));
+  document.querySelectorAll('.step').forEach((b) => {
+    const active = b.dataset.step === String(step);
+    b.classList.toggle('active', active);
+    if (active) b.scrollIntoView({ block: 'nearest', inline: 'center' });
+  });
   if (step === 2) renderScenes();
   if (step === 3) renderPrompts();
+  if (step === 'projects') renderProjects();
+  if (step === 'edit') montage.refresh();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -38,7 +50,7 @@ document.querySelectorAll('.step').forEach((btn) => {
       toast('Hãy tạo kịch bản ở bước 1 trước nhé');
       return;
     }
-    goTo(['guide', 'dub'].includes(step) ? step : Number(step));
+    goTo(NAMED_STEPS.includes(step) ? step : Number(step));
   });
 });
 
@@ -50,7 +62,23 @@ function renderTemplates() {
       <span class="name">${escapeHtml(t.name)}</span>
       <span class="desc">${escapeHtml(t.description)}</span>
     </button>`).join('');
+  renderIdeas();
 }
+
+function renderIdeas() {
+  const ideas = findById(TEMPLATES, project.templateId).ideas || [];
+  $('#idea-suggestions').innerHTML = ideas.length
+    ? `<span class="muted">💡 Gợi ý:</span> ${ideas.map((idea) => `<button type="button" class="chip" data-idea="${escapeHtml(idea)}">${escapeHtml(idea)}</button>`).join('')}`
+    : '';
+}
+
+$('#idea-suggestions').addEventListener('click', (e) => {
+  const idea = e.target.dataset.idea;
+  if (!idea) return;
+  project.idea = idea;
+  $('#idea').value = idea;
+  save();
+});
 
 $('#template-list').addEventListener('click', (e) => {
   const card = e.target.closest('.card');
@@ -77,7 +105,7 @@ const FIELDS = {
   '#voice-language': 'voiceLanguage',
 };
 
-// Đưa dữ liệu dự án lên form (gọi lại được nhiều lần, ví dụ khi mở file .json).
+// Đưa dữ liệu dự án lên form (gọi lại khi đổi dự án hoặc mở file .json).
 function syncForm() {
   renderTemplates();
   fillOptions($('#style'), STYLES, project.styleId);
@@ -85,6 +113,9 @@ function syncForm() {
   fillOptions($('#voice-language'), VOICE_LANGUAGES, project.voiceLanguage);
   for (const [sel, key] of Object.entries(FIELDS)) $(sel).value = project[key];
   $('#scene-count').value = project.scenes.length || findById(TEMPLATES, project.templateId).beats.length;
+  $('#current-project-name').textContent = project.title || 'Video không tên';
+  $('#social-output').innerHTML = '';
+  setStatus('');
 }
 
 function bindForm() {
@@ -103,7 +134,7 @@ function sceneCount() {
 
 function requireIdea() {
   if (project.idea.trim()) return true;
-  setStatus('Hãy viết ý tưởng video trước nhé.', true);
+  setStatus('Hãy viết ý tưởng video trước nhé (hoặc bấm một gợi ý).', true);
   $('#idea').focus();
   return false;
 }
@@ -120,15 +151,18 @@ $('#btn-template').addEventListener('click', () => {
   goTo(2);
 });
 
+function requireKeyFor(statusFn, focusBox) {
+  const apiKey = getApiKey();
+  if (apiKey) return apiKey;
+  if (focusBox) focusBox.open = true;
+  statusFn('Hãy nhập Gemini API key (miễn phí) ở bước 1 để dùng AI.', true);
+  return '';
+}
+
 $('#btn-ai').addEventListener('click', async () => {
   if (!requireIdea()) return;
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    $('#ai-box').open = true;
-    setStatus('Hãy nhập Gemini API key (miễn phí) để dùng AI.', true);
-    $('#api-key').focus();
-    return;
-  }
+  const apiKey = requireKeyFor(setStatus, $('#ai-box'));
+  if (!apiKey) return $('#api-key').focus();
   if (!confirmOverwrite()) return;
 
   const btn = $('#btn-ai');
@@ -142,7 +176,7 @@ $('#btn-ai').addEventListener('click', async () => {
       sceneCount: sceneCount(),
       templateName: findById(TEMPLATES, project.templateId).name,
     });
-    project.scenes = result.scenes;
+    project.scenes = result.scenes.map((s) => ({ ...s, done: false }));
     if (!project.title.trim()) project.title = result.title;
     if (!project.character.trim()) project.character = result.character;
     if (!project.setting.trim()) project.setting = result.setting;
@@ -176,6 +210,7 @@ function renderScenes() {
         <span>
           <button class="icon-btn" data-act="up" title="Lên" ${i === 0 ? 'disabled' : ''}>↑</button>
           <button class="icon-btn" data-act="down" title="Xuống" ${i === project.scenes.length - 1 ? 'disabled' : ''}>↓</button>
+          <button class="icon-btn" data-act="copy" title="Nhân đôi cảnh">⧉</button>
           <button class="icon-btn" data-act="delete" title="Xoá">🗑</button>
         </span>
       </div>
@@ -209,7 +244,11 @@ $('#scene-list').addEventListener('click', (e) => {
   const scenes = project.scenes;
   if (act === 'delete') {
     if (scenes.length === 1) return toast('Cần ít nhất 1 cảnh');
+    if (!confirm(`Xoá cảnh ${i + 1}?`)) return;
     scenes.splice(i, 1);
+  } else if (act === 'copy') {
+    if (scenes.length >= MAX_SCENES) return toast(`Tối đa ${MAX_SCENES} cảnh`);
+    scenes.splice(i + 1, 0, { ...scenes[i], title: `${scenes[i].title} (2)`, done: false });
   } else {
     const j = act === 'up' ? i - 1 : i + 1;
     [scenes[i], scenes[j]] = [scenes[j], scenes[i]];
@@ -219,7 +258,8 @@ $('#scene-list').addEventListener('click', (e) => {
 });
 
 $('#btn-add-scene').addEventListener('click', () => {
-  project.scenes.push({ title: `Cảnh ${project.scenes.length + 1}`, goal: '', camera: 'Medium shot', action: '', voiceType: 'dialogue', dialogue: '', sound: '' });
+  if (project.scenes.length >= MAX_SCENES) return toast(`Tối đa ${MAX_SCENES} cảnh`);
+  project.scenes.push({ title: `Cảnh ${project.scenes.length + 1}`, goal: '', camera: 'Medium shot', action: '', voiceType: 'dialogue', dialogue: '', sound: '', done: false });
   save();
   renderScenes();
 });
@@ -227,38 +267,71 @@ $('#btn-add-scene').addEventListener('click', () => {
 $('#btn-to-prompts').addEventListener('click', () => goTo(3));
 
 // ---------- Bước 3: prompt cho Flow ----------
+function renderProgress() {
+  const p = progress(project);
+  $('#progress-text').textContent = `${p.done}/${p.total} cảnh${p.total && p.done === p.total ? ' 🎉' : ''}`;
+  $('#progress-bar').style.width = `${p.percent}%`;
+}
+
 function renderPrompts() {
   $('#aspect-hint').textContent = project.aspectRatio;
-  $('#prompt-list').innerHTML = buildAllPrompts(project).map((p) => `
-    <div class="prompt-card">
+  renderProgress();
+
+  const sheet = buildCharacterSheetPrompt(project);
+  $('#character-card').innerHTML = sheet
+    ? `<div class="prompt-card highlight">
+        <div class="prompt-head">
+          <span>🧍 <strong>Ảnh nhân vật tham chiếu</strong> <span class="muted small">– tạo 1 lần, dùng cho mọi cảnh (Ingredients to Video)</span></span>
+          <button class="secondary" data-copy-sheet>📋 Sao chép</button>
+        </div>
+        <pre class="prompt-text">${escapeHtml(sheet)}</pre>
+      </div>`
+    : '<p class="muted small">💡 Thêm “Mô tả nhân vật chính” ở bước 1 để có prompt ảnh nhân vật tham chiếu, giúp nhân vật giống nhau ở mọi cảnh.</p>';
+
+  $('#prompt-list').innerHTML = buildAllPrompts(project).map((p, i) => {
+    const scene = project.scenes[i];
+    return `
+    <div class="prompt-card ${scene.done ? 'done' : ''}" data-index="${i}">
       <div class="prompt-head">
         <span><span class="badge">Cảnh ${p.index}</span> <strong>${escapeHtml(p.title)}</strong></span>
-        <button class="secondary" data-copy="${p.index - 1}">📋 Sao chép</button>
+        <span class="prompt-actions">
+          <label class="check"><input type="checkbox" data-done ${scene.done ? 'checked' : ''}> Đã tạo xong</label>
+          <button class="secondary" data-copy>📋 Sao chép</button>
+        </span>
       </div>
       <pre class="prompt-text">${escapeHtml(p.prompt)}</pre>
-    </div>`).join('');
+      <details class="frame">
+        <summary>🖼️ Prompt ảnh khung đầu (Frames to Video)</summary>
+        <pre class="prompt-text">${escapeHtml(buildFramePrompt(project, scene))}</pre>
+        <button class="secondary small-btn" data-copy-frame>📋 Sao chép prompt ảnh</button>
+      </details>
+    </div>`;
+  }).join('');
 }
 
-async function copy(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-  } catch {
-    const area = Object.assign(document.createElement('textarea'), { value: text });
-    document.body.append(area);
-    area.select();
-    document.execCommand('copy');
-    area.remove();
-  }
-  toast('Đã sao chép! Dán vào Google Flow nhé');
-}
-
-$('#prompt-list').addEventListener('click', (e) => {
-  const idx = e.target.dataset.copy;
-  if (idx === undefined) return;
-  copy(buildAllPrompts(project)[Number(idx)].prompt);
+$('#character-card').addEventListener('click', (e) => {
+  if (e.target.closest('[data-copy-sheet]')) copyText(buildCharacterSheetPrompt(project), 'Đã sao chép! Tạo ảnh trong Flow hoặc Gemini nhé');
 });
 
-$('#btn-copy-all').addEventListener('click', () => copy(exportText(project)));
+$('#prompt-list').addEventListener('click', (e) => {
+  const card = e.target.closest('.prompt-card');
+  if (!card) return;
+  const i = Number(card.dataset.index);
+  if (e.target.closest('[data-copy]')) copyText(buildAllPrompts(project)[i].prompt, 'Đã sao chép! Dán vào Google Flow nhé');
+  if (e.target.closest('[data-copy-frame]')) copyText(buildFramePrompt(project, project.scenes[i]), 'Đã sao chép prompt ảnh!');
+});
+
+$('#prompt-list').addEventListener('change', (e) => {
+  if (!e.target.matches('[data-done]')) return;
+  const card = e.target.closest('.prompt-card');
+  project.scenes[Number(card.dataset.index)].done = e.target.checked;
+  card.classList.toggle('done', e.target.checked);
+  save();
+  renderProgress();
+  if (progress(project).percent === 100) toast('Xong tất cả cảnh! Sang tab “4. Ghép phim” nhé 🎉');
+});
+
+$('#btn-copy-all').addEventListener('click', () => copyText(exportText(project), 'Đã sao chép tất cả prompt!'));
 
 function fileBase() {
   return slugify(project.title);
@@ -267,24 +340,140 @@ function fileBase() {
 $('#btn-export-txt').addEventListener('click', () => download(`${fileBase()}.txt`, exportText(project), 'text/plain;charset=utf-8'));
 $('#btn-export-json').addEventListener('click', () => download(`${fileBase()}.json`, JSON.stringify(project, null, 2), 'application/json'));
 
-$('#import-json').addEventListener('change', async (e) => {
+// ---------- Đăng mạng xã hội ----------
+const SOCIAL_FIELDS = [
+  { key: 'youtubeTitle', label: 'Tiêu đề YouTube' },
+  { key: 'youtubeDescription', label: 'Mô tả YouTube / Facebook', rows: 6 },
+  { key: 'tiktokCaption', label: 'Chú thích TikTok / Reels', rows: 2 },
+  { key: 'hashtags', label: 'Hashtag' },
+];
+
+function renderSocial(post) {
+  const value = (key) => (key === 'hashtags' ? post.hashtags.join(' ') : post[key]);
+  $('#social-output').innerHTML = SOCIAL_FIELDS.map((f) => `
+    <div class="social-field">
+      <div class="prompt-head"><strong>${f.label}</strong><button class="secondary small-btn" data-social="${f.key}">📋 Sao chép</button></div>
+      <textarea data-social-text="${f.key}" rows="${f.rows || 1}">${escapeHtml(value(f.key))}</textarea>
+    </div>`).join('');
+}
+
+$('#social-output').addEventListener('click', (e) => {
+  const key = e.target.dataset.social;
+  if (key) copyText($(`[data-social-text="${key}"]`).value);
+});
+
+$('#btn-social').addEventListener('click', () => renderSocial(socialFallback(project)));
+
+$('#btn-social-ai').addEventListener('click', async () => {
+  const status = (msg, err) => setStatusEl($('#social-status'), msg, err);
+  const apiKey = requireKeyFor(status);
+  if (!apiKey) return;
+  const btn = $('#btn-social-ai');
+  btn.disabled = true;
+  status('AI đang viết…');
+  try {
+    renderSocial(await generateSocialPost({
+      apiKey,
+      model: $('#model').value.trim() || DEFAULT_MODEL,
+      project,
+      templateName: findById(TEMPLATES, project.templateId).name,
+    }));
+    status('');
+  } catch (err) {
+    status(err.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ---------- Dự án ----------
+function openProject(next, step = 1) {
+  project = next;
+  library.setCurrent(project.id);
+  syncForm();
+  goTo(step);
+}
+
+function newProject() {
+  const fresh = createProject();
+  library.save(fresh);
+  openProject(fresh, 1);
+  toast('Đã tạo dự án mới');
+}
+
+function renderProjects() {
+  const list = library.list();
+  $('#project-list').innerHTML = list.length ? list.map((p) => {
+    const template = findById(TEMPLATES, p.templateId);
+    const prog = progress(createProject(p));
+    const date = p.updatedAt ? new Date(p.updatedAt).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' }) : '';
+    return `
+      <div class="project-card ${p.id === project.id ? 'current' : ''}" data-id="${p.id}">
+        <div class="project-title">${template.icon} <strong>${escapeHtml(p.title || p.idea || 'Video không tên')}</strong></div>
+        <div class="muted small">${escapeHtml(template.name)} · ${p.scenes.length} cảnh · ${date}</div>
+        <div class="progress-track small"><div class="progress-fill" style="width:${prog.percent}%"></div></div>
+        <div class="muted small">${prog.done}/${prog.total} cảnh đã tạo trong Flow${p.id === project.id ? ' · <strong>đang mở</strong>' : ''}</div>
+        <div class="project-actions">
+          <button class="secondary small-btn" data-proj="open">Mở</button>
+          <button class="secondary small-btn" data-proj="duplicate">Nhân bản</button>
+          <button class="secondary small-btn danger" data-proj="delete">Xoá</button>
+        </div>
+      </div>`;
+  }).join('') : '<p class="muted">Chưa có dự án nào.</p>';
+}
+
+$('#project-list').addEventListener('click', (e) => {
+  const act = e.target.dataset.proj;
+  const card = e.target.closest('.project-card');
+  if (!act || !card) return;
+  const id = card.dataset.id;
+  if (act === 'open') {
+    openProject(library.get(id), library.get(id).scenes.length ? 3 : 1);
+  } else if (act === 'duplicate') {
+    library.duplicate(id);
+    renderProjects();
+    toast('Đã nhân bản dự án');
+  } else if (act === 'delete') {
+    const target = library.get(id);
+    if (!confirm(`Xoá vĩnh viễn dự án “${target.title || 'Video không tên'}”?`)) return;
+    library.remove(id);
+    if (id === project.id) {
+      project = library.openCurrent();
+      library.save(project);
+      library.setCurrent(project.id);
+      syncForm();
+    }
+    renderProjects();
+  }
+});
+
+$('#btn-new-project').addEventListener('click', newProject);
+$('#btn-new-project-2').addEventListener('click', newProject);
+
+async function importProject(e) {
   const file = e.target.files[0];
+  e.target.value = '';
   if (!file) return;
   try {
     const data = JSON.parse(await file.text());
     if (!Array.isArray(data.scenes)) throw new Error();
-    project = createProject(data);
-    save();
-    syncForm();
-    renderPrompts();
+    // Nếu đã có dự án cùng mã thì nhập thành bản mới để không ghi đè.
+    const imported = createProject({ ...data, id: library.get(data.id) ? undefined : data.id });
+    if (!imported.id) imported.id = createProject().id;
+    library.save(imported);
+    openProject(imported, 3);
     toast('Đã mở dự án');
   } catch {
     toast('File không hợp lệ');
   }
-  e.target.value = '';
-});
+}
 
+$('#import-json').addEventListener('change', importProject);
+$('#import-json-2').addEventListener('change', importProject);
+
+// ---------- Lồng tiếng & ghép phim ----------
 const dubbing = initDubbing({ getVoiceLanguage: () => project.voiceLanguage });
+const montage = initMontage({ getProject: () => project });
 
 $('#btn-voice-script').addEventListener('click', () => {
   if (!dubbing.loadFromProject(project)) {
@@ -294,5 +483,11 @@ $('#btn-voice-script').addEventListener('click', () => {
   goTo('dub');
 });
 
+// ---------- Cài như ứng dụng (PWA) ----------
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+
 bindForm();
 syncForm();
+save();
