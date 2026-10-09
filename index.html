@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plan Video for Flow</title>
+  <meta name="description" content="Lên kịch bản và tạo prompt video cho Google Flow, dễ cho bất kỳ ai.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">🎬 <strong>Plan Video</strong> <span class="muted">cho Google Flow</span></div>
+    <nav class="steps" aria-label="Các bước">
+      <button class="step active" data-step="1">1. Ý tưởng</button>
+      <button class="step" data-step="2">2. Kịch bản</button>
+      <button class="step" data-step="3">3. Prompt cho Flow</button>
+      <button class="step" data-step="dub">🎙️ Lồng tiếng Việt</button>
+      <button class="step" data-step="guide">❓ Hướng dẫn</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- BƯỚC 1 -->
+    <section id="step-1" class="panel active">
+      <h1>Bạn muốn làm video về điều gì?</h1>
+      <p class="muted">Phim ngắn, video ca nhạc, hoạt hình, nhạc thiếu nhi… Chỉ cần chọn loại video và viết một câu ý tưởng.</p>
+
+      <h2>Loại video</h2>
+      <div id="template-list" class="cards"></div>
+
+      <div class="grid">
+        <label class="full">Ý tưởng của bạn <span class="req">*</span>
+          <textarea id="idea" rows="3" placeholder="VD: chú mèo con đi lạc tìm đường về nhà / bài hát về mùa thu Hà Nội / ly cà phê muối Huế"></textarea>
+        </label>
+        <label>Tên video
+          <input id="title" placeholder="VD: Cà phê muối Mộc">
+        </label>
+        <label>Số cảnh (mỗi cảnh ~8 giây)
+          <input id="scene-count" type="number" min="1" max="30" value="6">
+        </label>
+        <label>Phong cách hình ảnh
+          <select id="style"></select>
+        </label>
+        <label>Cảm xúc / ánh sáng
+          <select id="mood"></select>
+        </label>
+        <label>Khung hình
+          <select id="aspect">
+            <option value="16:9">16:9 – YouTube, ngang</option>
+            <option value="9:16">9:16 – TikTok/Reels, dọc</option>
+          </select>
+        </label>
+        <label>Giọng nói / lời hát
+          <select id="voice-language"></select>
+        </label>
+        <label>Nhạc nền (không bắt buộc)
+          <input id="music" placeholder="VD: soft acoustic guitar, upbeat kids song melody">
+        </label>
+      </div>
+
+      <details class="advanced">
+        <summary>Nhân vật & bối cảnh (giúp video đồng nhất hơn)</summary>
+        <div class="grid">
+          <label class="full">Mô tả nhân vật chính
+            <textarea id="character" rows="2" placeholder="VD: a 25-year-old Vietnamese woman with shoulder-length black hair, white linen shirt, warm smile"></textarea>
+            <small class="muted">Mô tả này được lặp lại y hệt trong mọi cảnh để Flow giữ nhân vật giống nhau.</small>
+          </label>
+          <label class="full">Bối cảnh
+            <input id="setting" placeholder="VD: a small cafe in Hue old town, morning">
+          </label>
+        </div>
+      </details>
+
+      <details class="advanced" id="ai-box">
+        <summary>✨ Để AI viết kịch bản, lời thoại, lời bài hát giúp (cần Gemini API key – miễn phí)</summary>
+        <p class="muted">Lấy key tại <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. Key chỉ lưu trong trình duyệt của bạn.</p>
+        <div class="grid">
+          <label>Gemini API key
+            <input id="api-key" class="api-key" type="password" autocomplete="off" placeholder="AIza...">
+          </label>
+          <label>Model
+            <input id="model" placeholder="gemini-2.5-flash">
+          </label>
+        </div>
+      </details>
+
+      <div class="actions">
+        <button id="btn-template" class="primary">Tạo kịch bản nhanh →</button>
+        <button id="btn-ai" class="secondary">✨ Tạo bằng AI</button>
+        <span id="status" class="status" role="status"></span>
+      </div>
+    </section>
+
+    <!-- BƯỚC 2 -->
+    <section id="step-2" class="panel">
+      <h1>Kịch bản từng cảnh</h1>
+      <p class="muted">Sửa tuỳ ý. Mỗi cảnh là một clip ~8 giây trong Flow. <span id="duration"></span></p>
+      <div id="scene-list"></div>
+      <div class="actions">
+        <button id="btn-add-scene" class="secondary">+ Thêm cảnh</button>
+        <button id="btn-to-prompts" class="primary">Xem prompt cho Flow →</button>
+      </div>
+    </section>
+
+    <!-- BƯỚC 3 -->
+    <section id="step-3" class="panel">
+      <h1>Prompt sẵn sàng cho Google Flow</h1>
+      <ol class="howto">
+        <li>Mở <a href="https://labs.google/fx/tools/flow" target="_blank" rel="noopener">Google Flow</a>, tạo dự án mới, chọn khung hình <strong id="aspect-hint">16:9</strong>.</li>
+        <li>Chọn <strong>Text to Video</strong>, bấm <strong>Sao chép</strong> ở cảnh 1 rồi dán vào Flow và tạo.</li>
+        <li>Làm lần lượt từng cảnh, chọn clip đẹp nhất và <strong>Add to scene</strong> để ghép thành phim.</li>
+      </ol>
+      <div class="actions">
+        <button id="btn-copy-all" class="secondary">Sao chép tất cả</button>
+        <button id="btn-export-txt" class="secondary">Tải file .txt</button>
+        <button id="btn-export-json" class="secondary">Lưu dự án (.json)</button>
+        <label class="secondary file-btn">Mở dự án (.json)<input id="import-json" type="file" accept="application/json" hidden></label>
+        <button id="btn-voice-script" class="secondary">🎙️ Tạo giọng đọc tiếng Việt cho kịch bản</button>
+      </div>
+      <div id="prompt-list"></div>
+    </section>
+
+    <!-- LỒNG TIẾNG -->
+    <section id="step-dub" class="panel">
+      <h1>🎙️ Lồng tiếng Việt cho video</h1>
+      <p class="muted">Dịch và lồng tiếng Việt cho video có sẵn (tiếng Anh, Trung, Hàn, Nhật, Thái…), hoặc tạo giọng đọc tiếng Việt cho video bạn làm bằng Flow.</p>
+
+      <details class="advanced" id="dub-settings" open>
+        <summary>⚙️ Cài đặt AI (Gemini API key – miễn phí)</summary>
+        <p class="muted">Lấy key tại <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. Dùng chung key với bước 1.</p>
+        <div class="grid">
+          <label>Gemini API key
+            <input id="dub-api-key" class="api-key" type="password" autocomplete="off" placeholder="AIza...">
+          </label>
+          <label>Giọng vùng miền
+            <select id="dub-voice-language"></select>
+          </label>
+          <label>Model nhận dạng & dịch
+            <input id="dub-model" placeholder="gemini-2.5-flash">
+          </label>
+          <label>Model giọng đọc (TTS)
+            <input id="dub-tts-model" placeholder="gemini-2.5-flash-preview-tts">
+          </label>
+        </div>
+      </details>
+
+      <h2>Bước 1 · Chọn video</h2>
+      <div class="actions">
+        <label class="primary file-btn">📁 Chọn video (MP4, WebM, MOV)<input id="dub-file" type="file" accept="video/*" hidden></label>
+        <span id="dub-file-name" class="muted"></span>
+      </div>
+      <video id="dub-video" controls playsinline hidden></video>
+      <div class="actions">
+        <button id="btn-transcribe" class="primary">🌐 Nhận dạng & dịch sang tiếng Việt</button>
+        <button id="btn-add-segment" class="secondary">+ Tự thêm câu</button>
+        <span id="dub-status" class="status" role="status"></span>
+      </div>
+
+      <div id="dub-editor" hidden>
+        <h2>Bước 2 · Kiểm tra bản dịch & chọn giọng</h2>
+        <p class="muted">Sửa câu dịch cho tự nhiên. Câu quá dài so với thời gian sẽ bị lệch, hãy rút gọn. <span id="dub-source"></span></p>
+        <div id="dub-voices" class="grid"></div>
+        <div id="dub-segments"></div>
+
+        <h2>Bước 3 · Tạo giọng & xuất</h2>
+        <div class="grid">
+          <label>Âm lượng tiếng gốc (nhạc nền, tiếng động): <span id="dub-bg-value">15%</span>
+            <input id="dub-bg-volume" type="range" min="0" max="100" value="15">
+          </label>
+        </div>
+        <div class="actions">
+          <button id="btn-tts" class="primary">🔊 Tạo giọng lồng tiếng</button>
+          <button id="btn-preview-dub" class="secondary">▶ Nghe thử với video</button>
+        </div>
+        <div class="actions">
+          <button id="btn-export-video" class="secondary">🎞️ Xuất video lồng tiếng</button>
+          <button id="btn-export-wav" class="secondary">Tải giọng lồng tiếng (.wav)</button>
+          <button id="btn-export-srt" class="secondary">Tải phụ đề tiếng Việt (.srt)</button>
+        </div>
+        <details class="advanced">
+          <summary>Xuất MP4 chất lượng cao bằng ffmpeg</summary>
+          <p class="muted">Tải file .wav (và .srt) về cùng thư mục với video rồi chạy:</p>
+          <pre id="dub-ffmpeg" class="code-block"></pre>
+        </details>
+      </div>
+    </section>
+
+    <!-- HƯỚNG DẪN -->
+    <section id="step-guide" class="panel">
+      <h1>Hướng dẫn dùng Google Flow</h1>
+      <div class="guide">
+        <h2>Flow là gì?</h2>
+        <p>Google Flow (<a href="https://labs.google/fx/tools/flow" target="_blank" rel="noopener">labs.google/flow</a>) là công cụ làm phim bằng AI của Google, dùng mô hình Veo để tạo video kèm âm thanh từ mô tả bằng chữ. Bạn cần tài khoản Google; dùng nhiều hơn thì cần gói Google AI Pro/Ultra.</p>
+
+        <h2>3 cách tạo video trong Flow</h2>
+        <ul>
+          <li><strong>Text to Video</strong> – dán prompt, Flow tạo clip. Dễ nhất, dùng prompt từ ứng dụng này.</li>
+          <li><strong>Frames to Video</strong> – tải lên ảnh khung đầu (và khung cuối), Flow làm ảnh chuyển động. Hợp với ảnh sản phẩm thật.</li>
+          <li><strong>Ingredients to Video</strong> – tải lên ảnh nhân vật/vật thể để giữ chúng giống nhau qua nhiều cảnh.</li>
+        </ul>
+
+        <h2>Làm từng thể loại</h2>
+        <ul>
+          <li><strong>🎬 Phim ngắn</strong> – 6–15 cảnh, xen cảnh thoại và thuyết minh. Mô tả nhân vật thật chi tiết để giữ khuôn mặt giống nhau.</li>
+          <li><strong>🎤 Video ca nhạc</strong> – Flow tạo mỗi lần 8 giây nên không hát trọn bài. Cách tốt nhất: dùng bài hát có sẵn (tự thu hoặc tạo bằng công cụ làm nhạc), dùng Flow tạo cảnh hát nhép/cảnh minh hoạ, rồi ghép với bài hát trong CapCut.</li>
+          <li><strong>🧸 Phim hoạt hình</strong> – chọn phong cách Hoạt hình 3D, Anime hoặc Đất nặn và giữ nguyên phong cách cho mọi cảnh.</li>
+          <li><strong>🎵 Nhạc thiếu nhi</strong> – phong cách Hoạt hình thiếu nhi, lời ngắn, lặp lại, dễ hát. AI có thể viết lời bài hát mới cho bạn.</li>
+        </ul>
+
+        <h2>Âm thanh tiếng Việt chuẩn</h2>
+        <ul>
+          <li>Chọn <strong>giọng Bắc / Nam / Trung</strong> ở bước 1. Prompt sẽ ghi rõ cho Veo nói hoặc hát tiếng Việt với giọng đó.</li>
+          <li>Viết lời thoại <strong>có dấu đầy đủ</strong>, câu ngắn (đọc được trong khoảng 6 giây).</li>
+          <li>Veo đôi khi phát âm tiếng Việt chưa chuẩn. Muốn giọng rõ ràng nhất: tạo clip trong Flow, rồi dùng tab <strong>🎙️ Lồng tiếng Việt</strong> → <em>Tạo giọng đọc tiếng Việt cho kịch bản</em> và ghép giọng AI đọc chuẩn vào video.</li>
+        </ul>
+
+        <h2>Lồng tiếng video nước ngoài</h2>
+        <ol>
+          <li>Mở tab <strong>🎙️ Lồng tiếng Việt</strong>, nhập Gemini API key, chọn video.</li>
+          <li>Bấm <strong>Nhận dạng & dịch</strong>: AI nghe lời nói, ghi thời gian và dịch sang tiếng Việt.</li>
+          <li>Sửa lại câu dịch, chọn giọng cho từng người nói, bấm <strong>Tạo giọng lồng tiếng</strong>.</li>
+          <li>Xuất video lồng tiếng, hoặc tải giọng (.wav) và phụ đề (.srt) để ghép trong CapCut.</li>
+        </ol>
+        <p class="muted">Chỉ lồng tiếng những video bạn có quyền sử dụng. Tiếng gốc được giảm nhỏ chứ không tách riêng được giọng nói khỏi nhạc nền.</p>
+
+        <h2>Mẹo để video đẹp</h2>
+        <ul>
+          <li>Mỗi prompt chỉ nên có <strong>một cảnh quay, một hành động chính</strong> (~8 giây).</li>
+          <li>Mô tả nhân vật <strong>giống hệt nhau</strong> ở mọi cảnh (ứng dụng làm tự động).</li>
+          <li>Viết phần hình ảnh bằng tiếng Anh cho kết quả tốt nhất; lời thoại có thể bằng tiếng Việt.</li>
+          <li>Mỗi lần Flow tạo vài phiên bản, hãy chọn cái đẹp nhất. Không ưng thì bấm tạo lại.</li>
+          <li>Dùng <strong>Extend</strong> trong Scenebuilder để kéo dài một cảnh liền mạch.</li>
+          <li>Xong thì tải video về và ghép thêm chữ, nhạc bằng CapCut nếu cần.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

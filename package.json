@@ -1,0 +1,11 @@
+{
+  "name": "plan-video",
+  "version": "1.0.0",
+  "description": "Lên kịch bản và tạo prompt video cho Google Flow – dễ cho bất kỳ ai",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "npx --yes serve -l 3000 .",
+    "test": "node --test \"tests/**/*.test.js\""
+  }
+}
