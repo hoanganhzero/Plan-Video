@@ -7,11 +7,13 @@ Công cụ web giúp **bất kỳ ai** lên kịch bản và tạo prompt chuẩ
 
 Không cần cài đặt, không cần biết viết prompt, không cần biết code.
 
-## Cách dùng (3 bước)
+## Cách dùng (5 bước)
 
-1. **Ý tưởng** – Chọn loại video (phim ngắn, video ca nhạc, phim hoạt hình, nhạc thiếu nhi, quảng cáo, vlog, quán ăn, giáo dục, tự do), chọn giọng tiếng Việt và viết một câu ý tưởng.
-2. **Kịch bản** – Ứng dụng chia video thành các cảnh ~8 giây (đúng độ dài một clip của Flow). Bạn sửa, thêm, xoá, đổi thứ tự cảnh tuỳ ý.
-3. **Prompt cho Flow** – Bấm **Sao chép** từng cảnh → dán vào Flow (chế độ *Text to Video*) → tạo → chọn clip đẹp nhất → *Add to scene* để ghép thành phim.
+1. **Ý tưởng** – Chọn loại video (phim ngắn, video ca nhạc, phim hoạt hình, nhạc thiếu nhi, quảng cáo, vlog, quán ăn, giáo dục, tự do), chọn giọng tiếng Việt và viết một câu ý tưởng – hoặc bấm một **gợi ý có sẵn**.
+2. **Kịch bản** – Ứng dụng chia video thành các cảnh ~8 giây (đúng độ dài một clip của Flow). Sửa, thêm, nhân đôi, xoá, đổi thứ tự cảnh tuỳ ý.
+3. **Prompt** – Bấm **Sao chép** từng cảnh → dán vào Flow → tạo → tải clip đẹp nhất về → tick **Đã tạo xong** để theo dõi tiến độ.
+4. **Ghép phim** – Chọn tất cả clip đã tải → thêm tiêu đề, phụ đề tiếng Việt, nhạc nền, hiệu ứng chuyển cảnh → **Xuất video**.
+5. **Lồng tiếng** (tuỳ chọn) – Thêm giọng đọc tiếng Việt chuẩn, hoặc lồng tiếng Việt cho video nước ngoài.
 
 ### Điểm hay
 
@@ -20,8 +22,24 @@ Không cần cài đặt, không cần biết viết prompt, không cần biết
 - ✅ **Tiếng Việt chuẩn**: mỗi cảnh chọn *Lời thoại / Thuyết minh / Hát*; prompt ghi rõ cho Veo nói hoặc hát tiếng Việt với giọng Bắc, Trung hay Nam.
 - ✅ **Mẫu theo thể loại** tự chọn sẵn phong cách: MV (intro → verse → điệp khúc → outro), hoạt hình 3D, nhạc thiếu nhi (hoạt hình 2D an toàn cho bé)…
 - ✅ Chọn phong cách (điện ảnh, anime, hoạt hình 3D…), cảm xúc, khung hình 16:9 / 9:16.
-- ✅ **Tự lưu** trong trình duyệt; xuất/nhập dự án `.json`, xuất kịch bản `.txt`.
+- ✅ **Nhiều dự án**: tab 📁 Dự án để mở, nhân bản, xoá; mọi thứ tự lưu trong trình duyệt; xuất/nhập `.json` để chuyển máy.
+- ✅ **Ảnh tham chiếu**: prompt *bảng nhân vật* (dùng với Ingredients to Video) và *ảnh khung đầu* từng cảnh (Frames to Video) để nhân vật giống nhau xuyên suốt.
+- ✅ **Theo dõi tiến độ**: tick từng cảnh đã tạo trong Flow.
+- ✅ **Đăng mạng xã hội**: tiêu đề, mô tả YouTube, chú thích TikTok và hashtag (tạo nhanh hoặc nhờ AI viết).
+- ✅ **Cài như app** trên điện thoại (PWA), mở được cả khi mất mạng.
 - ✨ **Chế độ AI (tuỳ chọn)**: nhập [Gemini API key miễn phí](https://aistudio.google.com/apikey) để AI tự viết kịch bản, lời thoại và **lời bài hát tiếng Việt** từ ý tưởng. Key chỉ lưu trong trình duyệt của bạn và gửi thẳng tới Google.
+
+## 🎞️ Ghép phim
+
+Tab **4. Ghép phim** ghép các clip 8 giây tải từ Flow thành một video hoàn chỉnh, ngay trong trình duyệt:
+
+- Chọn nhiều clip cùng lúc (tự sắp theo tên file 01, 02, 03…), đổi thứ tự, **cắt bớt đầu/cuối** từng clip.
+- Khung hình **16:9, 9:16 hoặc 1:1** (tự cắt cho vừa, không méo hình).
+- **Tiêu đề mở đầu**, **phụ đề tiếng Việt** lấy từ lời thoại/lời hát trong kịch bản hoặc từ file `.srt`.
+- **Nhạc nền** (tự lặp, nhỏ dần ở cuối), chỉnh âm lượng nhạc và tiếng trong clip, hiệu ứng **mờ dần** khi chuyển cảnh.
+- Xem trước, xuất video (MP4 khi trình duyệt hỗ trợ H.264, nếu không thì WebM), tải phụ đề `.srt`.
+
+> Video được dựng theo thời gian thực nên mất thời gian bằng độ dài phim; hãy giữ tab mở khi xuất. Nên dùng Chrome/Edge trên máy tính.
 
 ## 🎙️ Lồng tiếng Việt
 
@@ -57,21 +75,28 @@ Bật **GitHub Pages** cho repo này (Settings → Pages → Deploy from branch 
 ## Cấu trúc
 
 ```
-index.html              Giao diện 3 bước + hướng dẫn Flow
+index.html              Giao diện các bước + hướng dẫn Flow
+manifest.webmanifest    Khai báo cài như app (PWA)
+sw.js                   Service worker: mở nhanh, dùng khi mất mạng
+icons/                  Biểu tượng ứng dụng
 css/style.css           Giao diện (hỗ trợ điện thoại & chế độ tối)
 js/templates.js         Các mẫu video, phong cách, cảm xúc
 js/prompt-builder.js    Tạo prompt chuẩn Flow/Veo từ kịch bản
 js/gemini.js            Gemini API: viết kịch bản, nhận dạng + dịch video, đọc giọng (TTS)
 js/dubbing.js           Logic lồng tiếng: phụ đề SRT, xếp lịch giọng đọc, mã hoá WAV
 js/dub-ui.js            Tab Lồng tiếng: ghép âm thanh, nghe thử, xuất video
-js/app.js               Bước 1–3: xử lý giao diện, lưu trữ, sao chép, xuất file
+js/app.js               Bước 1–3, dự án, mạng xã hội
+js/projects.js          Thư viện nhiều dự án (lưu trong trình duyệt)
+js/social.js            Tiêu đề / mô tả / hashtag khi không dùng AI
+js/montage.js           Logic ghép phim: dòng thời gian, phụ đề, chuyển cảnh
+js/montage-ui.js        Tab Ghép phim: vẽ khung hình, trộn âm thanh, xuất video
 js/ui-utils.js          Tiện ích giao diện dùng chung
 tests/                  Kiểm thử (npm test)
 ```
 
 ### Thêm mẫu video mới
 
-Mở `js/templates.js` và thêm một mục vào `TEMPLATES`, mỗi `beat` là một cảnh:
+Mở `js/templates.js` và thêm một mục vào `TEMPLATES` (kèm `ideas` là các gợi ý ý tưởng), mỗi `beat` là một cảnh:
 
 ```js
 { title: 'Tên cảnh', goal: 'Gợi ý cho người dùng', camera: 'Close-up', action: 'Mô tả, dùng {idea} để chèn ý tưởng',
@@ -92,3 +117,5 @@ Mở `js/templates.js` và thêm một mục vào `TEMPLATES`, mỗi `beat` là 
 Google Flow chưa có API công khai, nên ứng dụng tạo prompt để bạn dán vào Flow chứ không tự động điều khiển Flow.
 Cần tài khoản Google; số lượt tạo video phụ thuộc gói Google AI của bạn. Gemini API miễn phí có giới hạn lượt/phút;
 ứng dụng tự đợi và thử lại khi bị giới hạn. Video lớn hơn 15 MB được tải lên qua Gemini File API.
+
+> Khi sửa file trong `js/` hoặc `css/`, hãy tăng `VERSION` trong `sw.js` để người dùng nhận bản mới.

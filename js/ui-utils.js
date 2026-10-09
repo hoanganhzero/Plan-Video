@@ -3,7 +3,6 @@
 export const $ = (sel) => document.querySelector(sel);
 
 export const STORAGE_KEYS = {
-  project: 'plan-video:project',
   apiKey: 'plan-video:gemini-key',
   model: 'plan-video:gemini-model',
   ttsModel: 'plan-video:gemini-tts-model',
@@ -12,7 +11,8 @@ export const STORAGE_KEYS = {
 
 export const storage = {
   get(key) { try { return localStorage.getItem(key); } catch { return null; } },
-  set(key, value) { try { localStorage.setItem(key, value); } catch { /* chế độ ẩn danh */ } },
+  set(key, value) { try { localStorage.setItem(key, value); } catch { /* chế độ ẩn danh hoặc đầy bộ nhớ */ } },
+  remove(key) { try { localStorage.removeItem(key); } catch { /* bỏ qua */ } },
 };
 
 export function escapeHtml(text) {
@@ -66,4 +66,43 @@ export function bindApiKeyInputs() {
       inputs.forEach((other) => { if (other !== input) other.value = input.value; });
     });
   });
+}
+
+export async function copyText(text, message = 'Đã sao chép!') {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const area = Object.assign(document.createElement('textarea'), { value: text });
+    document.body.append(area);
+    area.select();
+    document.execCommand('copy');
+    area.remove();
+  }
+  toast(message);
+}
+
+// Định dạng ghi video tốt nhất trình duyệt hỗ trợ.
+// Ưu tiên MP4 có H.264 (xem được trên mọi điện thoại), rồi WebM. "video/mp4" trơn để cuối
+// cho Safari (không ghi được WebM), vì trên Chromium nó có thể chứa VP9 khó xem trên iPhone.
+export function pickRecorderType() {
+  const types = [
+    'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+    'video/mp4;codecs=avc1,mp4a.40.2',
+    'video/mp4;codecs=avc1,opus',
+    'video/mp4;codecs=avc1',
+    'video/webm;codecs=vp9,opus',
+    'video/webm;codecs=vp8,opus',
+    'video/webm',
+    'video/mp4',
+  ];
+  return types.find((t) => window.MediaRecorder?.isTypeSupported(t)) || '';
+}
+
+export function recorderExtension(mimeType) {
+  return mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
+}
+
+export function formatDuration(seconds) {
+  const s = Math.max(0, Math.round(seconds));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }

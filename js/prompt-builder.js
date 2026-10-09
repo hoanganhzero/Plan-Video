@@ -7,8 +7,14 @@ import { TEMPLATES, STYLES, MOODS, VOICE_LANGUAGES, findById } from './templates
 export const SECONDS_PER_CLIP = 8;
 export const MAX_SCENES = 30;
 
+export function newId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
 export function createProject(overrides = {}) {
   return {
+    id: newId(),
+    updatedAt: 0,
     title: '',
     idea: '',
     templateId: 'story',
@@ -44,6 +50,7 @@ export function scenesFromTemplate(project, count) {
       voiceType: beat.voiceType || 'dialogue',
       dialogue: beat.dialogue || '',
       sound: '',
+      done: false,
     };
   });
 }
@@ -71,15 +78,18 @@ function sentence(text) {
   return /[.!?]$/.test(capped) ? capped : `${capped}.`;
 }
 
+// Dùng lại đúng mô tả nhân vật trong mọi cảnh để Flow giữ nhân vật nhất quán.
+function withCharacter(project, text) {
+  const character = project.character.trim();
+  return character
+    ? (text || '').replaceAll('The main character', character).replaceAll('the main character', character)
+    : (text || '');
+}
+
 export function buildScenePrompt(project, scene) {
   const style = findById(STYLES, project.styleId);
   const mood = findById(MOODS, project.moodId);
-  const character = project.character.trim();
-
-  // Dùng lại đúng mô tả nhân vật trong mọi cảnh để Flow giữ nhân vật nhất quán.
-  const action = character
-    ? scene.action.replaceAll('The main character', character).replaceAll('the main character', character)
-    : scene.action;
+  const action = withCharacter(project, scene.action);
 
   const parts = [
     sentence(scene.camera),
@@ -103,6 +113,42 @@ export function buildAllPrompts(project) {
     title: scene.title,
     prompt: buildScenePrompt(project, scene),
   }));
+}
+
+// Prompt tạo ảnh "bảng nhân vật" để dùng làm ảnh tham chiếu (Ingredients to Video),
+// giúp khuôn mặt và trang phục giống nhau ở mọi cảnh.
+export function buildCharacterSheetPrompt(project) {
+  const character = project.character.trim();
+  if (!character) return '';
+  const style = findById(STYLES, project.styleId);
+  return [
+    sentence(`Character reference sheet of ${character}`),
+    'Full body front view, side view and close-up of the face, neutral standing pose.',
+    'Plain light grey background, even soft lighting, consistent design across all views.',
+    sentence(`Style: ${style.prompt}`),
+    'No text, no labels, no watermarks.',
+  ].join(' ');
+}
+
+// Prompt tạo ảnh khung hình đầu của một cảnh (Frames to Video).
+export function buildFramePrompt(project, scene) {
+  const style = findById(STYLES, project.styleId);
+  const mood = findById(MOODS, project.moodId);
+  const orientation = project.aspectRatio === '9:16' ? 'vertical 9:16 composition' : 'wide 16:9 composition';
+  return [
+    sentence(`A single still frame, ${orientation}, ${scene.camera || 'medium shot'}`),
+    sentence(withCharacter(project, scene.action)),
+    project.setting.trim() ? sentence(`Setting: ${project.setting.trim()}`) : '',
+    sentence(mood.prompt),
+    sentence(`Style: ${style.prompt}`),
+    'No text, no watermarks.',
+  ].filter(Boolean).join(' ');
+}
+
+export function progress(project) {
+  const total = project.scenes.length;
+  const done = project.scenes.filter((s) => s.done).length;
+  return { done, total, percent: total ? Math.round((done / total) * 100) : 0 };
 }
 
 export function totalDuration(project) {

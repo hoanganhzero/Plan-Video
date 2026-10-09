@@ -6,16 +6,23 @@
   <title>Plan Video for Flow</title>
   <meta name="description" content="Lên kịch bản và tạo prompt video cho Google Flow, dễ cho bất kỳ ai.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Plan Video">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <header class="topbar">
     <div class="brand">🎬 <strong>Plan Video</strong> <span class="muted">cho Google Flow</span></div>
     <nav class="steps" aria-label="Các bước">
+      <button class="step" data-step="projects">📁 Dự án</button>
       <button class="step active" data-step="1">1. Ý tưởng</button>
       <button class="step" data-step="2">2. Kịch bản</button>
-      <button class="step" data-step="3">3. Prompt cho Flow</button>
-      <button class="step" data-step="dub">🎙️ Lồng tiếng Việt</button>
+      <button class="step" data-step="3">3. Prompt</button>
+      <button class="step" data-step="edit">4. Ghép phim</button>
+      <button class="step" data-step="dub">5. Lồng tiếng</button>
       <button class="step" data-step="guide">❓ Hướng dẫn</button>
     </nav>
   </header>
@@ -23,6 +30,7 @@
   <main>
     <!-- BƯỚC 1 -->
     <section id="step-1" class="panel active">
+      <p class="project-bar">📁 Dự án: <strong id="current-project-name"></strong> · <button type="button" class="link-btn" id="btn-new-project">+ Dự án mới</button></p>
       <h1>Bạn muốn làm video về điều gì?</h1>
       <p class="muted">Phim ngắn, video ca nhạc, hoạt hình, nhạc thiếu nhi… Chỉ cần chọn loại video và viết một câu ý tưởng.</p>
 
@@ -33,6 +41,7 @@
         <label class="full">Ý tưởng của bạn <span class="req">*</span>
           <textarea id="idea" rows="3" placeholder="VD: chú mèo con đi lạc tìm đường về nhà / bài hát về mùa thu Hà Nội / ly cà phê muối Huế"></textarea>
         </label>
+        <div class="full ideas" id="idea-suggestions"></div>
         <label>Tên video
           <input id="title" placeholder="VD: Cà phê muối Mộc">
         </label>
@@ -109,8 +118,14 @@
       <ol class="howto">
         <li>Mở <a href="https://labs.google/fx/tools/flow" target="_blank" rel="noopener">Google Flow</a>, tạo dự án mới, chọn khung hình <strong id="aspect-hint">16:9</strong>.</li>
         <li>Chọn <strong>Text to Video</strong>, bấm <strong>Sao chép</strong> ở cảnh 1 rồi dán vào Flow và tạo.</li>
-        <li>Làm lần lượt từng cảnh, chọn clip đẹp nhất và <strong>Add to scene</strong> để ghép thành phim.</li>
+        <li>Làm lần lượt từng cảnh, tải clip đẹp nhất về máy và tick <strong>Đã tạo xong</strong>.</li>
+        <li>Sang tab <strong>4. Ghép phim</strong> để ghép các clip, thêm nhạc, tiêu đề và phụ đề.</li>
       </ol>
+      <div class="progress-box">
+        <div class="progress-label"><span>Tiến độ trong Flow</span><strong id="progress-text">0/0</strong></div>
+        <div class="progress-track"><div id="progress-bar" class="progress-fill"></div></div>
+      </div>
+      <div id="character-card"></div>
       <div class="actions">
         <button id="btn-copy-all" class="secondary">Sao chép tất cả</button>
         <button id="btn-export-txt" class="secondary">Tải file .txt</button>
@@ -119,6 +134,85 @@
         <button id="btn-voice-script" class="secondary">🎙️ Tạo giọng đọc tiếng Việt cho kịch bản</button>
       </div>
       <div id="prompt-list"></div>
+
+      <h2>📣 Đăng lên mạng xã hội</h2>
+      <p class="muted">Tiêu đề, mô tả và hashtag cho YouTube, TikTok, Facebook.</p>
+      <div class="actions">
+        <button id="btn-social" class="secondary">Tạo nhanh</button>
+        <button id="btn-social-ai" class="secondary">✨ AI viết hay hơn</button>
+        <span id="social-status" class="status" role="status"></span>
+      </div>
+      <div id="social-output"></div>
+    </section>
+
+    <!-- DỰ ÁN -->
+    <section id="step-projects" class="panel">
+      <h1>📁 Dự án của tôi</h1>
+      <p class="muted">Mọi dự án tự lưu trong trình duyệt này. Muốn chuyển sang máy khác, hãy dùng “Lưu dự án (.json)” ở bước 3.</p>
+      <div class="actions">
+        <button id="btn-new-project-2" class="primary">+ Dự án mới</button>
+        <label class="secondary file-btn">Mở file dự án (.json)<input id="import-json-2" type="file" accept="application/json" hidden></label>
+      </div>
+      <div id="project-list" class="project-grid"></div>
+    </section>
+
+    <!-- GHÉP PHIM -->
+    <section id="step-edit" class="panel">
+      <h1>🎞️ Ghép phim</h1>
+      <p class="muted">Ghép các clip tải từ Flow thành một video hoàn chỉnh: thêm nhạc nền, tiêu đề mở đầu, phụ đề tiếng Việt và hiệu ứng chuyển cảnh. Không cần CapCut.</p>
+
+      <h2>Bước 1 · Thêm clip</h2>
+      <div class="actions">
+        <label class="primary file-btn">📁 Chọn các clip (theo thứ tự cảnh)<input id="edit-files" type="file" accept="video/*" multiple hidden></label>
+        <span id="edit-total" class="muted"></span>
+      </div>
+      <div id="edit-clips"></div>
+
+      <div id="edit-options" hidden>
+        <h2>Bước 2 · Tuỳ chỉnh</h2>
+        <div class="grid">
+          <label>Khung hình xuất
+            <select id="edit-aspect">
+              <option value="16:9">16:9 – YouTube, ngang</option>
+              <option value="9:16">9:16 – TikTok/Reels, dọc</option>
+              <option value="1:1">1:1 – Facebook/Instagram, vuông</option>
+            </select>
+          </label>
+          <label>Tiêu đề mở đầu (để trống nếu không cần)
+            <input id="edit-title" placeholder="VD: Đàn vịt con">
+          </label>
+          <label>Phụ đề
+            <select id="edit-subs">
+              <option value="none">Không có phụ đề</option>
+              <option value="script">Lời thoại / lời hát từ kịch bản</option>
+              <option value="srt">Từ file .srt</option>
+            </select>
+          </label>
+          <label id="edit-srt-label" hidden>File phụ đề .srt
+            <input id="edit-srt" type="file" accept=".srt,text/plain">
+          </label>
+          <label class="check"><input id="edit-fade" type="checkbox" checked> Hiệu ứng mờ dần khi chuyển cảnh</label>
+          <label>Âm lượng tiếng trong clip: <span id="edit-clip-vol-value">100%</span>
+            <input id="edit-clip-volume" type="range" min="0" max="100" value="100">
+          </label>
+          <label>Nhạc nền (MP3, M4A, WAV – không bắt buộc)
+            <input id="edit-music" type="file" accept="audio/*">
+          </label>
+          <label>Âm lượng nhạc nền: <span id="edit-music-vol-value">40%</span>
+            <input id="edit-music-volume" type="range" min="0" max="100" value="40">
+          </label>
+        </div>
+
+        <h2>Bước 3 · Xem trước & xuất</h2>
+        <canvas id="edit-canvas" width="1280" height="720"></canvas>
+        <div class="actions">
+          <button id="btn-edit-preview" class="secondary">▶ Xem trước</button>
+          <button id="btn-edit-export" class="primary">🎞️ Xuất video</button>
+          <button id="btn-edit-srt" class="secondary">Tải phụ đề (.srt)</button>
+          <span id="edit-status" class="status" role="status"></span>
+        </div>
+        <p class="muted small">Video được dựng theo thời gian thực, nên mất thời gian bằng độ dài phim. Hãy giữ tab này mở trong lúc xuất. Muốn lồng tiếng Việt cho video vừa ghép, mở tab <strong>5. Lồng tiếng</strong>.</p>
+      </div>
     </section>
 
     <!-- LỒNG TIẾNG -->
@@ -207,6 +301,21 @@
           <li><strong>🧸 Phim hoạt hình</strong> – chọn phong cách Hoạt hình 3D, Anime hoặc Đất nặn và giữ nguyên phong cách cho mọi cảnh.</li>
           <li><strong>🎵 Nhạc thiếu nhi</strong> – phong cách Hoạt hình thiếu nhi, lời ngắn, lặp lại, dễ hát. AI có thể viết lời bài hát mới cho bạn.</li>
         </ul>
+
+        <h2>Giữ nhân vật giống nhau ở mọi cảnh</h2>
+        <ol>
+          <li>Ở bước 1, mô tả nhân vật thật chi tiết (tuổi, tóc, quần áo).</li>
+          <li>Ở bước 3, sao chép <strong>Prompt ảnh nhân vật tham chiếu</strong>, tạo ảnh trong Flow hoặc Gemini và tải về.</li>
+          <li>Trong Flow chọn <strong>Ingredients to Video</strong>, thêm ảnh nhân vật rồi dán prompt từng cảnh.</li>
+          <li>Hoặc dùng <strong>Prompt ảnh khung đầu</strong> của từng cảnh với <strong>Frames to Video</strong> để kiểm soát bố cục.</li>
+        </ol>
+
+        <h2>Ghép thành phim hoàn chỉnh</h2>
+        <ol>
+          <li>Tải các clip đẹp nhất từ Flow về máy (đặt tên theo thứ tự: 01, 02, 03…).</li>
+          <li>Mở tab <strong>4. Ghép phim</strong>, chọn tất cả clip, sắp xếp, cắt bớt đầu/cuối nếu cần.</li>
+          <li>Thêm tiêu đề, phụ đề từ kịch bản và nhạc nền, bấm <strong>Xuất video</strong>.</li>
+        </ol>
 
         <h2>Âm thanh tiếng Việt chuẩn</h2>
         <ul>
