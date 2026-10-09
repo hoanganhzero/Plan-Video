@@ -7,6 +7,8 @@ export const STORAGE_KEYS = {
   model: 'plan-video:gemini-model',
   ttsModel: 'plan-video:gemini-tts-model',
   dubLanguage: 'plan-video:dub-language',
+  videoModel: 'plan-video:video-model',
+  imageModel: 'plan-video:image-model',
 };
 
 export const storage = {

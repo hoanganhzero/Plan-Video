@@ -17,8 +17,9 @@
   <header class="topbar">
     <div class="brand">🎬 <strong>Plan Video</strong> <span class="muted">cho Google Flow</span></div>
     <nav class="steps" aria-label="Các bước">
+      <button class="step active" data-step="auto">⚡ Tạo nhanh</button>
       <button class="step" data-step="projects">📁 Dự án</button>
-      <button class="step active" data-step="1">1. Ý tưởng</button>
+      <button class="step" data-step="1">1. Ý tưởng</button>
       <button class="step" data-step="2">2. Kịch bản</button>
       <button class="step" data-step="3">3. Prompt</button>
       <button class="step" data-step="edit">4. Ghép phim</button>
@@ -28,8 +29,101 @@
   </header>
 
   <main>
+    <!-- TẠO NHANH -->
+    <section id="step-auto" class="panel active">
+      <h1>⚡ Tạo video nhanh</h1>
+      <p class="muted">Tải ảnh của bạn và sản phẩm, viết vài dòng ý tưởng, bấm một nút. AI viết kịch bản, tạo từng cảnh có đúng khuôn mặt và sản phẩm của bạn, rồi ghép thành video quảng cáo.</p>
+
+      <div class="upload-grid">
+        <div class="upload-box" data-role="person">
+          <div class="upload-title">🧑 Ảnh khuôn mặt / dáng người</div>
+          <p class="muted small">Ảnh rõ mặt, đủ sáng, chụp thẳng. Có thể chọn 1 ảnh chân dung + 1 ảnh toàn thân.</p>
+          <div class="thumbs" id="auto-person-thumbs"></div>
+          <label class="secondary file-btn">Chọn ảnh người<input id="auto-person" type="file" accept="image/*" multiple hidden></label>
+        </div>
+        <div class="upload-box" data-role="product">
+          <div class="upload-title">📦 Ảnh sản phẩm</div>
+          <p class="muted small">Ảnh sản phẩm trên nền đơn giản, thấy rõ nhãn/logo.</p>
+          <div class="thumbs" id="auto-product-thumbs"></div>
+          <label class="secondary file-btn">Chọn ảnh sản phẩm<input id="auto-product" type="file" accept="image/*" multiple hidden></label>
+        </div>
+      </div>
+
+      <div class="grid">
+        <label class="full">Ý tưởng / sản phẩm của bạn <span class="req">*</span>
+          <textarea id="auto-idea" rows="3" placeholder="VD: Son môi Hồng Đào, lâu trôi 12 giờ, giá 199k, dành cho dân văn phòng. Video vui tươi, có câu kêu gọi mua hàng."></textarea>
+        </label>
+        <label>Loại video
+          <select id="auto-template"></select>
+        </label>
+        <label>Độ dài
+          <select id="auto-scenes">
+            <option value="3">3 cảnh · ~24 giây</option>
+            <option value="4" selected>4 cảnh · ~32 giây</option>
+            <option value="5">5 cảnh · ~40 giây</option>
+            <option value="6">6 cảnh · ~48 giây</option>
+          </select>
+        </label>
+        <label>Khung hình
+          <select id="auto-aspect">
+            <option value="9:16">9:16 – TikTok/Reels</option>
+            <option value="16:9">16:9 – YouTube/Facebook</option>
+          </select>
+        </label>
+        <label>Giọng nói
+          <select id="auto-voice"></select>
+        </label>
+      </div>
+      <label class="check consent"><input id="auto-consent" type="checkbox"> Tôi là người trong ảnh, hoặc đã được người trong ảnh đồng ý cho dùng hình ảnh để làm video.</label>
+
+      <div class="mode-grid">
+        <div class="mode-card">
+          <h2>🆓 Làm trong Flow</h2>
+          <p class="muted small">Dùng tín dụng gói Google AI Pro, không tốn thêm tiền. AI viết sẵn kịch bản, bạn tải ảnh lên Flow (Ingredients to Video) và dán prompt từng cảnh.</p>
+          <button id="btn-auto-flow" class="secondary">Chuẩn bị cho Flow →</button>
+        </div>
+        <div class="mode-card featured">
+          <h2>🚀 Tự động hoàn toàn</h2>
+          <p class="muted small">AI tạo luôn từng cảnh và ghép thành video cuối. Cần Gemini API key đã bật thanh toán. <strong id="auto-cost"></strong></p>
+          <button id="btn-auto-run" class="primary">🚀 Tạo video tự động</button>
+        </div>
+      </div>
+      <span id="auto-status" class="status" role="status"></span>
+
+      <details class="advanced" id="auto-settings">
+        <summary>⚙️ Cài đặt AI (Gemini API key, model)</summary>
+        <p class="muted small">Lấy key tại <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. Tạo video cần bật <strong>Billing</strong> trong AI Studio. Gói Google AI Pro <strong>không</strong> bao gồm phí API.</p>
+        <div class="grid">
+          <label>Gemini API key
+            <input id="auto-api-key" class="api-key" type="password" autocomplete="off" placeholder="AIza...">
+          </label>
+          <div class="actions tight">
+            <button id="btn-auto-check" class="secondary">🔍 Kiểm tra key & chọn model</button>
+          </div>
+          <label>Model tạo video
+            <input id="auto-video-model" placeholder="tự chọn khi kiểm tra key">
+          </label>
+          <label>Model tạo ảnh
+            <input id="auto-image-model" placeholder="tự chọn khi kiểm tra key">
+          </label>
+        </div>
+        <p id="auto-check-result" class="muted small"></p>
+      </details>
+
+      <div id="auto-progress" hidden>
+        <h2>Tiến trình</h2>
+        <p class="muted small">Mỗi cảnh mất khoảng 1–4 phút. Giữ tab này mở cho tới khi xong.</p>
+        <div id="auto-scenes-list" class="auto-grid"></div>
+        <div class="actions">
+          <button id="btn-auto-stop" class="secondary">⏹ Dừng</button>
+          <button id="btn-auto-montage" class="primary" hidden>🎞️ Ghép thành video hoàn chỉnh</button>
+          <button id="btn-auto-open-edit" class="secondary" hidden>Mở tab Ghép phim để chỉnh thêm</button>
+        </div>
+      </div>
+    </section>
+
     <!-- BƯỚC 1 -->
-    <section id="step-1" class="panel active">
+    <section id="step-1" class="panel">
       <p class="project-bar">📁 Dự án: <strong id="current-project-name"></strong> · <button type="button" class="link-btn" id="btn-new-project">+ Dự án mới</button></p>
       <h1>Bạn muốn làm video về điều gì?</h1>
       <p class="muted">Phim ngắn, video ca nhạc, hoạt hình, nhạc thiếu nhi… Chỉ cần chọn loại video và viết một câu ý tưởng.</p>
@@ -121,6 +215,9 @@
         <li>Làm lần lượt từng cảnh, tải clip đẹp nhất về máy và tick <strong>Đã tạo xong</strong>.</li>
         <li>Sang tab <strong>4. Ghép phim</strong> để ghép các clip, thêm nhạc, tiêu đề và phụ đề.</li>
       </ol>
+      <div id="reference-banner" class="howto warn-box" hidden>
+        <strong>📎 Dùng ảnh thật của bạn trong Flow:</strong> chọn <strong>Ingredients to Video</strong>, tải lên ảnh khuôn mặt/dáng người và ảnh sản phẩm, rồi dán prompt từng cảnh bên dưới. Prompt đã ghi rõ “giữ đúng người và sản phẩm trong ảnh tham chiếu”.
+      </div>
       <div class="progress-box">
         <div class="progress-label"><span>Tiến độ trong Flow</span><strong id="progress-text">0/0</strong></div>
         <div class="progress-track"><div id="progress-bar" class="progress-fill"></div></div>
@@ -286,6 +383,15 @@
       <div class="guide">
         <h2>Flow là gì?</h2>
         <p>Google Flow (<a href="https://labs.google/fx/tools/flow" target="_blank" rel="noopener">labs.google/flow</a>) là công cụ làm phim bằng AI của Google, dùng mô hình Veo để tạo video kèm âm thanh từ mô tả bằng chữ. Bạn cần tài khoản Google; dùng nhiều hơn thì cần gói Google AI Pro/Ultra.</p>
+
+        <h2>⚡ Tạo nhanh – từ ảnh và ý tưởng ra video</h2>
+        <ol>
+          <li>Mở tab <strong>⚡ Tạo nhanh</strong>, tải ảnh khuôn mặt/dáng người và ảnh sản phẩm, viết vài dòng ý tưởng.</li>
+          <li><strong>Làm trong Flow (miễn phí với gói Pro):</strong> bấm “Chuẩn bị cho Flow”, rồi trong Flow chọn <em>Ingredients to Video</em>, tải 2 ảnh lên và dán prompt từng cảnh. Sau đó ghép ở tab 4.</li>
+          <li><strong>Tự động hoàn toàn:</strong> bấm “Tạo video tự động”. AI viết kịch bản, tạo ảnh khung đầu có đúng người và sản phẩm, tạo từng cảnh bằng Veo rồi tự ghép thành video cuối.</li>
+        </ol>
+        <p><strong>Chế độ tự động cần bật thanh toán:</strong> vào <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com</a> → chọn key → <em>Set up billing</em> (thêm thẻ). Gói Google AI Pro <strong>không</strong> bao gồm phí API. Mỗi cảnh 8 giây tốn khoảng 0,5–3 USD tuỳ model; ứng dụng luôn báo ước tính và hỏi lại trước khi tạo.</p>
+        <p class="muted">Ảnh bạn tải lên được gửi tới Google để tạo video. Chỉ dùng ảnh của chính bạn hoặc người đã đồng ý. Google có thể từ chối tạo video có trẻ em hoặc người nổi tiếng.</p>
 
         <h2>3 cách tạo video trong Flow</h2>
         <ul>

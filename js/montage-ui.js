@@ -49,6 +49,10 @@ export function initMontage({ getProject }) {
   $('#edit-files').addEventListener('change', async (e) => {
     const files = [...e.target.files].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
     e.target.value = '';
+    await addFiles(files);
+  });
+
+  async function addFiles(files) {
     for (const file of files) {
       const url = URL.createObjectURL(file);
       try {
@@ -61,7 +65,7 @@ export function initMontage({ getProject }) {
     }
     render();
     drawPoster();
-  });
+  }
 
   function render() {
     const project = getProject();
@@ -423,6 +427,24 @@ export function initMontage({ getProject }) {
   drawPlaceholder('Chọn các clip để bắt đầu');
 
   return {
+    // Dùng cho chế độ tự động: thay toàn bộ clip và bật phụ đề từ kịch bản.
+    async loadClips(files, title = '', { subtitles = true } = {}) {
+      if (state.running) throw new Error('Đang phát/xuất video, hãy đợi xong.');
+      state.clips.forEach((c) => URL.revokeObjectURL(c.url));
+      state.clips = [];
+      $('#edit-aspect').value = getProject().aspectRatio;
+      $('#edit-title').value = title;
+      $('#edit-subs').value = subtitles ? 'script' : 'none';
+      $('#edit-srt-label').hidden = true;
+      state.aspectTouched = true;
+      state.titleTouched = true;
+      await addFiles(files);
+    },
+    async loadAndExport(files, { title = '', subtitles = true } = {}) {
+      await this.loadClips(files, title, { subtitles });
+      if (!state.clips.length) throw new Error('Không có clip nào để ghép.');
+      await run({ record: true });
+    },
     // Gọi khi mở tab: lấy khung hình & tiêu đề mặc định từ dự án đang mở.
     refresh() {
       const project = getProject();

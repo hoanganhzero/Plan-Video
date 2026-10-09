@@ -20,6 +20,9 @@ export function createProject(overrides = {}) {
     templateId: 'story',
     character: '',
     setting: '',
+    product: '',
+    // true khi người dùng có ảnh người/sản phẩm để dùng làm tham chiếu (Ingredients to Video)
+    referenceMode: false,
     styleId: 'cinematic',
     moodId: 'warm',
     aspectRatio: '16:9',
@@ -92,9 +95,11 @@ export function buildScenePrompt(project, scene) {
   const action = withCharacter(project, scene.action);
 
   const parts = [
+    project.referenceMode ? 'Use the exact same person and product as in the reference images (same face, body, outfit, product design).' : '',
     sentence(scene.camera),
     sentence(action),
     project.setting.trim() ? sentence(`Setting: ${project.setting.trim()}`) : '',
+    (project.product || '').trim() ? sentence(`The product, identical in every shot: ${project.product.trim()}`) : '',
     sentence(mood.prompt),
     sentence(`Style: ${style.prompt}`),
   ];
@@ -143,6 +148,17 @@ export function buildFramePrompt(project, scene) {
     sentence(`Style: ${style.prompt}`),
     'No text, no watermarks.',
   ].filter(Boolean).join(' ');
+}
+
+// Prompt tạo ảnh khung đầu có dùng ảnh thật của người/sản phẩm (cho chế độ tự động).
+export function buildReferenceFramePrompt(project, scene, { hasPerson = false, hasProduct = false } = {}) {
+  const refs = [
+    hasPerson ? 'the exact person from the person photo (keep the same face, hairstyle, skin tone and body shape)' : '',
+    hasProduct ? 'the exact product from the product photo (keep the same shape, colors, packaging and label)' : '',
+  ].filter(Boolean);
+  const intro = refs.length ? `Create a photorealistic image featuring ${refs.join(' and ')}. ` : '';
+  const product = (project.product || '').trim() ? ` The product: ${project.product.trim()}.` : '';
+  return `${intro}${buildFramePrompt(project, scene)}${product}`;
 }
 
 export function progress(project) {

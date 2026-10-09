@@ -12,6 +12,7 @@ import {
 } from './ui-utils.js';
 import { initDubbing } from './dub-ui.js';
 import { initMontage } from './montage-ui.js';
+import { initAuto } from './auto-ui.js';
 
 const library = createLibrary(storage);
 let project = library.openCurrent();
@@ -27,7 +28,7 @@ function setStatus(message, isError = false) {
 }
 
 // ---------- Điều hướng ----------
-const NAMED_STEPS = ['guide', 'dub', 'edit', 'projects'];
+const NAMED_STEPS = ['guide', 'dub', 'edit', 'projects', 'auto'];
 
 function goTo(step) {
   document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('active', p.id === `step-${step}`));
@@ -275,6 +276,7 @@ function renderProgress() {
 
 function renderPrompts() {
   $('#aspect-hint').textContent = project.aspectRatio;
+  $('#reference-banner').hidden = !project.referenceMode;
   renderProgress();
 
   const sheet = buildCharacterSheetPrompt(project);
@@ -474,6 +476,19 @@ $('#import-json-2').addEventListener('change', importProject);
 // ---------- Lồng tiếng & ghép phim ----------
 const dubbing = initDubbing({ getVoiceLanguage: () => project.voiceLanguage });
 const montage = initMontage({ getProject: () => project });
+
+// Nhận dự án do tab "Tạo nhanh" tạo ra; step = null nghĩa là ở lại tab hiện tại.
+function adoptProject(next, step) {
+  if (next.id !== project.id) {
+    project = next;
+    library.setCurrent(project.id);
+    syncForm();
+  }
+  save();
+  if (step !== null) goTo(step);
+}
+
+initAuto({ adoptProject, getProject: () => project, goTo, montage });
 
 $('#btn-voice-script').addEventListener('click', () => {
   if (!dubbing.loadFromProject(project)) {

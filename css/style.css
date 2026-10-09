@@ -294,3 +294,36 @@ details.frame .small-btn { margin-top: 8px; }
   background: #000;
   border-radius: var(--radius);
 }
+
+/* ---------- Tạo nhanh ---------- */
+.upload-grid, .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+@media (max-width: 600px) { .upload-grid, .mode-grid { grid-template-columns: 1fr; } }
+.upload-box, .mode-card {
+  background: var(--surface);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+.mode-card { border-style: solid; }
+.mode-card h2 { margin-top: 0; }
+.mode-card.featured { border-color: var(--primary); background: var(--accent-bg); }
+.upload-title { font-weight: 700; }
+.thumbs { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.thumb { position: relative; width: 84px; height: 84px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb button {
+  position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; border-radius: 50%;
+  border: none; background: rgba(0,0,0,.65); color: #fff; cursor: pointer; font-size: 12px; line-height: 1;
+}
+.consent { margin-top: 14px; font-weight: 400; font-size: .9rem; }
+.actions.tight { margin: 0; align-items: flex-end; }
+.warn-box { background: #fff7e6; color: #7a4b00; }
+@media (prefers-color-scheme: dark) { .warn-box { background: #3a2c10; color: #f6d79b; } }
+.auto-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.auto-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; }
+.auto-card.done { border-color: #16a34a; }
+.auto-card.error { border-color: #e11d48; }
+.auto-media { aspect-ratio: 9 / 16; background: #111; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; color: #888; font-size: .85rem; }
+.auto-media.wide { aspect-ratio: 16 / 9; }
+.auto-media img, .auto-media video { width: 100%; height: 100%; object-fit: cover; }
+.auto-card .error-text { color: #e11d48; font-size: .8rem; overflow-wrap: anywhere; }
