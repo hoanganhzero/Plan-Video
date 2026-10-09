@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plan Video for Flow</title>
+  <meta name="description" content="Lên kịch bản và tạo prompt video cho Google Flow, dễ cho bất kỳ ai.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">🎬 <strong>Plan Video</strong> <span class="muted">cho Google Flow</span></div>
+    <nav class="steps" aria-label="Các bước">
+      <button class="step active" data-step="1">1. Ý tưởng</button>
+      <button class="step" data-step="2">2. Kịch bản</button>
+      <button class="step" data-step="3">3. Prompt cho Flow</button>
+      <button class="step" data-step="guide">❓ Hướng dẫn</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- BƯỚC 1 -->
+    <section id="step-1" class="panel active">
+      <h1>Bạn muốn làm video về điều gì?</h1>
+      <p class="muted">Chỉ cần chọn loại video và viết một câu ý tưởng. Mọi thứ khác đã có sẵn.</p>
+
+      <h2>Loại video</h2>
+      <div id="template-list" class="cards"></div>
+
+      <div class="grid">
+        <label class="full">Ý tưởng của bạn <span class="req">*</span>
+          <textarea id="idea" rows="3" placeholder="VD: ly cà phê muối Huế thơm ngon cho dân văn phòng"></textarea>
+        </label>
+        <label>Tên video
+          <input id="title" placeholder="VD: Cà phê muối Mộc">
+        </label>
+        <label>Số cảnh (mỗi cảnh ~8 giây)
+          <input id="scene-count" type="number" min="1" max="12" value="5">
+        </label>
+        <label>Phong cách hình ảnh
+          <select id="style"></select>
+        </label>
+        <label>Cảm xúc / ánh sáng
+          <select id="mood"></select>
+        </label>
+        <label>Khung hình
+          <select id="aspect">
+            <option value="16:9">16:9 – YouTube, ngang</option>
+            <option value="9:16">9:16 – TikTok/Reels, dọc</option>
+          </select>
+        </label>
+        <label>Nhạc nền (không bắt buộc)
+          <input id="music" placeholder="VD: soft acoustic guitar">
+        </label>
+      </div>
+
+      <details class="advanced">
+        <summary>Nhân vật & bối cảnh (giúp video đồng nhất hơn)</summary>
+        <div class="grid">
+          <label class="full">Mô tả nhân vật chính
+            <textarea id="character" rows="2" placeholder="VD: a 25-year-old Vietnamese woman with shoulder-length black hair, white linen shirt, warm smile"></textarea>
+            <small class="muted">Mô tả này được lặp lại y hệt trong mọi cảnh để Flow giữ nhân vật giống nhau.</small>
+          </label>
+          <label class="full">Bối cảnh
+            <input id="setting" placeholder="VD: a small cafe in Hue old town, morning">
+          </label>
+        </div>
+      </details>
+
+      <details class="advanced" id="ai-box">
+        <summary>✨ Để AI viết kịch bản giúp (cần Gemini API key – miễn phí)</summary>
+        <p class="muted">Lấy key tại <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. Key chỉ lưu trong trình duyệt của bạn.</p>
+        <div class="grid">
+          <label>Gemini API key
+            <input id="api-key" type="password" autocomplete="off" placeholder="AIza...">
+          </label>
+          <label>Model
+            <input id="model" placeholder="gemini-2.5-flash">
+          </label>
+        </div>
+      </details>
+
+      <div class="actions">
+        <button id="btn-template" class="primary">Tạo kịch bản nhanh →</button>
+        <button id="btn-ai" class="secondary">✨ Tạo bằng AI</button>
+        <span id="status" class="status" role="status"></span>
+      </div>
+    </section>
+
+    <!-- BƯỚC 2 -->
+    <section id="step-2" class="panel">
+      <h1>Kịch bản từng cảnh</h1>
+      <p class="muted">Sửa tuỳ ý. Mỗi cảnh là một clip ~8 giây trong Flow. <span id="duration"></span></p>
+      <div id="scene-list"></div>
+      <div class="actions">
+        <button id="btn-add-scene" class="secondary">+ Thêm cảnh</button>
+        <button id="btn-to-prompts" class="primary">Xem prompt cho Flow →</button>
+      </div>
+    </section>
+
+    <!-- BƯỚC 3 -->
+    <section id="step-3" class="panel">
+      <h1>Prompt sẵn sàng cho Google Flow</h1>
+      <ol class="howto">
+        <li>Mở <a href="https://labs.google/fx/tools/flow" target="_blank" rel="noopener">Google Flow</a>, tạo dự án mới, chọn khung hình <strong id="aspect-hint">16:9</strong>.</li>
+        <li>Chọn <strong>Text to Video</strong>, bấm <strong>Sao chép</strong> ở cảnh 1 rồi dán vào Flow và tạo.</li>
+        <li>Làm lần lượt từng cảnh, chọn clip đẹp nhất và <strong>Add to scene</strong> để ghép thành phim.</li>
+      </ol>
+      <div class="actions">
+        <button id="btn-copy-all" class="secondary">Sao chép tất cả</button>
+        <button id="btn-export-txt" class="secondary">Tải file .txt</button>
+        <button id="btn-export-json" class="secondary">Lưu dự án (.json)</button>
+        <label class="secondary file-btn">Mở dự án (.json)<input id="import-json" type="file" accept="application/json" hidden></label>
+      </div>
+      <div id="prompt-list"></div>
+    </section>
+
+    <!-- HƯỚNG DẪN -->
+    <section id="step-guide" class="panel">
+      <h1>Hướng dẫn dùng Google Flow</h1>
+      <div class="guide">
+        <h2>Flow là gì?</h2>
+        <p>Google Flow (<a href="https://labs.google/fx/tools/flow" target="_blank" rel="noopener">labs.google/flow</a>) là công cụ làm phim bằng AI của Google, dùng mô hình Veo để tạo video kèm âm thanh từ mô tả bằng chữ. Bạn cần tài khoản Google; dùng nhiều hơn thì cần gói Google AI Pro/Ultra.</p>
+
+        <h2>3 cách tạo video trong Flow</h2>
+        <ul>
+          <li><strong>Text to Video</strong> – dán prompt, Flow tạo clip. Dễ nhất, dùng prompt từ ứng dụng này.</li>
+          <li><strong>Frames to Video</strong> – tải lên ảnh khung đầu (và khung cuối), Flow làm ảnh chuyển động. Hợp với ảnh sản phẩm thật.</li>
+          <li><strong>Ingredients to Video</strong> – tải lên ảnh nhân vật/vật thể để giữ chúng giống nhau qua nhiều cảnh.</li>
+        </ul>
+
+        <h2>Mẹo để video đẹp</h2>
+        <ul>
+          <li>Mỗi prompt chỉ nên có <strong>một cảnh quay, một hành động chính</strong> (~8 giây).</li>
+          <li>Mô tả nhân vật <strong>giống hệt nhau</strong> ở mọi cảnh (ứng dụng làm tự động).</li>
+          <li>Viết phần hình ảnh bằng tiếng Anh cho kết quả tốt nhất; lời thoại có thể bằng tiếng Việt.</li>
+          <li>Mỗi lần Flow tạo vài phiên bản, hãy chọn cái đẹp nhất. Không ưng thì bấm tạo lại.</li>
+          <li>Dùng <strong>Extend</strong> trong Scenebuilder để kéo dài một cảnh liền mạch.</li>
+          <li>Xong thì tải video về và ghép thêm chữ, nhạc bằng CapCut nếu cần.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
