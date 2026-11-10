@@ -127,7 +127,7 @@ textarea { width: 100%; resize: vertical; font-family: ui-monospace, monospace; 
 .zone-btn.locked { opacity: 0.55; }
 
 .scene-wrap { position: relative; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); }
-#scene { display: block; width: 100%; height: 300px; touch-action: manipulation; cursor: pointer; }
+#scene { display: block; width: 100%; height: 420px; touch-action: manipulation; cursor: pointer; }
 .scene-msg {
   position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
   max-width: 90%; padding: 6px 14px; border-radius: 16px;
@@ -231,7 +231,7 @@ textarea { width: 100%; resize: vertical; font-family: ui-monospace, monospace; 
 
 @media (max-width: 600px) {
   main { padding: 12px; }
-  #scene { height: 240px; }
+  #scene { height: 340px; }
   .scene-msg { font-size: 0.85rem; border-radius: 12px; padding: 4px 10px; }
   .controls .btn.big { margin-left: 0; width: 100%; }
   .hud-stats { margin-left: 0; }

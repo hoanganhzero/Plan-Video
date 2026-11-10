@@ -8,6 +8,7 @@ import {
 import { SUBJECTS, GRADES, rarityOf, rarityIndex, subjectById } from './data.js';
 import { parseCustomQuestions } from './questions.js';
 import { createScene } from './scene.js';
+import { createScene3D, webglAvailable } from './scene3d.js';
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -23,7 +24,16 @@ function save() {
 }
 
 let state = load();
-const scene = createScene($('#scene'));
+// Ưu tiên cảnh 3D; máy không hỗ trợ WebGL thì dùng cảnh 2D.
+function makeScene() {
+  if (webglAvailable()) {
+    try { return createScene3D($('#scene')); } catch (err) { console.warn('3D không khởi tạo được, dùng 2D:', err); }
+    const fresh = $('#scene').cloneNode(false);
+    $('#scene').replaceWith(fresh);
+  }
+  return createScene($('#scene'));
+}
+const scene = makeScene();
 let busy = false;
 let doneQuestIds = new Set(activeQuests(state).filter((q) => questProgress(state, q).done).map((q) => q.id));
 
@@ -423,7 +433,7 @@ async function cast() {
   save();
   const fish = fishById(attempt.fishId);
   if (result.caught) {
-    scene.reel(fish.emoji, rarityOf(fish.rarity).color);
+    scene.reel(fish.emoji, rarityOf(fish.rarity).color, fish);
     beep(SOUND.right);
     $('#scene-msg').innerHTML = `🎉 Câu được <b>${esc(fish.name)}</b>!`;
   } else {
