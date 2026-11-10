@@ -73,6 +73,18 @@ Tab **Lồng tiếng Việt** (cần Gemini API key):
 
 > Lưu ý: tiếng gốc chỉ được giảm nhỏ, không tách riêng được giọng khỏi nhạc nền. Câu dịch dài hơn thời gian gốc sẽ được báo ⚠ để rút gọn. Chỉ lồng tiếng video bạn có quyền sử dụng.
 
+## 🎣 Trò chơi: Câu Cá Học Giỏi
+
+Trò chơi vừa học vừa chơi trong thư mục `fishing/` – mở `http://localhost:3000/fishing/` sau khi chạy `npm start`.
+
+- **Câu cá bằng kiến thức**: thả câu → cá cắn câu → trả lời đúng câu hỏi trắc nghiệm (có đếm giờ) để kéo cá lên; sai hoặc hết giờ thì cá thoát và được giải thích đáp án đúng.
+- **Cá giá trị tăng dần**: 6 bậc độ hiếm (Thường → Khá → Hiếm → Quý → Huyền thoại → Thần thoại), 32 loài trải qua 5 khu: Ao làng → Sông quê → Hồ trên núi → Biển xanh → Vực sâu huyền bí. Cá càng hiếm thì câu hỏi càng khó, thời gian càng dài và giá càng cao.
+- **Nhiệm vụ**: chuỗi 22 nhiệm vụ (trả lời đúng theo môn, chuỗi đúng liên tiếp, săn cá hiếm, sưu tập loài, lên cấp…) thưởng xu, mồi, vật phẩm, **cần câu mới** và **mở khu câu mới**.
+- **Vật phẩm**: cần câu (tăng may mắn), mồi tôm / mồi vàng, phao gợi ý 50/50, đồng hồ cát +15 giây, bùa may mắn (chắc chắn gặp cá Hiếm trở lên).
+- **Môn học**: Toán (sinh tự động theo trình độ Lớp 1–2 / 3–5 / 6–9), Tiếng Việt, Tiếng Anh, Khoa học, Lịch sử & Địa lý, và **Câu hỏi của tôi** – phụ huynh/thầy cô nhập bài cần ôn theo mẫu `Câu hỏi | Đáp án đúng | Sai 1 | Sai 2 | Sai 3`.
+- **Sổ ôn tập**: câu trả lời sai được ghi lại kèm đáp án và được hỏi lại sau; trả lời đúng thì xoá khỏi sổ.
+- Thùng cá (bán lấy xu), Bộ sưu tập, Cửa hàng; tự lưu trong trình duyệt, xuất/nhập file lưu; chơi được trên điện thoại.
+
 ## Chạy ứng dụng
 
 Đây là trang web tĩnh (HTML/CSS/JS thuần), không cần build.
@@ -110,6 +122,12 @@ js/montage-ui.js        Tab Ghép phim: vẽ khung hình, trộn âm thanh, xu�
 js/auto-video.js        Điều phối tự động: ảnh khung đầu → Veo → tải video, ước tính chi phí
 js/auto-ui.js           Tab Tạo nhanh: ảnh người/sản phẩm, Flow hoặc tự động
 js/ui-utils.js          Tiện ích giao diện dùng chung
+fishing/                Trò chơi Câu Cá Học Giỏi
+  js/data.js            Độ hiếm, khu câu, cá, cần câu, vật phẩm, nhiệm vụ
+  js/questions.js       Ngân hàng câu hỏi, Toán sinh tự động, câu hỏi riêng
+  js/engine.js          Logic trò chơi (thả câu, trả lời, nhiệm vụ, cửa hàng, cấp độ)
+  js/scene.js           Cảnh câu cá động (canvas)
+  js/main.js            Giao diện trò chơi
 tests/                  Kiểm thử (npm test)
 ```
 

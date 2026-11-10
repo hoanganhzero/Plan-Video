@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Câu Cá Học Giỏi</title>
+  <meta name="description" content="Trò chơi câu cá vừa học vừa chơi: trả lời đúng câu hỏi để kéo cá, làm nhiệm vụ nhận vật phẩm và săn cá ngày càng quý.">
+  <meta name="theme-color" content="#0e7490">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎣</text></svg>">
+  <link rel="stylesheet" href="game.css">
+</head>
+<body>
+  <header class="hud">
+    <div class="brand">🎣 <strong>Câu Cá Học Giỏi</strong></div>
+    <div class="hud-stats">
+      <span class="chip" title="Xu">🪙 <b id="hud-coins">0</b></span>
+      <span class="chip level" title="Cấp độ">
+        ⭐ Cấp <b id="hud-level">1</b>
+        <span class="xpbar"><span id="hud-xp"></span></span>
+      </span>
+      <span class="chip" title="Chuỗi trả lời đúng liên tiếp">🔥 <b id="hud-streak">0</b></span>
+      <span class="chip" title="Loài cá đã câu được">🐟 <b id="hud-species">0</b></span>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Mục">
+    <button class="tab active" data-tab="fish">🎣 Câu cá</button>
+    <button class="tab" data-tab="quests">📜 Nhiệm vụ <span class="badge" id="quest-badge" hidden></span></button>
+    <button class="tab" data-tab="bucket">🪣 Thùng cá</button>
+    <button class="tab" data-tab="dex">📚 Bộ sưu tập</button>
+    <button class="tab" data-tab="shop">🏪 Cửa hàng</button>
+    <button class="tab" data-tab="review">📒 Ôn tập <span class="badge muted-badge" id="review-badge" hidden></span></button>
+    <button class="tab" data-tab="settings">⚙️ Cài đặt</button>
+  </nav>
+
+  <main>
+    <!-- CÂU CÁ -->
+    <section class="panel active" id="tab-fish">
+      <div class="zones" id="zone-list" role="radiogroup" aria-label="Chọn khu câu"></div>
+      <div class="scene-wrap">
+        <canvas id="scene" aria-label="Cảnh câu cá"></canvas>
+        <div class="scene-msg" id="scene-msg">Bấm <b>Thả câu</b> để bắt đầu!</div>
+      </div>
+      <div class="controls">
+        <label class="ctl">Mồi
+          <select id="bait-select"></select>
+        </label>
+        <label class="ctl check">
+          <input type="checkbox" id="use-charm"> 🍀 Dùng bùa may mắn (<span id="charm-count">0</span>)
+        </label>
+        <button class="btn primary big" id="cast-btn">🎣 Thả câu</button>
+      </div>
+      <div class="odds" id="odds"></div>
+      <p class="hint muted">Cá cắn câu → trả lời đúng câu hỏi để kéo lên. Cá càng hiếm, câu hỏi càng khó nhưng càng đáng giá! Phím tắt: <kbd>Space</kbd> thả câu, <kbd>1</kbd>–<kbd>4</kbd> chọn đáp án.</p>
+    </section>
+
+    <!-- NHIỆM VỤ -->
+    <section class="panel" id="tab-quests">
+      <h2>📜 Nhiệm vụ</h2>
+      <p class="muted">Hoàn thành nhiệm vụ để nhận xu, vật phẩm, cần câu mới và mở khu câu mới. Mỗi lần nhận thưởng sẽ mở nhiệm vụ tiếp theo.</p>
+      <div id="quest-list" class="cards"></div>
+      <p class="muted small" id="quest-total"></p>
+    </section>
+
+    <!-- THÙNG CÁ -->
+    <section class="panel" id="tab-bucket">
+      <h2>🪣 Thùng cá</h2>
+      <div class="row">
+        <span id="bucket-summary" class="muted"></span>
+        <span class="spacer"></span>
+        <button class="btn" id="sell-common">Bán cá Thường & Khá</button>
+        <button class="btn primary" id="sell-all">Bán tất cả</button>
+      </div>
+      <div id="bucket-list" class="fish-grid"></div>
+    </section>
+
+    <!-- BỘ SƯU TẬP -->
+    <section class="panel" id="tab-dex">
+      <h2>📚 Bộ sưu tập cá</h2>
+      <p class="muted" id="dex-summary"></p>
+      <div id="dex-list"></div>
+    </section>
+
+    <!-- CỬA HÀNG -->
+    <section class="panel" id="tab-shop">
+      <h2>🏪 Cửa hàng</h2>
+      <p class="muted">Bạn có 🪙 <b id="shop-coins">0</b> xu. Bán cá trong Thùng cá để có thêm xu.</p>
+      <h3>Khu câu</h3>
+      <div id="shop-zones" class="cards"></div>
+      <h3>Cần câu</h3>
+      <div id="shop-rods" class="cards"></div>
+      <h3>Mồi & vật phẩm</h3>
+      <div id="shop-items" class="cards"></div>
+      <h3>Túi đồ</h3>
+      <div id="inventory" class="inventory"></div>
+    </section>
+
+    <!-- ÔN TẬP -->
+    <section class="panel" id="tab-review">
+      <h2>📒 Sổ ôn tập</h2>
+      <p class="muted">Những câu bạn trả lời sai được ghi lại ở đây kèm đáp án đúng. Trò chơi sẽ thỉnh thoảng hỏi lại – trả lời đúng thì câu đó được xoá khỏi sổ.</p>
+      <div class="row"><span id="review-summary" class="muted"></span><span class="spacer"></span><button class="btn" id="review-clear">Xoá sổ</button></div>
+      <div id="review-list" class="review-list"></div>
+    </section>
+
+    <!-- CÀI ĐẶT -->
+    <section class="panel" id="tab-settings">
+      <h2>⚙️ Cài đặt</h2>
+      <div class="card">
+        <h3>Môn học</h3>
+        <div id="subject-list" class="subject-list"></div>
+        <h3>Trình độ Toán</h3>
+        <div id="grade-list" class="subject-list"></div>
+        <label class="check"><input type="checkbox" id="sound-toggle"> 🔊 Âm thanh</label>
+      </div>
+      <div class="card">
+        <h3>✍️ Câu hỏi của tôi</h3>
+        <p class="muted">Phụ huynh / thầy cô có thể nhập bài cần ôn. Mỗi dòng một câu theo mẫu:<br>
+          <code>Câu hỏi | Đáp án đúng | Đáp án sai 1 | Đáp án sai 2 | Đáp án sai 3</code><br>
+          (cần ít nhất 1 đáp án sai; dòng bắt đầu bằng # là ghi chú). Nhớ bật môn "Câu hỏi của tôi" ở trên.</p>
+        <textarea id="custom-text" rows="7" placeholder="7 × 8 bằng bao nhiêu? | 56 | 54 | 48 | 64&#10;&quot;Dog&quot; nghĩa là gì? | Con chó | Con mèo | Con gà | Con vịt"></textarea>
+        <div class="row"><button class="btn primary" id="custom-save">Lưu câu hỏi</button><span id="custom-status" class="muted"></span></div>
+      </div>
+      <div class="card">
+        <h3>💾 Dữ liệu</h3>
+        <p class="muted">Tiến trình tự lưu trong trình duyệt này. Xuất file để chuyển sang máy khác.</p>
+        <div class="row">
+          <button class="btn" id="export-btn">⬇️ Xuất file lưu</button>
+          <label class="btn">⬆️ Nhập file lưu<input type="file" id="import-file" accept="application/json,.json" hidden></label>
+          <button class="btn danger" id="reset-btn">Chơi lại từ đầu</button>
+        </div>
+      </div>
+      <p class="muted small"><a href="../index.html">← Về Plan Video</a></p>
+    </section>
+  </main>
+
+  <!-- CÂU HỎI -->
+  <dialog id="question-dlg" class="dlg">
+    <div class="q-head">
+      <span id="q-rarity" class="rarity-tag"></span>
+      <span id="q-subject" class="muted"></span>
+      <span class="spacer"></span>
+      <span id="q-timer" class="timer">20</span>
+    </div>
+    <div class="timebar"><span id="q-timebar"></span></div>
+    <p id="q-lead" class="q-lead"></p>
+    <h2 id="q-text" class="q-text"></h2>
+    <div id="q-choices" class="choices"></div>
+    <div class="q-tools">
+      <button class="btn small" id="q-hint">💡 50/50 (<span id="q-hint-count">0</span>)</button>
+      <button class="btn small" id="q-time">⏳ +15 giây (<span id="q-time-count">0</span>)</button>
+    </div>
+  </dialog>
+
+  <!-- KẾT QUẢ -->
+  <dialog id="result-dlg" class="dlg result">
+    <div id="result-body"></div>
+    <div class="row center"><button class="btn primary" id="result-ok">Tiếp tục câu 🎣</button></div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
