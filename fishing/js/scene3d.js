@@ -568,6 +568,16 @@ export function createScene3D(canvas) {
   let phaseStart = 0;
   const setPhase = (p) => { phase = p; phaseStart = time.t; };
   const target = new THREE.Vector3(2.2, 0, -9.5);
+  const reelFrom = new THREE.Vector3();
+  const fightNear = new THREE.Vector3(1.3, 0, -3.2);
+  const fightState = { k: 1, tension: 0, surging: false, power: 0, tier: 0 };
+  // Bóng cá đang mắc câu bơi giằng co dưới nước
+  const hooked = makeFish(0x0c2230, 0x081820);
+  hooked.traverse((o) => { if (o.material) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.9; } });
+  hooked.visible = false;
+  scene.add(hooked);
+  const lineWhite = new THREE.Color(0xffffff);
+  const lineRed = new THREE.Color(0xff3b3b);
   const bobPos = new THREE.Vector3();
   let lastRipple = 0;
   let shake = 0;
@@ -614,6 +624,8 @@ export function createScene3D(canvas) {
     if (phase === 'cast') rodPitch = el < 0.15 ? 0.6 * (el / 0.15) : -0.5 * Math.max(0, 1 - (el - 0.15) / 0.4);
     else if (phase === 'bite') rodPitch = -0.18 - Math.abs(Math.sin(t * 18)) * 0.1;
     else if (phase === 'reel') rodPitch = 0.45 * Math.min(1, el / 0.25);
+    else if (phase === 'charge') rodPitch = 0.75 * fightState.power;
+    else if (phase === 'fight') rodPitch = -0.12 - fightState.tension * 0.4 + (fightState.tension > 0.8 ? Math.sin(t * 40) * 0.04 : 0);
     else if (phase === 'escape') rodPitch = 0.35 * Math.max(0, 1 - el / 0.8);
     rodPivot.rotation.x = rodBase.x + rodPitch + Math.sin(t * 1.3) * 0.015;
     rodPivot.rotation.z = rodBase.z + (phase === 'bite' ? Math.sin(t * 30) * 0.03 : 0);
@@ -624,7 +636,9 @@ export function createScene3D(canvas) {
     // Phao
     let sag = 0.3;
     let hideBobber = false;
-    if (phase === 'idle') {
+    hooked.visible = phase === 'fight';
+    line.material.color.copy(lineWhite);
+    if (phase === 'idle' || phase === 'charge') {
       bobPos.set(tipPos.x + Math.sin(t * 1.5) * 0.08, tipPos.y - 1.1, tipPos.z + Math.cos(t * 1.2) * 0.05);
       sag = 0;
     } else if (phase === 'cast') {
@@ -646,11 +660,26 @@ export function createScene3D(canvas) {
       sag = 0;
       if (t - lastRipple > 0.28) { ripple(bobPos.x, bobPos.z, 0.9); splash(bobPos, 6, 0.35, undefined, 2); lastRipple = t; }
       shake = 0.025;
+    } else if (phase === 'fight') {
+      // Cá giằng co: càng xa càng gần chỗ thả câu, vùng vẫy sang hai bên.
+      const sway = Math.sin(t * 1.7) * (0.6 + fightState.k * 1.2) * (fightState.surging ? 1.8 : 1);
+      bobPos.lerpVectors(fightNear, target, fightState.k);
+      bobPos.x += sway;
+      bobPos.y = waveHeight(bobPos.x, bobPos.z) - 0.1 - (fightState.surging ? Math.abs(Math.sin(t * 12)) * 0.15 : 0);
+      sag = 0;
+      hooked.position.set(bobPos.x, -0.22 - (fightState.surging ? 0 : 0.1), bobPos.z - 0.35);
+      hooked.rotation.y = Math.PI / 2 + Math.cos(t * 1.7) * 0.8 + Math.PI;
+      hooked.userData.tail.rotation.y = Math.sin(t * (fightState.surging ? 30 : 12)) * 0.6;
+      hooked.scale.setScalar(1.2 + fightState.tier * 0.2);
+      if (fightState.surging && t - lastRipple > 0.12) { splash(bobPos, 8, 0.55, undefined, 2.2); ripple(bobPos.x, bobPos.z, 1.2); lastRipple = t; }
+      else if (t - lastRipple > 0.3) { ripple(bobPos.x, bobPos.z, 0.8); splash(bobPos, 4, 0.35, undefined, 1.6); lastRipple = t; }
+      line.material.color.copy(lineWhite).lerp(lineRed, Math.max(0, (fightState.tension - 0.55) / 0.45));
+      shake = Math.max(shake, fightState.surging ? 0.03 : fightState.tension > 0.85 ? 0.02 : 0);
     } else if (phase === 'reel' || phase === 'escape') {
       const k = Math.min(1, el / (REEL_MS / 1000));
       const e = 1 - (1 - k) ** 3;
       const hang = tmp2.set(tipPos.x, tipPos.y - 1.5, tipPos.z);
-      bobPos.lerpVectors(target, hang, e);
+      bobPos.lerpVectors(reelFrom, hang, e);
       bobPos.y += Math.sin(e * Math.PI) * 1.6;
       sag = 0.05;
       if (phase === 'reel' && caught) {
@@ -721,6 +750,7 @@ export function createScene3D(canvas) {
     camPos.copy(camBase);
     if (narrow) camPos.add(tmp.set(-1.4, 1.2, 2.6));
     camTarget.copy(camLook);
+    if (phase === 'fight') camTarget.lerp(bobPos, 0.35);
     if ((phase === 'reel' || phase === 'hold') && caught) {
       const k = phase === 'hold' ? 1 : Math.min(1, el / (REEL_MS / 1000));
       camPos.lerp(tmp.set(-2.6, 2.1, 0.2 + (narrow ? 1.5 : 0)), k * 0.7);
@@ -743,11 +773,36 @@ export function createScene3D(canvas) {
 
   return {
     setZone,
-    cast() {
+    // Giữ nút lấy lực: cần câu ngả ra sau theo lực.
+    charge(power) {
       if (caught) { scene.remove(caught); caught = null; caughtLight.intensity = 0; }
+      fightState.power = power;
+      if (phase !== 'charge') setPhase('charge');
+    },
+    // dist: khoảng cách ném (m) – ném càng xa phao rơi càng xa.
+    cast(dist = 12) {
+      if (caught) { scene.remove(caught); caught = null; caughtLight.intensity = 0; }
+      // Đặt phao dọc theo hướng nhìn của camera để luôn thấy rõ dù ném gần hay xa.
+      const z = -3 - dist * 0.8;
+      const along = (camBase.z - z) / (camBase.z - camLook.z);
+      target.set(camBase.x + (camLook.x - camBase.x) * along * 0.8 + (Math.random() - 0.5) * 2, 0, z);
       setPhase('cast');
     },
     bite() { setPhase('bite'); splash(target, 20, 0.6); ripple(target.x, target.z, 1.6); },
+    hook(rarity) {
+      fightState.tier = Math.max(0, ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'].indexOf(rarity));
+      fightState.k = 1;
+      splash(target, 60, 1.0);
+      ripple(target.x, target.z, 2);
+      shake = 0.05;
+      setPhase('fight');
+    },
+    // k: 1 = ở chỗ thả câu, 0 = sát cầu; tension 0–1; surging: cá đang vùng vẫy.
+    fight(k, tension, surging) {
+      fightState.k = Math.max(0, Math.min(1.4, k));
+      fightState.tension = tension;
+      fightState.surging = surging;
+    },
     reel(_emoji, color, fish) {
       const look = RARITY_FISH[fish?.rarity] || { body: new THREE.Color(color).getHex(), fin: 0x333333 };
       // Mỗi loài một sắc màu riêng dựa trên mã loài.
@@ -761,12 +816,16 @@ export function createScene3D(canvas) {
       scene.add(caught);
       caughtLight.color.set(color);
       caughtLight.intensity = tier >= 3 ? 4 + tier : 0;
-      splash(target, 90, 1.1);
-      if (tier >= 4) splash(target, 60, 1.3, new THREE.Color(color), 4);
-      ripple(target.x, target.z, 2.2);
+      reelFrom.copy(phase === 'idle' || phase === 'charge' ? target : bobPos);
+      splash(reelFrom, 90, 1.1);
+      if (tier >= 4) splash(reelFrom, 60, 1.3, new THREE.Color(color), 4);
+      ripple(reelFrom.x, reelFrom.z, 2.2);
       setPhase('reel');
     },
-    escape() { splash(target, 70, 1); ripple(target.x, target.z, 2.5); setPhase('escape'); },
+    escape() {
+      reelFrom.copy(phase === 'idle' || phase === 'charge' ? target : bobPos);
+      splash(reelFrom, 70, 1); ripple(reelFrom.x, reelFrom.z, 2.5); setPhase('escape');
+    },
     get phase() { return phase; },
   };
 }

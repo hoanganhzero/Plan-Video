@@ -122,10 +122,29 @@ export function rollFish(zoneId, luck, rng = Math.random, { charm = false } = {}
 }
 
 // ---------- Thả câu ----------
-// Tiêu hao mồi / bùa, chọn cá và câu hỏi tương ứng độ hiếm.
-export function startCast(state, rng = Math.random, { useCharm = false } = {}) {
+function questionOpts(state) {
+  const grade = GRADES.find((g) => g.id === state.settings.grade) || GRADES[0];
+  return {
+    subjects: state.settings.subjects, mathOffset: grade.mathOffset,
+    recent: state.recent, review: state.review, custom: state.custom,
+  };
+}
+
+function rememberQuestion(state, question) {
+  state.recent = [question.id, ...state.recent.filter((id) => id !== question.id)].slice(0, 25);
+}
+
+// Số câu hỏi phải vượt qua để kéo được cá: Thường/Khá 1, Hiếm/Quý 2, Huyền thoại/Thần thoại 3.
+export function questionsFor(rarity) {
+  const tier = rarityIndex(rarity);
+  return tier <= 1 ? 1 : tier <= 3 ? 2 : 3;
+}
+
+// Tiêu hao mồi / bùa, chọn cá và câu hỏi đầu tiên tương ứng độ hiếm.
+// bonusLuck: thưởng may mắn khi ném xa / ném "Hoàn hảo".
+export function startCast(state, rng = Math.random, { useCharm = false, bonusLuck = 0 } = {}) {
   const bait = currentBait(state);
-  const luck = totalLuck(state);
+  const luck = totalLuck(state) + bonusLuck;
   const charm = useCharm && (state.items.charm || 0) > 0;
   if (bait !== 'worm') state.items[bait] -= 1;
   if (charm) state.items.charm -= 1;
@@ -134,16 +153,19 @@ export function startCast(state, rng = Math.random, { useCharm = false } = {}) {
 
   const catchInfo = rollFish(state.zone, luck, rng, { charm });
   const difficulty = RARITIES[rarityIndex(catchInfo.rarity)].difficulty;
-  const grade = GRADES.find((g) => g.id === state.settings.grade) || GRADES[0];
-  const question = pickQuestion(difficulty, {
-    subjects: state.settings.subjects,
-    mathOffset: grade.mathOffset,
-    recent: state.recent,
-    review: state.review,
-    custom: state.custom,
-  }, rng);
-  state.recent = [question.id, ...state.recent.filter((id) => id !== question.id)].slice(0, 25);
-  return { ...catchInfo, zone: state.zone, bait, charm, question, timeLimit: TIME_LIMIT[difficulty] };
+  const question = pickQuestion(difficulty, questionOpts(state), rng);
+  rememberQuestion(state, question);
+  return {
+    ...catchInfo, zone: state.zone, bait, charm, question, difficulty,
+    questions: questionsFor(catchInfo.rarity), timeLimit: TIME_LIMIT[difficulty],
+  };
+}
+
+// Câu hỏi tiếp theo trong lúc kéo cá (cùng độ khó).
+export function nextQuestion(state, attempt, rng = Math.random) {
+  const question = pickQuestion(attempt.difficulty, questionOpts(state), rng);
+  rememberQuestion(state, question);
+  return question;
 }
 
 export function useHelper(state, item) {
@@ -159,14 +181,11 @@ export function fiftyFifty(question, rng = Math.random) {
   return wrong.filter((i) => i !== keep);
 }
 
-// Kết quả trả lời. choice = chỉ số đáp án (null = hết giờ).
-export function resolveCast(state, attempt, choice) {
-  const { question } = attempt;
+// Ghi nhận một câu trả lời: thống kê, chuỗi đúng, kinh nghiệm, sổ ôn tập.
+export function answerQuestion(state, question, choice) {
   const correct = choice === question.answer;
   const s = state.stats;
-  const beforeLevel = levelFromXp(state.xp);
-  const result = { correct, caught: false, xp: 0, newSpecies: false, leveledUp: false, level: beforeLevel };
-
+  const out = { correct, xp: 0, reviewed: false };
   s.answered += 1;
   if (correct) {
     s.correct += 1;
@@ -176,37 +195,48 @@ export function resolveCast(state, attempt, choice) {
     if (question.isReview || state.review.some((q) => q.id === question.id)) {
       state.review = state.review.filter((q) => q.id !== question.id);
       s.reviewedOk += 1;
-      result.reviewed = true;
+      out.reviewed = true;
     }
-    const rarity = RARITIES[rarityIndex(attempt.rarity)];
     // Chuỗi đúng liên tiếp thưởng thêm kinh nghiệm (tối đa +50%).
     const streakBonus = 1 + Math.min(0.5, (s.streak - 1) * 0.05);
-    result.xp = Math.round((10 * question.difficulty + rarity.xp) * streakBonus);
-    state.xp += result.xp;
-
-    const fish = {
-      uid: state.nextUid++, fishId: attempt.fishId, kg: attempt.kg, value: attempt.value, zone: attempt.zone,
-    };
-    state.bucket.push(fish);
-    s.catches += 1;
-    s.catchesByRarity[attempt.rarity] = (s.catchesByRarity[attempt.rarity] || 0) + 1;
-    const entry = state.collection[attempt.fishId];
-    result.newSpecies = !entry;
-    result.record = !!entry && attempt.kg > entry.bestKg;
-    state.collection[attempt.fishId] = {
-      count: (entry?.count || 0) + 1,
-      bestKg: Math.max(entry?.bestKg || 0, attempt.kg),
-    };
-    result.caught = true;
-    result.fish = fish;
+    out.xp = Math.round(10 * question.difficulty * streakBonus);
+    state.xp += out.xp;
   } else {
     s.streak = 0;
-    s.escaped += 1;
     if (question.subject && !state.review.some((q) => q.id === question.id)) {
       const { isReview, ...plain } = question;
       state.review = [plain, ...state.review].slice(0, REVIEW_LIMIT);
     }
   }
+  return out;
+}
+
+// Kéo cá lên thành công: cho vào thùng, ghi bộ sưu tập, thưởng kinh nghiệm theo độ hiếm.
+export function landFish(state, attempt) {
+  const s = state.stats;
+  const rarity = RARITIES[rarityIndex(attempt.rarity)];
+  const xp = Math.round(rarity.xp * (1 + Math.min(0.5, Math.max(0, s.streak - 1) * 0.05)));
+  state.xp += xp;
+  const fish = { uid: state.nextUid++, fishId: attempt.fishId, kg: attempt.kg, value: attempt.value, zone: attempt.zone };
+  state.bucket.push(fish);
+  s.catches += 1;
+  s.catchesByRarity[attempt.rarity] = (s.catchesByRarity[attempt.rarity] || 0) + 1;
+  const entry = state.collection[attempt.fishId];
+  state.collection[attempt.fishId] = { count: (entry?.count || 0) + 1, bestKg: Math.max(entry?.bestKg || 0, attempt.kg) };
+  return { fish, xp, newSpecies: !entry, record: !!entry && attempt.kg > entry.bestKg };
+}
+
+export function loseFish(state) { state.stats.escaped += 1; }
+
+// Chế độ một câu hỏi (dùng cho kiểm thử và bản đơn giản): đúng thì kéo được cá, sai thì mất cá.
+export function resolveCast(state, attempt, choice) {
+  const beforeLevel = levelFromXp(state.xp);
+  const a = answerQuestion(state, attempt.question, choice);
+  const result = { correct: a.correct, caught: false, xp: a.xp, reviewed: a.reviewed, newSpecies: false };
+  if (a.correct) {
+    const landed = landFish(state, attempt);
+    Object.assign(result, landed, { caught: true, xp: a.xp + landed.xp });
+  } else loseFish(state);
   result.level = levelFromXp(state.xp);
   result.leveledUp = result.level > beforeLevel;
   return result;

@@ -78,7 +78,12 @@ Tab **Lồng tiếng Việt** (cần Gemini API key):
 Trò chơi vừa học vừa chơi trong thư mục `fishing/` – mở `http://localhost:3000/fishing/` sau khi chạy `npm start`.
 
 - **Đồ hoạ 3D** (Three.js/WebGL): mặt nước gợn sóng phản chiếu nắng, người câu đội nón lá trên cầu gỗ, cá 3D bơi dưới nước và giãy trên dây khi kéo lên, nước bắn, camera chuyển động; mỗi khu một cảnh (ao sen, sông tre và nhà sàn lúc hoàng hôn, hồ núi tuyết và rừng thông, biển đảo và hải đăng, vực sâu ban đêm có sinh vật phát sáng). Máy không hỗ trợ WebGL tự chuyển sang cảnh 2D.
-- **Câu cá bằng kiến thức**: thả câu → cá cắn câu → trả lời đúng câu hỏi trắc nghiệm (có đếm giờ) để kéo cá lên; sai hoặc hết giờ thì cá thoát và được giải thích đáp án đúng.
+- **Cách chơi kiểu game câu cá**: giao diện toàn màn hình (thanh người chơi, menu tròn, nút hành động lớn).
+  1. **Giữ** nút 🎣 để lấy lực, **thả** để ném – thả trong vùng xanh là *Hoàn hảo* (dễ gặp cá hiếm hơn), ném xa cũng vậy.
+  2. Phao chìm → bấm **GIẬT CẦN** trong 1,4 giây, chậm thì cá nhả mồi.
+  3. **Kéo cá**: giữ để thu dây, thả khi thanh *căng dây* lên đỏ (căng đỏ quá lâu là đứt dây); cá vùng vẫy thì nên thả bớt.
+  4. Tới các mốc khoảng cách, cá vùng vẫy mạnh → **trả lời câu hỏi** có đếm giờ. Đúng: cá yếu đi. Sai: cá kéo ra xa, mất 1 ❤️ độ bền dây (hết ❤️ là cá thoát) và được xem lời giải. Cá Thường/Khá 1 câu, Hiếm/Quý 2 câu, Huyền thoại/Thần thoại 3 câu.
+  5. Kéo lên được thì xem thẻ cá: **Cho vào thùng** hoặc **Bán ngay**.
 - **Cá giá trị tăng dần**: 6 bậc độ hiếm (Thường → Khá → Hiếm → Quý → Huyền thoại → Thần thoại), 32 loài trải qua 5 khu: Ao làng → Sông quê → Hồ trên núi → Biển xanh → Vực sâu huyền bí. Cá càng hiếm thì câu hỏi càng khó, thời gian càng dài và giá càng cao.
 - **Nhiệm vụ**: chuỗi 22 nhiệm vụ (trả lời đúng theo môn, chuỗi đúng liên tiếp, săn cá hiếm, sưu tập loài, lên cấp…) thưởng xu, mồi, vật phẩm, **cần câu mới** và **mở khu câu mới**.
 - **Vật phẩm**: cần câu (tăng may mắn), mồi tôm / mồi vàng, phao gợi ý 50/50, đồng hồ cát +15 giây, bùa may mắn (chắc chắn gặp cá Hiếm trở lên).
@@ -127,6 +132,7 @@ fishing/                Trò chơi Câu Cá Học Giỏi
   js/data.js            Độ hiếm, khu câu, cá, cần câu, vật phẩm, nhiệm vụ
   js/questions.js       Ngân hàng câu hỏi, Toán sinh tự động, câu hỏi riêng
   js/engine.js          Logic trò chơi (thả câu, trả lời, nhiệm vụ, cửa hàng, cấp độ)
+  js/fight.js           Mô phỏng pha kéo cá: căng dây, sức cá, khoảng cách, độ bền dây
   js/scene3d.js         Cảnh câu cá 3D (Three.js): nước, người câu, cá, hiệu ứng, cảnh từng khu
   js/scene.js           Cảnh 2D dự phòng khi máy không có WebGL
   vendor/               Three.js r160 (giấy phép MIT) – để chạy được cả khi mất mạng

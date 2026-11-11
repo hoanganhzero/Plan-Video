@@ -215,3 +215,65 @@ test('old saves are upgraded with new defaults', () => {
   assert.equal(s.settings.grade, 'g6');
   assert.deepEqual(s.settings.subjects, ['math', 'vi', 'en', 'sci', 'his']);
 });
+
+// ---------- Pha kéo cá ----------
+import { createFight, stepFight, answerInFight, nextMilestone } from '../fishing/js/fight.js';
+import { questionsFor, answerQuestion, landFish } from '../fishing/js/engine.js';
+
+function runFight(f, policy, onQuestion, rng, maxT = 120) {
+  for (let t = 0; t < maxT; t += 0.05) {
+    const ev = stepFight(f, 0.05, policy(f), rng);
+    if (ev === 'question') { const r = answerInFight(f, onQuestion()); if (r === 'lost') return 'lost'; }
+    else if (ev) return ev;
+  }
+  return 'timeout';
+}
+const smart = (f) => f.tension < 0.7;
+
+test('rarer fish need more questions', () => {
+  assert.equal(questionsFor('common'), 1);
+  assert.equal(questionsFor('rare'), 2);
+  assert.equal(questionsFor('mythic'), 3);
+});
+
+test('careful reeling with correct answers lands every kind of fish', () => {
+  for (const rarity of ['common', 'rare', 'legendary', 'mythic']) {
+    const rng = seeded(21);
+    const f = createFight({ rarity, kg: 50, distance: 20, questions: questionsFor(rarity) }, rng);
+    let asked = 0;
+    assert.equal(runFight(f, smart, () => { asked++; return true; }, rng), 'landed', rarity);
+    assert.equal(asked, questionsFor(rarity));
+    assert.equal(f.stamina, 0);
+  }
+});
+
+test('holding the reel non-stop snaps the line; doing nothing lets the fish escape', () => {
+  const rng = seeded(4);
+  const greedy = createFight({ rarity: 'epic', kg: 10, distance: 24, questions: 2 }, rng);
+  assert.equal(runFight(greedy, () => true, () => true, rng), 'snapped');
+  const lazy = createFight({ rarity: 'common', distance: 10 }, rng);
+  assert.equal(runFight(lazy, () => false, () => true, rng), 'escaped');
+});
+
+test('wrong answers cost line durability and push the fish away', () => {
+  const f = createFight({ rarity: 'rare', distance: 12, questions: 2, lives: 2 });
+  f.distance = nextMilestone(f);
+  const before = f.distance;
+  assert.equal(answerInFight(f, false), 'pulled');
+  assert.ok(f.distance > before);
+  assert.equal(f.lives, 1);
+  assert.equal(answerInFight(f, false), 'lost');
+  assert.equal(f.done, 'lost');
+});
+
+test('answering and landing update stats like a single-question catch', () => {
+  const state = newGame();
+  const a = startCast(state, seeded(13), { bonusLuck: 2 });
+  assert.equal(a.questions, questionsFor(a.rarity));
+  const r = answerQuestion(state, a.question, a.question.answer);
+  assert.ok(r.correct && r.xp > 0);
+  const landed = landFish(state, a);
+  assert.ok(landed.newSpecies);
+  assert.equal(state.bucket.length, 1);
+  assert.equal(state.stats.correct, 1);
+});

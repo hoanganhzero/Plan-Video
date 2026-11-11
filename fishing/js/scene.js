@@ -237,8 +237,11 @@ export function createScene(canvas) {
 
   return {
     setZone(z) { zone = z; },
+    charge() { if (phase !== 'idle') setPhase('idle'); },
     cast() { setPhase('cast'); },
     bite() { setPhase('bite'); },
+    hook() { setPhase('bite'); },
+    fight() {},
     reel(emoji, color) { catchEmoji = emoji; catchColor = color; setPhase('reel'); },
     escape() { const g = geo(); addRipple(g.target.x, g.target.y + 4, 2.5); setPhase('escape'); },
     get phase() { return phase; },
