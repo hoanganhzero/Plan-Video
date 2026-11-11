@@ -10,6 +10,10 @@ import { SUBJECTS, GRADES, rarityOf, rarityIndex, subjectById } from './data.js'
 import { parseCustomQuestions } from './questions.js';
 import { createFight, stepFight, answerInFight, surging } from './fight.js';
 import { createScene } from './scene.js';
+import { fishSVG } from './art.js';
+import {
+  submitScore, topPlayers, myRank, validNickname, cleanNickname, ensurePlayerKey, rarityColor, rarityName,
+} from './online.js';
 import { createScene3D, webglAvailable } from './scene3d.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -126,6 +130,8 @@ function renderHud() {
   $('#quest-badge').textContent = ready;
   $('#bucket-badge').hidden = !state.bucket.length;
   $('#bucket-badge').textContent = state.bucket.length;
+  const on = state.online || {};
+  $('#hud-rank-text').textContent = on.nickname && on.rank ? `#${on.rank}` : 'Đua top';
   $('#review-badge').hidden = !state.review.length;
   $('#review-badge').textContent = state.review.length;
   renderGear();
@@ -247,6 +253,7 @@ $('#quest-list').addEventListener('click', (e) => {
   doneQuestIds = new Set(activeQuests(state).filter((x) => questProgress(state, x).done).map((x) => x.id));
   RENDER.quests();
   renderHud();
+  syncOnline();
 });
 
 // ---------- Thùng cá ----------
@@ -254,7 +261,7 @@ function fishCard(f, extra = '') {
   const fish = fishById(f.fishId);
   const r = rarityOf(fish.rarity);
   return `<div class="fish-card" style="border-color:${r.color}">
-    <div class="emoji">${fish.emoji}</div>
+    <div class="art">${fishSVG(fish.id, { size: 120, uid: `b${f.uid}` })}</div>
     <div class="name">${esc(fish.name)}</div>
     ${tag(fish.rarity)}
     <div class="meta">${f.kg} kg · 🪙 ${fmt(f.value)}</div>
@@ -301,8 +308,8 @@ RENDER.dex = () => {
         const c = state.collection[fish.id];
         const r = rarityOf(fish.rarity);
         return c
-          ? `<div class="fish-card" style="border-color:${r.color}"><div class="emoji">${fish.emoji}</div><div class="name">${esc(fish.name)}</div>${tag(fish.rarity)}<div class="meta">Đã câu ${c.count} lần · kỷ lục ${c.bestKg} kg<br>Giá gốc 🪙 ${fmt(fish.value)}</div></div>`
-          : `<div class="fish-card unknown"><div class="emoji">${fish.emoji}</div><div class="name">???</div>${tag(fish.rarity)}<div class="meta">Chưa khám phá</div></div>`;
+          ? `<div class="fish-card" style="border-color:${r.color}"><div class="art">${fishSVG(fish.id, { size: 120, uid: `d${fish.id}` })}</div><div class="name">${esc(fish.name)}</div>${tag(fish.rarity)}<div class="meta">Đã câu ${c.count} lần · kỷ lục ${c.bestKg} kg<br>Giá gốc 🪙 ${fmt(fish.value)}</div></div>`
+          : `<div class="fish-card unknown"><div class="art">${fishSVG(fish.id, { size: 120, uid: `u${fish.id}` })}</div><div class="name">???</div>${tag(fish.rarity)}<div class="meta">Chưa khám phá</div></div>`;
       }).join('')}</div>
     </div>`).join('');
 };
@@ -442,6 +449,91 @@ function afterAction() {
   doneQuestIds = new Set(nowDone.map((q) => q.id));
   renderHud();
 }
+
+// ---------- Bảng xếp hạng (online) ----------
+let syncing = null;
+// Nộp điểm lên bảng xếp hạng chung (không chặn trò chơi nếu mất mạng).
+async function syncOnline({ force = false } = {}) {
+  if (!state.online?.nickname) return null;
+  if (syncing) return syncing;
+  if (!force && Date.now() - (state.online.lastSubmit || 0) < 8000) return null;
+  const before = state.online.rank;
+  syncing = submitScore(state)
+    .then((row) => {
+      save();
+      renderHud();
+      if (row && before && row.rank < before) {
+        toast(`🏆 Bạn đã vượt lên hạng <b>#${row.rank}</b> trên ${row.total} người chơi!`);
+        beep(SOUND.level);
+      }
+      return row;
+    })
+    .catch((err) => { console.warn('Không nộp được điểm:', err); return null; })
+    .finally(() => { syncing = null; });
+  return syncing;
+}
+
+let rankTimer = null;
+const MEDAL = ['🥇', '🥈', '🥉'];
+async function loadRanking() {
+  const status = $('#rank-status');
+  status.textContent = 'Đang tải bảng xếp hạng…';
+  try {
+    if (state.online.nickname) await syncOnline({ force: true });
+    const [rows, me] = await Promise.all([topPlayers(50), state.online.nickname ? myRank(state) : null]);
+    if (me) { Object.assign(state.online, { rank: me.rank, total: me.total }); save(); renderHud(); }
+    const myNick = cleanNickname(state.online.nickname);
+    $('#rank-list').innerHTML = rows.length ? rows.map((r) => {
+      const mine = me && r.rank === me.rank && r.nickname === myNick;
+      return `<li class="${mine ? 'me' : ''} ${r.rank <= 3 ? `top${r.rank}` : ''}">
+        <span class="pos">${MEDAL[r.rank - 1] || `#${r.rank}`}</span>
+        <span class="who"><b>${esc(r.nickname)}${mine ? ' (bạn)' : ''}</b>
+          <span>Cấp ${r.level} · 🐟 ${r.species} loài · ✅ ${fmt(r.correct)} câu đúng${r.best_fish ? ` · <span style="color:${rarityColor(r.best_rarity)}">★ ${esc(r.best_fish)}</span>` : ''}</span></span>
+        <span class="pts">${fmt(r.xp)}<small>KN</small></span>
+      </li>`;
+    }).join('') : '<li><span class="pos">🎣</span><span class="who"><b>Chưa có ai!</b><span>Hãy là người đầu tiên lên bảng.</span></span><span></span></li>';
+    if (me) {
+      $('#rank-me').hidden = false;
+      $('#rank-me').innerHTML = `<span class="big">#${me.rank}</span><span><b>${esc(myNick)}</b><br><span class="small">Hạng của bạn trên ${fmt(me.total)} người chơi · ${fmt(me.xp)} KN</span></span>`;
+    } else $('#rank-me').hidden = true;
+    status.textContent = `Cập nhật lúc ${new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+  } catch (err) {
+    console.warn(err);
+    status.textContent = '⚠️ Không kết nối được bảng xếp hạng. Kiểm tra mạng rồi bấm Làm mới.';
+  }
+}
+
+RENDER.rank = () => {
+  const joined = !!state.online.nickname;
+  $('#rank-join').hidden = joined;
+  $('#rank-rename').hidden = !joined;
+  $('#nick-input').value = state.online.nickname || '';
+  $('#nick-error').textContent = '';
+  loadRanking();
+  clearInterval(rankTimer);
+  rankTimer = setInterval(() => { if ($('#sheet-rank').open) loadRanking(); else clearInterval(rankTimer); }, 20000);
+};
+$('#sheet-rank').addEventListener('close', () => clearInterval(rankTimer));
+$('#nick-save').addEventListener('click', async () => {
+  const nick = cleanNickname($('#nick-input').value);
+  const err = validNickname(nick);
+  if (err) { $('#nick-error').textContent = err; return; }
+  ensurePlayerKey(state);
+  state.online.nickname = nick;
+  save();
+  $('#nick-error').textContent = '';
+  const row = await syncOnline({ force: true });
+  if (!row) {
+    $('#nick-error').textContent = 'Chưa gửi được lên máy chủ (mất mạng?). Điểm sẽ tự gửi ở lượt câu sau.';
+  } else {
+    beep(SOUND.catch);
+    banner(`🏆 HẠNG #${row.rank}<small>trên ${row.total} người chơi</small>`, 'gold', 2000);
+  }
+  RENDER.rank();
+});
+$('#nick-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#nick-save').click(); });
+$('#rank-rename').addEventListener('click', () => { $('#rank-join').hidden = false; $('#nick-input').focus(); });
+$('#rank-refresh').addEventListener('click', loadRanking);
 
 // =====================================================================
 // VÒNG CHƠI
@@ -783,7 +875,7 @@ async function finishCatch() {
   if (landed.record) gains.push('🏅 Kỷ lục cân nặng!');
   if (fightLog.some((l) => l.correct && l.question.isReview)) gains.push('📒 Đã sửa câu sai');
   $('#result-body').innerHTML = `
-    <div class="catch-stage" style="--ray:${r.color}"><div class="rays"></div><div class="big-emoji">${fish.emoji}</div></div>
+    <div class="catch-stage" style="--ray:${r.color}"><div class="rays"></div>${fishSVG(fish.id, { size: 240, uid: 'catch' })}</div>
     ${tag(fish.rarity)}
     <h2>${esc(fish.name)}</h2>
     <div class="stats">
@@ -853,11 +945,13 @@ function endTurn() {
   setMode('idle');
   hint('');
   afterAction();
+  syncOnline();
 }
 
 // ---------- Bắt đầu ----------
 setMode('idle');
 renderHud();
+syncOnline({ force: true });
 if (!state.stats.casts) {
   setTimeout(() => banner('CÂU CÁ HỌC GIỎI<small>Giữ nút 🎣 để lấy lực, thả tay để ném!</small>', 'gold', 3200), 400);
 }

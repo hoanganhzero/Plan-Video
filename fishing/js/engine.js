@@ -36,6 +36,7 @@ export function newGame() {
     },
     settings: { subjects: ['math', 'vi', 'en', 'sci', 'his'], grade: 'g1', sound: true },
     nextUid: 1,
+    online: { key: null, nickname: '', rank: null, total: null },
   };
 }
 
@@ -49,6 +50,7 @@ export function normalizeState(raw) {
     items: { ...base.items, ...(raw.items || {}) },
     stats: { ...base.stats, ...(raw.stats || {}) },
     settings: { ...base.settings, ...(raw.settings || {}) },
+    online: { ...base.online, ...(raw.online || {}) },
   };
 }
 

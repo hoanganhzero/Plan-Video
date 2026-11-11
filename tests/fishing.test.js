@@ -277,3 +277,61 @@ test('answering and landing update stats like a single-question catch', () => {
   assert.equal(state.bucket.length, 1);
   assert.equal(state.stats.correct, 1);
 });
+
+// ---------- Bảng xếp hạng online ----------
+import { buildSubmission, submitScore, topPlayers, validNickname, cleanNickname, bestFish, ONLINE } from '../fishing/js/online.js';
+import { fishSVG } from '../fishing/js/art.js';
+
+test('nicknames are cleaned and validated', () => {
+  assert.equal(cleanNickname('  Mèo   Câu  Cá 5A  '), 'Mèo Câu Cá 5A');
+  assert.equal(cleanNickname('x'.repeat(30)).length, 16);
+  assert.ok(validNickname('a'));
+  assert.ok(validNickname('xem www.abc.vn'));
+  assert.equal(validNickname('Bé Na'), '');
+});
+
+test('submission carries a stable secret key and the best fish', () => {
+  const state = newGame();
+  state.online.nickname = 'Bé Na';
+  state.xp = 450;
+  state.stats.correct = 12;
+  state.collection = { ro: { count: 2, bestKg: 0.3 }, loc: { count: 1, bestKg: 2 }, chep: { count: 1, bestKg: 1 } };
+  const a = buildSubmission(state);
+  const b = buildSubmission(state);
+  assert.equal(a.p_key, b.p_key);
+  assert.match(a.p_key, /^[0-9a-f-]{36}$/);
+  assert.deepEqual({ ...a, p_key: 'k' }, { p_key: 'k', p_nickname: 'Bé Na', p_xp: 450, p_species: 3, p_correct: 12, p_best_fish: 'Cá lóc', p_best_rarity: 2 });
+  assert.deepEqual(bestFish(newGame()), { name: null, rarity: 0 });
+});
+
+test('submitScore calls the Supabase RPC with the publishable key and stores the rank', async () => {
+  const state = newGame();
+  let call;
+  const fakeFetch = async (url, opts) => { call = { url, opts }; return { ok: true, status: 200, text: async () => '[{"rank":3,"total":40,"xp":120}]' }; };
+  assert.equal(await submitScore(state, fakeFetch), null, 'no nickname → nothing sent');
+  state.online.nickname = 'Tí';
+  state.xp = 120;
+  const row = await submitScore(state, fakeFetch);
+  assert.equal(row.rank, 3);
+  assert.equal(state.online.rank, 3);
+  assert.equal(call.url, `${ONLINE.url}/rest/v1/rpc/fishing_submit`);
+  assert.equal(call.opts.headers.apikey, ONLINE.key);
+  assert.equal(JSON.parse(call.opts.body).p_nickname, 'Tí');
+});
+
+test('server errors surface as exceptions; top players parse', async () => {
+  const bad = async () => ({ ok: false, status: 400, text: async () => '{"message":"nickname must be 2-16 characters"}' });
+  const state = newGame();
+  state.online.nickname = 'OK';
+  await assert.rejects(submitScore(state, bad), /nickname/);
+  const good = async () => ({ ok: true, status: 200, text: async () => '[{"rank":1,"nickname":"A","xp":9}]' });
+  assert.equal((await topPlayers(10, good))[0].nickname, 'A');
+});
+
+test('every fish species has vector art with unique ids', () => {
+  for (const f of FISH) {
+    const svg = fishSVG(f.id, { uid: `t${f.id}` });
+    assert.match(svg, /^<svg/);
+    assert.ok(svg.includes(`t${f.id}b`));
+  }
+});

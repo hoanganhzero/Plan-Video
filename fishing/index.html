@@ -30,11 +30,13 @@
       <span class="res" title="Xu">🪙 <b id="hud-coins">0</b></span>
       <span class="res" title="Chuỗi trả lời đúng liên tiếp">🔥 <b id="hud-streak">0</b></span>
       <span class="res hide-sm" title="Loài cá đã câu được">🐟 <b id="hud-species">0</b></span>
+      <button class="res rank-pill" id="hud-rank" data-open="rank" title="Bảng xếp hạng">🏆 <b id="hud-rank-text">Đua top</b></button>
     </div>
   </header>
 
   <!-- MENU BÊN TRÁI -->
   <nav class="side-menu" aria-label="Menu">
+    <button data-open="rank" class="rank-btn"><span class="ico">🏆</span><span class="lbl">Xếp hạng</span></button>
     <button data-open="quests"><span class="ico">📜</span><span class="lbl">Nhiệm vụ</span><i class="badge" id="quest-badge" hidden></i></button>
     <button data-open="bucket"><span class="ico">🪣</span><span class="lbl">Thùng cá</span><i class="badge blue" id="bucket-badge" hidden></i></button>
     <button data-open="dex"><span class="ico">📚</span><span class="lbl">Sưu tập</span></button>
@@ -84,6 +86,27 @@
     <div class="sheet-body">
       <p class="muted">Mỗi khu có loài cá riêng – khu càng xa, cá càng quý. Mở khu mới bằng xu khi đủ cấp, hoặc nhận từ nhiệm vụ.</p>
       <div id="zone-list" class="zone-grid"></div>
+    </div>
+  </dialog>
+
+  <dialog class="sheet" id="sheet-rank">
+    <header><h2>🏆 Bảng xếp hạng</h2><button class="close" data-close aria-label="Đóng">✕</button></header>
+    <div class="sheet-body">
+      <div id="rank-join" class="card join-card" hidden>
+        <h3>Tham gia đua top cùng các bạn!</h3>
+        <p class="muted small">Chọn một biệt danh (2–16 ký tự) để hiện trên bảng xếp hạng chung. Đừng dùng họ tên đầy đủ, số điện thoại hay thông tin cá nhân nhé.</p>
+        <div class="row">
+          <input id="nick-input" class="nick-input" maxlength="40" placeholder="VD: Mèo Câu Cá 5A" autocomplete="off">
+          <button class="btn gold" id="nick-save">Tham gia 🏆</button>
+        </div>
+        <p class="small" id="nick-error"></p>
+      </div>
+      <div id="rank-me" class="rank-me" hidden></div>
+      <div class="row"><span class="muted small" id="rank-status"></span><span class="spacer"></span>
+        <button class="btn small" id="rank-rename" hidden>✏️ Đổi biệt danh</button>
+        <button class="btn small sea" id="rank-refresh">🔄 Làm mới</button></div>
+      <ol id="rank-list" class="rank-list"></ol>
+      <p class="muted small">Điểm xếp hạng = tổng kinh nghiệm (KN) kiếm được nhờ trả lời đúng và câu cá. Bảng tự cập nhật mỗi 20 giây khi đang mở.</p>
     </div>
   </dialog>
 

@@ -86,6 +86,8 @@ Trò chơi vừa học vừa chơi trong thư mục `fishing/` – mở `http://
   5. Kéo lên được thì xem thẻ cá: **Cho vào thùng** hoặc **Bán ngay**.
 - **Cá giá trị tăng dần**: 6 bậc độ hiếm (Thường → Khá → Hiếm → Quý → Huyền thoại → Thần thoại), 32 loài trải qua 5 khu: Ao làng → Sông quê → Hồ trên núi → Biển xanh → Vực sâu huyền bí. Cá càng hiếm thì câu hỏi càng khó, thời gian càng dài và giá càng cao.
 - **Nhiệm vụ**: chuỗi 22 nhiệm vụ (trả lời đúng theo môn, chuỗi đúng liên tiếp, săn cá hiếm, sưu tập loài, lên cấp…) thưởng xu, mồi, vật phẩm, **cần câu mới** và **mở khu câu mới**.
+- **🏆 Bảng xếp hạng chung (đua top)**: mỗi học sinh chọn một biệt danh (2–16 ký tự, không cần đăng ký), điểm = tổng KN nhờ trả lời đúng và câu cá, tự gửi sau mỗi lượt câu. Bảng hiện top 50 kèm huy chương 🥇🥈🥉, cấp, số loài, số câu đúng và con cá quý nhất; dòng của mình được tô sáng, có thông báo khi vượt hạng. Máy chủ là Supabase: bảng `fishing_scores` khoá bằng RLS, trình duyệt chỉ gọi 3 hàm `fishing_submit` / `fishing_top` / `fishing_me`; máy chủ chặn điểm giảm hoặc tăng bất thường (> ~600 KN/phút). Cần mở game qua mạng (VD GitHub Pages) để bảng xếp hạng hoạt động; mất mạng vẫn chơi bình thường.
+- **Hình minh hoạ cá**: 32 loài vẽ vector (SVG) theo phong cách thẻ game, mỗi loài một dáng, màu và hoa văn riêng; cá Huyền thoại/Thần thoại có hào quang.
 - **Vật phẩm**: cần câu (tăng may mắn), mồi tôm / mồi vàng, phao gợi ý 50/50, đồng hồ cát +15 giây, bùa may mắn (chắc chắn gặp cá Hiếm trở lên).
 - **Môn học**: Toán (sinh tự động theo trình độ Lớp 1–2 / 3–5 / 6–9), Tiếng Việt, Tiếng Anh, Khoa học, Lịch sử & Địa lý, và **Câu hỏi của tôi** – phụ huynh/thầy cô nhập bài cần ôn theo mẫu `Câu hỏi | Đáp án đúng | Sai 1 | Sai 2 | Sai 3`.
 - **Sổ ôn tập**: câu trả lời sai được ghi lại kèm đáp án và được hỏi lại sau; trả lời đúng thì xoá khỏi sổ.
@@ -133,6 +135,8 @@ fishing/                Trò chơi Câu Cá Học Giỏi
   js/questions.js       Ngân hàng câu hỏi, Toán sinh tự động, câu hỏi riêng
   js/engine.js          Logic trò chơi (thả câu, trả lời, nhiệm vụ, cửa hàng, cấp độ)
   js/fight.js           Mô phỏng pha kéo cá: căng dây, sức cá, khoảng cách, độ bền dây
+  js/online.js          Bảng xếp hạng chung (Supabase)
+  js/art.js             Hình minh hoạ 32 loài cá dạng SVG
   js/scene3d.js         Cảnh câu cá 3D (Three.js): nước, người câu, cá, hiệu ứng, cảnh từng khu
   js/scene.js           Cảnh 2D dự phòng khi máy không có WebGL
   vendor/               Three.js r160 (giấy phép MIT) – để chạy được cả khi mất mạng
