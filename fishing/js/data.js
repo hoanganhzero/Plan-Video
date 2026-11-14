@@ -103,6 +103,16 @@ export const RODS = [
 
 export const rodById = (id) => RODS.find((r) => r.id === id);
 
+// Dây câu: thêm ❤️ độ bền (số câu được phép trả lời sai) và sức chịu căng khi kéo cá.
+export const LINES = [
+  { id: 'nylon', name: 'Dây cước', icon: '🧵', color: '#e5e7eb', lives: 2, strength: 0, price: 0, level: 1 },
+  { id: 'braid', name: 'Dây dù bện', icon: '🧵', color: '#4ade80', lives: 3, strength: 0.1, price: 600, level: 3 },
+  { id: 'kevlar', name: 'Dây kevlar', icon: '🧵', color: '#fbbf24', lives: 3, strength: 0.25, price: 2500, level: 7 },
+  { id: 'titan', name: 'Dây titan', icon: '🧵', color: '#60a5fa', lives: 4, strength: 0.4, price: 8000, level: 12 },
+];
+
+export const lineById = (id) => LINES.find((l) => l.id === id);
+
 // Vật phẩm tiêu hao. kind 'bait' dùng mỗi lần thả câu; 'helper' dùng khi trả lời.
 export const ITEMS = {
   worm: { name: 'Giun đất', icon: '🪱', kind: 'bait', luck: 0, desc: 'Mồi miễn phí, dùng không giới hạn.' },
@@ -111,6 +121,8 @@ export const ITEMS = {
   hint: { name: 'Phao gợi ý 50/50', icon: '💡', kind: 'helper', desc: 'Bỏ bớt 2 đáp án sai.' },
   time: { name: 'Đồng hồ cát', icon: '⏳', kind: 'helper', desc: 'Thêm 15 giây suy nghĩ.' },
   charm: { name: 'Bùa may mắn', icon: '🍀', kind: 'charm', desc: 'Lần câu tới chắc chắn gặp cá Hiếm trở lên.' },
+  tea: { name: 'Trà gừng', icon: '🍵', kind: 'boost', desc: 'Trận kéo cá kế tiếp: dây căng chậm hơn 35%.' },
+  net: { name: 'Vợt vàng', icon: '🥅', kind: 'boost', desc: 'Con cá câu được ở lượt kế tiếp bán giá gấp đôi.' },
 };
 
 export const SHOP = [
@@ -119,6 +131,8 @@ export const SHOP = [
   { id: 'hint3', item: 'hint', qty: 3, price: 100, level: 1 },
   { id: 'time3', item: 'time', qty: 3, price: 80, level: 1 },
   { id: 'charm1', item: 'charm', qty: 1, price: 200, level: 3 },
+  { id: 'tea3', item: 'tea', qty: 3, price: 90, level: 2 },
+  { id: 'net1', item: 'net', qty: 1, price: 150, level: 3 },
 ];
 
 export const SUBJECTS = [
@@ -150,12 +164,12 @@ export const QUESTS = [
   { id: 'q7', title: 'Mở đường ra sông', goal: { type: 'level', n: 3 }, reward: { zone: 'river', coins: 50 } },
   { id: 'q8', title: 'Giỏi Tiếng Việt', goal: { type: 'correct', n: 6, subject: 'vi' }, reward: { items: { shrimp: 5 } } },
   { id: 'q9', title: 'Săn cá hiếm', goal: { type: 'catch', n: 3, minRarity: 'rare' }, reward: { rod: 'fiber' } },
-  { id: 'q10', title: 'Nhà sưu tầm', goal: { type: 'species', n: 8 }, reward: { coins: 300 } },
+  { id: 'q10', title: 'Nhà sưu tầm', goal: { type: 'species', n: 8 }, reward: { coins: 300, line: 'braid' } },
   { id: 'q11', title: 'Nhà khoa học nhỏ', goal: { type: 'correct', n: 8, subject: 'sci' }, reward: { items: { golden: 3 } } },
   { id: 'q12', title: 'Chuỗi 10 câu đúng', goal: { type: 'streak', n: 10 }, reward: { items: { charm: 2, hint: 3 } } },
   { id: 'q13', title: 'Lên núi tìm hồ', goal: { type: 'level', n: 6 }, reward: { zone: 'lake' } },
   { id: 'q14', title: 'Cá quý trong tay', goal: { type: 'catch', n: 3, minRarity: 'epic' }, reward: { rod: 'carbon' } },
-  { id: 'q15', title: 'Thông thạo Tiếng Anh', goal: { type: 'correct', n: 10, subject: 'en' }, reward: { coins: 600 } },
+  { id: 'q15', title: 'Thông thạo Tiếng Anh', goal: { type: 'correct', n: 10, subject: 'en' }, reward: { coins: 600, items: { tea: 3, net: 1 } } },
   { id: 'q16', title: 'Hiểu biết Sử – Địa', goal: { type: 'correct', n: 10, subject: 'his' }, reward: { coins: 800, items: { golden: 3 } } },
   { id: 'q17', title: 'Triệu phú làng chài', goal: { type: 'coinsEarned', n: 5000 }, reward: { zone: 'sea' } },
   { id: 'q18', title: 'Chạm tay huyền thoại', goal: { type: 'catch', n: 1, minRarity: 'legendary' }, reward: { rod: 'gold' } },

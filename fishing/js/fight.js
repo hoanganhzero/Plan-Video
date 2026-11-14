@@ -9,7 +9,8 @@ import { rarityIndex } from './data.js';
 export const BREAK_AFTER = 0.6; // giây căng tối đa trước khi đứt dây
 export const REEL_SPEED = 3.2; // m/s khi giữ nút
 
-export function createFight({ rarity, kg = 1, distance = 12, rodLuck = 0, questions = 1, lives = 2 }, rng = Math.random) {
+// lineStrength: dây tốt chịu căng hơn; calm (trà gừng): dây căng chậm hơn 35%.
+export function createFight({ rarity, kg = 1, distance = 12, rodLuck = 0, lineStrength = 0, calm = false, questions = 1, lives = 2 }, rng = Math.random) {
   const tier = Math.max(0, rarityIndex(rarity));
   return {
     tier,
@@ -22,7 +23,7 @@ export function createFight({ rarity, kg = 1, distance = 12, rodLuck = 0, questi
     lives,
     maxLives: lives,
     pull: 0.3 + tier * 0.09 + Math.min(0.2, Math.log10(kg + 1) * 0.08),
-    strength: 1 + rodLuck * 0.12,
+    strength: (1 + rodLuck * 0.12 + lineStrength) * (calm ? 1 / 0.65 : 1),
     surge: 0,
     surgeTimer: 1 + rng() * 1.5,
     breakTimer: 0,

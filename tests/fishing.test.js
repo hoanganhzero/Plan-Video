@@ -335,3 +335,32 @@ test('every fish species has vector art with unique ids', () => {
     assert.ok(svg.includes(`t${f.id}b`));
   }
 });
+
+// ---------- Dây câu & vật phẩm hỗ trợ ----------
+import { buyLine, currentLine } from '../fishing/js/engine.js';
+
+test('fishing lines add durability and can be bought or earned', () => {
+  const state = newGame();
+  assert.equal(currentLine(state).lives, 2);
+  assert.equal(buyLine(state, 'braid').ok, false);
+  state.coins = 1000; state.xp = xpForLevel(3);
+  assert.ok(buyLine(state, 'braid').ok);
+  assert.equal(currentLine(state).lives, 3);
+  assert.equal(state.coins, 400);
+});
+
+test('tea and golden net are consumed and take effect', () => {
+  const state = newGame();
+  state.items.tea = 1; state.items.net = 1;
+  const a = startCast(state, seeded(3), { useTea: true, useNet: true });
+  assert.ok(a.tea && a.net);
+  assert.equal(state.items.tea, 0);
+  assert.equal(state.items.net, 0);
+  const landed = landFish(state, a);
+  assert.equal(landed.fish.value, a.value * 2);
+  const b = startCast(state, seeded(4), { useTea: true });
+  assert.equal(b.tea, false, 'no tea left');
+  const calm = createFight({ rarity: 'rare', calm: true });
+  const plain = createFight({ rarity: 'rare' });
+  assert.ok(calm.strength > plain.strength * 1.5);
+});

@@ -3,6 +3,7 @@
 // cảnh vật riêng cho từng khu. Cùng giao diện với scene.js (bản 2D dự phòng):
 // setZone(zone) · cast() · bite() · reel(emoji, color, fish) · escape() · phase
 import * as THREE from '../vendor/three.module.min.js';
+import { buildFish3D } from './fish3d.js';
 
 const CAST_MS = 750;
 const REEL_MS = 1100;
@@ -686,7 +687,7 @@ export function createScene3D(canvas) {
         hideBobber = false;
         caught.position.copy(bobPos).add(tmp.set(0, -0.35 * caught.scale.y, 0));
         caught.rotation.set(Math.sin(t * 14) * 0.5, t * 0.8, Math.PI / 2 + Math.sin(t * 9) * 0.25);
-        caught.userData.tail.rotation.y = Math.sin(t * 25) * 0.6;
+        caught.userData.swim(t * 2.2, 1.6);
         caughtLight.position.copy(caught.position);
         if (Math.random() < 0.5) splash(caught.position, 1, 0.3, caught.userData.sparkle, 1);
       }
@@ -698,7 +699,7 @@ export function createScene3D(canvas) {
       if (caught) {
         caught.position.copy(bobPos).add(tmp.set(0, -0.35 * caught.scale.y, 0));
         caught.rotation.set(Math.sin(t * 3) * 0.3, t * 0.6, Math.PI / 2 + Math.sin(t * 4) * 0.15);
-        caught.userData.tail.rotation.y = Math.sin(t * 8) * 0.5;
+        caught.userData.swim(t, 1.1);
         caughtLight.position.copy(caught.position);
         if (Math.random() < 0.15) splash(caught.position, 1, 0.15, caught.userData.sparkle, 0.6);
       }
@@ -809,9 +810,12 @@ export function createScene3D(canvas) {
       let hash = 0;
       for (const ch of fish?.id || '') hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
       const bodyCol = new THREE.Color(look.body).offsetHSL(((hash % 100) / 100 - 0.5) * 0.12, 0, ((hash % 7) - 3) * 0.03);
-      caught = makeFish(bodyCol, look.fin, look.glow || 0);
+      // Cá 4D đúng loài (thân uốn lượn, đuôi vẫy) thay cho cá chung chung.
+      caught = fish?.id ? buildFish3D(fish.id) : makeFish(bodyCol, look.fin, look.glow || 0);
+      if (!caught.userData.swim) caught.userData.swim = () => {};
+      caught.traverse((o) => { o.castShadow = true; });
       const tier = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'].indexOf(fish?.rarity);
-      caught.scale.setScalar(0.7 + Math.max(0, tier) * 0.12);
+      caught.scale.setScalar((0.7 + Math.max(0, tier) * 0.12) * (fish?.id ? 0.55 : 1));
       caught.userData.sparkle = new THREE.Color(color);
       scene.add(caught);
       caughtLight.color.set(color);

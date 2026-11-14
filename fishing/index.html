@@ -70,8 +70,13 @@
   <footer class="bottom-hud">
     <div class="gear">
       <button class="gear-chip" id="rod-chip" data-open="shop" title="Cần câu đang dùng"></button>
+      <button class="gear-chip" id="line-chip" data-open="shop" title="Dây câu đang dùng"></button>
       <button class="gear-chip" id="bait-chip" title="Bấm để đổi mồi"></button>
-      <button class="gear-chip" id="charm-chip" title="Bấm để bật/tắt bùa may mắn"></button>
+      <div class="boosts" id="boosts" aria-label="Vật phẩm hỗ trợ (bấm để bật cho lượt tới)">
+        <button class="boost" data-boost="charm"></button>
+        <button class="boost" data-boost="tea"></button>
+        <button class="boost" data-boost="net"></button>
+      </div>
       <div class="odds" id="odds"></div>
     </div>
     <button class="action" id="action-btn" aria-label="Nút hành động">
@@ -84,8 +89,9 @@
   <dialog class="sheet" id="sheet-map">
     <header><h2>🗺️ Bản đồ khu câu</h2><button class="close" data-close aria-label="Đóng">✕</button></header>
     <div class="sheet-body">
-      <p class="muted">Mỗi khu có loài cá riêng – khu càng xa, cá càng quý. Mở khu mới bằng xu khi đủ cấp, hoặc nhận từ nhiệm vụ.</p>
-      <div id="zone-list" class="zone-grid"></div>
+      <p class="muted small">Bấm vào một khu trên bản đồ để xem. Khu càng xa, cá càng quý – mở khu mới bằng xu khi đủ cấp, hoặc nhận từ nhiệm vụ.</p>
+      <div id="world-map" class="map-wrap"></div>
+      <div id="zone-list"></div>
     </div>
   </dialog>
 
@@ -144,11 +150,12 @@
     <header><h2>🏪 Cửa hàng</h2><button class="close" data-close aria-label="Đóng">✕</button></header>
     <div class="sheet-body">
       <p class="muted">Bạn có 🪙 <b id="shop-coins">0</b> xu. Bán cá trong Thùng cá để có thêm xu.</p>
-      <h3>Cần câu</h3>
-      <p class="muted small">Cần tốt hơn: dễ gặp cá hiếm hơn và dây chịu lực căng tốt hơn khi kéo cá.</p>
-      <div id="shop-rods" class="cards"></div>
-      <h3>Mồi & vật phẩm</h3>
-      <div id="shop-items" class="cards"></div>
+      <div class="tabs-row" id="shop-tabs" role="tablist">
+        <button data-tab="rods">🎣 Cần câu</button>
+        <button data-tab="lines">🧵 Dây câu</button>
+        <button data-tab="items">🎒 Mồi & hỗ trợ</button>
+      </div>
+      <div id="shop-list" class="shop-list"></div>
       <h3>Túi đồ</h3>
       <div id="inventory" class="inventory"></div>
     </div>
@@ -221,6 +228,12 @@
       <button class="btn small" id="q-time">⏳ +15 giây (<span id="q-time-count">0</span>)</button>
     </div>
     <div class="row center" id="q-next-row" hidden><button class="btn gold" id="q-next">Tiếp tục kéo 💪</button></div>
+  </dialog>
+
+  <!-- XEM CÁ 4D -->
+  <dialog id="fish4d-dlg" class="dlg result f4d">
+    <div id="f4d-body"></div>
+    <div class="row center"><button class="btn gold big" id="f4d-close">Đóng</button></div>
   </dialog>
 
   <!-- KẾT QUẢ -->

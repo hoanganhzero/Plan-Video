@@ -2,7 +2,7 @@
 // Thuần logic (không đụng tới DOM) để dễ kiểm thử; rng truyền vào được.
 import {
   RARITIES, ZONES, FISH, RODS, ITEMS, SHOP, QUESTS, GRADES,
-  rarityIndex, zoneById, fishById, rodById,
+  rarityIndex, zoneById, fishById, rodById, LINES, lineById,
 } from './data.js';
 import { pickQuestion } from './questions.js';
 
@@ -18,8 +18,10 @@ export function newGame() {
     xp: 0,
     rod: 'bamboo',
     ownedRods: ['bamboo'],
+    line: 'nylon',
+    ownedLines: ['nylon'],
     bait: 'worm',
-    items: { shrimp: 3, golden: 0, hint: 1, time: 1, charm: 0 },
+    items: { shrimp: 3, golden: 0, hint: 1, time: 1, charm: 0, tea: 1, net: 0 },
     zones: ['pond'],
     zone: 'pond',
     bucket: [],
@@ -144,12 +146,22 @@ export function questionsFor(rarity) {
 
 // Tiêu hao mồi / bùa, chọn cá và câu hỏi đầu tiên tương ứng độ hiếm.
 // bonusLuck: thưởng may mắn khi ném xa / ném "Hoàn hảo".
-export function startCast(state, rng = Math.random, { useCharm = false, bonusLuck = 0 } = {}) {
+export const currentLine = (state) => lineById(state.line) || LINES[0];
+
+// Tiêu hao vật phẩm hỗ trợ được bật cho lượt này (nếu còn).
+function consume(state, item, wanted) {
+  if (!wanted || (state.items[item] || 0) <= 0) return false;
+  state.items[item] -= 1;
+  return true;
+}
+
+export function startCast(state, rng = Math.random, { useCharm = false, useTea = false, useNet = false, bonusLuck = 0 } = {}) {
   const bait = currentBait(state);
   const luck = totalLuck(state) + bonusLuck;
-  const charm = useCharm && (state.items.charm || 0) > 0;
+  const charm = consume(state, 'charm', useCharm);
+  const tea = consume(state, 'tea', useTea);
+  const net = consume(state, 'net', useNet);
   if (bait !== 'worm') state.items[bait] -= 1;
-  if (charm) state.items.charm -= 1;
   if (state.bait !== 'worm' && (state.items[state.bait] || 0) <= 0) state.bait = 'worm';
   state.stats.casts += 1;
 
@@ -158,7 +170,8 @@ export function startCast(state, rng = Math.random, { useCharm = false, bonusLuc
   const question = pickQuestion(difficulty, questionOpts(state), rng);
   rememberQuestion(state, question);
   return {
-    ...catchInfo, zone: state.zone, bait, charm, question, difficulty,
+    ...catchInfo, zone: state.zone, bait, charm, tea, net, question, difficulty,
+    line: currentLine(state).id,
     questions: questionsFor(catchInfo.rarity), timeLimit: TIME_LIMIT[difficulty],
   };
 }
@@ -219,7 +232,9 @@ export function landFish(state, attempt) {
   const rarity = RARITIES[rarityIndex(attempt.rarity)];
   const xp = Math.round(rarity.xp * (1 + Math.min(0.5, Math.max(0, s.streak - 1) * 0.05)));
   state.xp += xp;
-  const fish = { uid: state.nextUid++, fishId: attempt.fishId, kg: attempt.kg, value: attempt.value, zone: attempt.zone };
+  // Vợt vàng: cá bán giá gấp đôi.
+  const value = attempt.net ? attempt.value * 2 : attempt.value;
+  const fish = { uid: state.nextUid++, fishId: attempt.fishId, kg: attempt.kg, value, zone: attempt.zone };
   state.bucket.push(fish);
   s.catches += 1;
   s.catchesByRarity[attempt.rarity] = (s.catchesByRarity[attempt.rarity] || 0) + 1;
@@ -301,6 +316,7 @@ export function claimQuest(state, questId) {
     state.rod = bestRod(state);
   }
   if (r.zone && !state.zones.includes(r.zone)) state.zones.push(r.zone);
+  if (r.line && !state.ownedLines.includes(r.line)) { state.ownedLines.push(r.line); state.line = bestLine(state); }
   if (r.title && !state.titles.includes(r.title)) state.titles.push(r.title);
   state.claimed.push(quest.id);
   return quest;
@@ -313,6 +329,7 @@ export function describeReward(reward) {
   for (const [id, qty] of Object.entries(reward.items || {})) parts.push(`${ITEMS[id].icon} ${ITEMS[id].name} ×${qty}`);
   if (reward.rod) { const rod = rodById(reward.rod); parts.push(`${rod.icon} ${rod.name}`); }
   if (reward.zone) { const z = zoneById(reward.zone); parts.push(`${z.icon} Mở khu ${z.name}`); }
+  if (reward.line) { const l = lineById(reward.line); parts.push(`${l.icon} ${l.name}`); }
   if (reward.title) parts.push(`🏆 Danh hiệu "${reward.title}"`);
   return parts.join(' · ');
 }
@@ -342,6 +359,20 @@ export function buyRod(state, rodId) {
   return { ok: true };
 }
 
+const bestLine = (state) => LINES.filter((l) => state.ownedLines.includes(l.id)).sort((a, b) => b.lives + b.strength - a.lives - a.strength)[0].id;
+
+export function buyLine(state, lineId) {
+  const line = lineById(lineId);
+  if (!line) return { ok: false, reason: 'Không có dây này.' };
+  if (state.ownedLines.includes(lineId)) return { ok: false, reason: 'Bạn đã có dây này.' };
+  if (levelFromXp(state.xp) < line.level) return { ok: false, reason: `Cần đạt cấp ${line.level}.` };
+  if (state.coins < line.price) return { ok: false, reason: 'Chưa đủ xu.' };
+  state.coins -= line.price;
+  state.ownedLines.push(lineId);
+  state.line = lineId;
+  return { ok: true };
+}
+
 export function unlockZone(state, zoneId) {
   const zone = zoneById(zoneId);
   if (!zone) return { ok: false, reason: 'Không có khu này.' };
@@ -355,4 +386,4 @@ export function unlockZone(state, zoneId) {
 
 export function speciesTotal() { return FISH.length; }
 export function zoneFish(zoneId) { return FISH.filter((f) => f.zone === zoneId); }
-export { RARITIES, ZONES, FISH, RODS, ITEMS, SHOP, QUESTS, fishById, zoneById, rodById };
+export { RARITIES, ZONES, FISH, RODS, LINES, ITEMS, SHOP, QUESTS, fishById, zoneById, rodById, lineById };

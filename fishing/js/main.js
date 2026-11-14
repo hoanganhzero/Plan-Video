@@ -2,7 +2,7 @@
 // giữ để lấy lực ném → chờ cá cắn → giật cần → giữ/thả để kéo cá, trả lời câu hỏi ở các mốc → thẻ kết quả.
 import {
   SAVE_KEY, newGame, normalizeState, levelProgress, levelFromXp, currentBait, totalLuck, rarityChances,
-  startCast, nextQuestion, answerQuestion, landFish, loseFish, useHelper, fiftyFifty, sellFish, bucketValue,
+  startCast, nextQuestion, currentLine, buyLine, LINES, lineById, answerQuestion, landFish, loseFish, useHelper, fiftyFifty, sellFish, bucketValue,
   activeQuests, questProgress, claimQuest, describeReward, buyShopItem, buyRod, unlockZone, zoneFish, speciesTotal,
   RARITIES, ZONES, RODS, ITEMS, SHOP, QUESTS, fishById, zoneById, rodById,
 } from './engine.js';
@@ -11,6 +11,9 @@ import { parseCustomQuestions } from './questions.js';
 import { createFight, stepFight, answerInFight, surging } from './fight.js';
 import { createScene } from './scene.js';
 import { fishSVG } from './art.js';
+import { itemIcon, rodIcon, lineIcon } from './icons.js';
+import { worldMapSVG } from './map.js';
+import { getFishViewer } from './fish3d.js';
 import {
   submitScore, topPlayers, myRank, validNickname, cleanNickname, ensurePlayerKey, rarityColor, rarityName,
 } from './online.js';
@@ -139,20 +142,32 @@ function renderHud() {
 }
 
 const BAITS = ['worm', 'shrimp', 'golden'];
+const BOOSTS = ['charm', 'tea', 'net'];
+const BOOST_TIP = {
+  charm: '🍀 Lần ném tới chắc chắn gặp cá Hiếm trở lên!',
+  tea: '🍵 Trận kéo cá tới: dây căng chậm hơn 35%.',
+  net: '🥅 Con cá tới bán được giá gấp đôi!',
+};
 function renderGear() {
   const rod = rodById(state.rod);
+  const line = currentLine(state);
   const bait = currentBait(state);
   const it = ITEMS[bait];
-  $('#rod-chip').innerHTML = `${rod.icon} ${esc(rod.name)}`;
-  $('#bait-chip').innerHTML = `${it.icon} ${esc(it.name)} <b>${bait === 'worm' ? '∞' : state.items[bait]}</b>`;
-  const charms = state.items.charm || 0;
-  if (!charms) game.useCharm = false;
-  $('#charm-chip').innerHTML = `🍀 Bùa <b>${charms}</b>${game.useCharm ? ' ✓' : ''}`;
-  $('#charm-chip').classList.toggle('on', game.useCharm);
-  $('#charm-chip').disabled = !charms;
   const idle = game.mode === 'idle';
-  $$('.gear-chip').forEach((c) => { if (c.id !== 'charm-chip' || charms) c.disabled = !idle; });
-  const chances = rarityChances(state.zone, totalLuck(state), game.useCharm ? rarityIndex('rare') : 0);
+  $('#rod-chip').innerHTML = `${rodIcon(rod.id, 30)}<span>${esc(rod.name)}</span>`;
+  $('#line-chip').innerHTML = `${lineIcon(line.color, 30)}<span>${esc(line.name)} <b>${'❤️'.repeat(line.lives)}</b></span>`;
+  $('#bait-chip').innerHTML = `${itemIcon(bait, 30)}<span>${esc(it.name)} <b>${bait === 'worm' ? '∞' : state.items[bait]}</b></span>`;
+  $$('.gear-chip').forEach((c) => { c.disabled = !idle; });
+  for (const id of BOOSTS) {
+    const n = state.items[id] || 0;
+    if (!n) game.boosts[id] = false;
+    const btn = $(`[data-boost="${id}"]`);
+    btn.innerHTML = `${itemIcon(id, 34)}<i>${n}</i>`;
+    btn.title = `${ITEMS[id].name}: ${ITEMS[id].desc}`;
+    btn.classList.toggle('on', game.boosts[id]);
+    btn.disabled = !n || !idle;
+  }
+  const chances = rarityChances(state.zone, totalLuck(state), game.boosts.charm ? rarityIndex('rare') : 0);
   $('#odds').innerHTML = RARITIES.map((r, i) => (chances[i] > 0
     ? `<span style="border-color:${r.color};color:${r.color}">${r.name} ${(chances[i] * 100).toFixed(chances[i] < 0.01 ? 1 : 0)}%</span>` : '')).join('');
   $('#odds').hidden = !idle;
@@ -165,39 +180,55 @@ $('#bait-chip').addEventListener('click', () => {
   save();
   renderGear();
 });
-$('#charm-chip').addEventListener('click', () => {
-  game.useCharm = !game.useCharm && (state.items.charm || 0) > 0;
-  if (game.useCharm) toast('🍀 Lần ném tới chắc chắn gặp cá Hiếm trở lên!');
+$('#boosts').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-boost]');
+  if (!btn || btn.disabled) return;
+  const id = btn.dataset.boost;
+  game.boosts[id] = !game.boosts[id] && (state.items[id] || 0) > 0;
+  if (game.boosts[id]) toast(BOOST_TIP[id]);
   beep(SOUND.click);
   renderGear();
 });
 
 // ---------- Bản đồ ----------
+let mapSel = null;
 RENDER.map = () => {
   const level = levelFromXp(state.xp);
-  $('#zone-list').innerHTML = ZONES.map((z) => {
-    const open = state.zones.includes(z.id);
-    const found = zoneFish(z.id).filter((f) => state.collection[f.id]).length;
-    const canBuy = !open && level >= z.level && state.coins >= z.price;
-    let action;
-    if (z.id === state.zone) action = '<span class="rarity-tag" style="background:#c47f00">📍 Đang ở đây</span>';
-    else if (open) action = `<button class="btn gold" data-go="${z.id}">Đến câu ▶</button>`;
-    else action = `<button class="btn ${canBuy ? 'gold' : ''}" data-unlock="${z.id}" ${canBuy ? '' : 'disabled'}>Mở khu · 🪙 ${fmt(z.price)}</button><span class="small">Cấp ${z.level}</span>`;
-    return `<div class="zone-card ${open ? '' : 'locked'} ${z.id === state.zone ? 'current' : ''}"
-      style="background:linear-gradient(180deg, ${z.sky[0]} 0%, ${z.sky[1]} 38%, ${z.water[0]} 40%, ${z.water[1]} 100%)">
-      <div class="zi">${z.icon}</div>
-      <div class="zn">${esc(z.name)}</div>
+  mapSel ||= state.zone;
+  $('#world-map').innerHTML = worldMapSVG(state, mapSel);
+  const z = zoneById(mapSel);
+  const open = state.zones.includes(z.id);
+  const fishList = zoneFish(z.id);
+  const found = fishList.filter((f) => state.collection[f.id]).length;
+  const canBuy = !open && level >= z.level && state.coins >= z.price;
+  let action;
+  if (z.id === state.zone) action = '<span class="rarity-tag" style="background:#c47f00">📍 Bạn đang câu ở đây</span>';
+  else if (open) action = `<button class="btn gold big" data-go="${z.id}">⛵ Đến câu</button>`;
+  else action = `<button class="btn ${canBuy ? 'gold' : ''} big" data-unlock="${z.id}" ${canBuy ? '' : 'disabled'}>🔓 Mở khu · 🪙 ${fmt(z.price)}</button>
+    <span class="small muted">${level < z.level ? `Cần cấp ${z.level} (bạn cấp ${level})` : state.coins < z.price ? 'Chưa đủ xu' : ''}</span>`;
+  $('#zone-list').innerHTML = `<div class="zone-info" style="--sky:${z.sky[0]};--water:${z.water[1]}">
+    <div class="zi">${z.icon}</div>
+    <div class="zbody">
+      <div class="zn">${esc(z.name)} <span class="small muted">· 🐟 ${found}/${fishList.length} loài</span></div>
       <div class="zd">${esc(z.desc)}</div>
-      <div class="zd">🐟 ${found}/${zoneFish(z.id).length} loài</div>
+      <div class="zfish">${fishList.map((f) => `<span class="${state.collection[f.id] ? '' : 'unknown'}" title="${state.collection[f.id] ? esc(f.name) : '???'}">${fishSVG(f.id, { size: 56, uid: `m${f.id}` })}</span>`).join('')}</div>
       <div class="actions">${action}</div>
-    </div>`;
-  }).join('');
+    </div>
+  </div>`;
 };
+$('#world-map').addEventListener('click', (e) => {
+  const node = e.target.closest('[data-zone]');
+  if (!node) return;
+  mapSel = node.dataset.zone;
+  beep(SOUND.click);
+  RENDER.map();
+});
 $('#zone-list').addEventListener('click', (e) => {
   const go = e.target.closest('[data-go]');
   const un = e.target.closest('[data-unlock]');
   if (go) {
     state.zone = go.dataset.go;
+    mapSel = null;
     save();
     $('#sheet-map').close();
     const z = zoneById(state.zone);
@@ -308,43 +339,112 @@ RENDER.dex = () => {
         const c = state.collection[fish.id];
         const r = rarityOf(fish.rarity);
         return c
-          ? `<div class="fish-card" style="border-color:${r.color}"><div class="art">${fishSVG(fish.id, { size: 120, uid: `d${fish.id}` })}</div><div class="name">${esc(fish.name)}</div>${tag(fish.rarity)}<div class="meta">Đã câu ${c.count} lần · kỷ lục ${c.bestKg} kg<br>Giá gốc 🪙 ${fmt(fish.value)}</div></div>`
+          ? `<div class="fish-card" style="border-color:${r.color}"><button class="view4d" data-view="${fish.id}" title="Xem cá 4D">4D</button><div class="art">${fishSVG(fish.id, { size: 120, uid: `d${fish.id}` })}</div><div class="name">${esc(fish.name)}</div>${tag(fish.rarity)}<div class="meta">Đã câu ${c.count} lần · kỷ lục ${c.bestKg} kg<br>Giá gốc 🪙 ${fmt(fish.value)}</div></div>`
           : `<div class="fish-card unknown"><div class="art">${fishSVG(fish.id, { size: 120, uid: `u${fish.id}` })}</div><div class="name">???</div>${tag(fish.rarity)}<div class="meta">Chưa khám phá</div></div>`;
       }).join('')}</div>
     </div>`).join('');
 };
 
+// ---------- Cá 4D ----------
+const has3D = webglAvailable();
+function show4D(box, fishId) {
+  if (!has3D || !box) return;
+  try {
+    getFishViewer().show(box, fishId);
+    box.classList.add('live');
+  } catch (err) { console.warn('Không mở được cá 4D:', err); }
+}
+function hide4D() {
+  if (!has3D) return;
+  try { getFishViewer().hide(); } catch { /* bỏ qua */ }
+  $$('.viewer-box.live').forEach((b) => b.classList.remove('live'));
+}
+$('#dex-list').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-view]');
+  if (!btn) return;
+  const fish = fishById(btn.dataset.view);
+  const c = state.collection[fish.id];
+  const r = rarityOf(fish.rarity);
+  const z = zoneById(fish.zone);
+  $('#f4d-body').innerHTML = `
+    <div class="f4d-stage" style="--ray:${r.color}"><div class="rays"></div><div class="viewer-box big" id="f4d-viewer">${fishSVG(fish.id, { size: 260, uid: 'f4d' })}</div></div>
+    ${tag(fish.rarity)}<h2>${esc(fish.name)}</h2>
+    <div class="stats">
+      <div class="stat"><span class="muted small">Đã câu</span><b>${c.count} lần</b></div>
+      <div class="stat"><span class="muted small">Kỷ lục</span><b>${c.bestKg} kg</b></div>
+      <div class="stat"><span class="muted small">Giá gốc</span><b>🪙 ${fmt(fish.value)}</b></div>
+      <div class="stat"><span class="muted small">Khu</span><b>${z.icon} ${esc(z.name)}</b></div>
+    </div>
+    <p class="muted small">${has3D ? '🖐️ Kéo để xoay con cá' : 'Thiết bị không hỗ trợ 3D – đang hiện hình phẳng.'}</p>`;
+  const dlg = $('#fish4d-dlg');
+  dlg.showModal();
+  show4D($('#f4d-viewer'), fish.id);
+  dlg.addEventListener('close', hide4D, { once: true });
+});
+$('#f4d-close').addEventListener('click', () => $('#fish4d-dlg').close());
+
 // ---------- Cửa hàng ----------
+let shopTab = 'rods';
+const bar = (label, v, max, color) => `<div class="stat-bar"><span>${label}</span><div><i style="width:${Math.max(4, Math.min(100, (v / max) * 100))}%;background:${color}"></i></div></div>`;
+function shopCard({ icon, title, desc = '', stats = '', action, owned = false, using = false }) {
+  return `<div class="shop-card ${owned ? 'owned' : ''} ${using ? 'using' : ''}">
+    <div class="shop-icon">${icon}</div>
+    <div class="shop-main"><div class="title">${title}</div>${desc ? `<div class="muted small">${desc}</div>` : ''}${stats}</div>
+    <div class="shop-act">${action}</div>
+  </div>`;
+}
 RENDER.shop = () => {
   const level = levelFromXp(state.xp);
   $('#shop-coins').textContent = fmt(state.coins);
-  $('#shop-rods').innerHTML = RODS.map((r) => {
-    const owned = state.ownedRods.includes(r.id);
-    const using = state.rod === r.id;
-    const can = !owned && level >= r.level && state.coins >= r.price;
-    let action;
-    if (using) action = '<span class="rarity-tag" style="background:#1f9d55">🎣 Đang dùng</span>';
-    else if (owned) action = `<button class="btn sea" data-rod-use="${r.id}">Dùng cần này</button>`;
-    else action = `<button class="btn ${can ? 'gold' : ''}" data-rod-buy="${r.id}" ${can ? '' : 'disabled'}>Mua · 🪙 ${fmt(r.price)}</button>`;
-    return `<div class="card ${owned ? 'owned' : ''}">
-      <div class="title">${r.icon} ${esc(r.name)}</div>
-      <div class="small">🍀 May mắn +${r.luck} · 💪 Sức dây +${Math.round(r.luck * 12)}%${r.price ? ` · Cần cấp ${r.level}` : ''}</div>
-      <div class="actions">${action}</div>
-    </div>`;
-  }).join('');
-  $('#shop-items').innerHTML = SHOP.map((o) => {
-    const it = ITEMS[o.item];
-    const can = level >= o.level && state.coins >= o.price;
-    return `<div class="card">
-      <div class="title">${it.icon} ${esc(it.name)} ×${o.qty}</div>
-      <div class="muted small">${esc(it.desc)}</div>
-      <div class="small">${o.level > 1 ? `Cần cấp ${o.level} · ` : ''}Đang có: ${state.items[o.item] || 0}</div>
-      <div class="actions"><button class="btn ${can ? 'gold' : ''}" data-item-buy="${o.id}" ${can ? '' : 'disabled'}>Mua · 🪙 ${fmt(o.price)}</button></div>
-    </div>`;
-  }).join('');
+  $$('#shop-tabs [data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === shopTab));
+  const buyBtn = (attr, id, price, need) => {
+    const can = level >= need && state.coins >= price;
+    return `<button class="btn ${can ? 'gold' : ''}" ${attr}="${id}" ${can ? '' : 'disabled'}>🪙 ${fmt(price)}</button>${level < need ? `<span class="small muted">Cấp ${need}</span>` : ''}`;
+  };
+  const inUse = '<span class="rarity-tag" style="background:#1f9d55">Đang dùng</span>';
+  let html = '';
+  if (shopTab === 'rods') {
+    html = RODS.map((r) => {
+      const owned = state.ownedRods.includes(r.id);
+      const using = state.rod === r.id;
+      return shopCard({
+        icon: rodIcon(r.id, 64), title: esc(r.name), owned, using,
+        stats: bar('🍀 May mắn', r.luck, 5, '#4ade80') + bar('💪 Sức kéo', r.luck, 5, '#38bdf8'),
+        action: using ? inUse : owned ? `<button class="btn sea" data-rod-use="${r.id}">Dùng</button>` : buyBtn('data-rod-buy', r.id, r.price, r.level),
+      });
+    }).join('');
+  } else if (shopTab === 'lines') {
+    html = LINES.map((l) => {
+      const owned = state.ownedLines.includes(l.id);
+      const using = state.line === l.id;
+      return shopCard({
+        icon: lineIcon(l.color, 64), title: esc(l.name), owned, using,
+        desc: `${'❤️'.repeat(l.lives)} – được trả lời sai ${l.lives - 1} câu mà vẫn giữ được cá`,
+        stats: bar('❤️ Độ bền', l.lives, 4, '#f87171') + bar('💪 Chịu căng', l.strength, 0.4, '#fbbf24'),
+        action: using ? inUse : owned ? `<button class="btn sea" data-line-use="${l.id}">Dùng</button>` : buyBtn('data-line-buy', l.id, l.price, l.level),
+      });
+    }).join('');
+  } else {
+    html = SHOP.map((o) => {
+      const it = ITEMS[o.item];
+      return shopCard({
+        icon: itemIcon(o.item, 64), title: `${esc(it.name)} ×${o.qty}`, desc: esc(it.desc),
+        stats: `<div class="small">Đang có: <b>${state.items[o.item] || 0}</b></div>`,
+        action: buyBtn('data-item-buy', o.id, o.price, o.level),
+      });
+    }).join('');
+  }
+  $('#shop-list').innerHTML = html;
   $('#inventory').innerHTML = Object.entries(ITEMS).filter(([id]) => id !== 'worm')
-    .map(([id, it]) => `<span class="chip" title="${esc(it.desc)}">${it.icon} ${esc(it.name)}: <b>${state.items[id] || 0}</b></span>`).join('');
+    .map(([id, it]) => `<span class="inv-slot" title="${esc(it.name)}: ${esc(it.desc)}">${itemIcon(id, 42)}<b>${state.items[id] || 0}</b></span>`).join('');
 };
+$('#shop-tabs').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-tab]');
+  if (!b) return;
+  shopTab = b.dataset.tab;
+  beep(SOUND.click);
+  RENDER.shop();
+});
 $('#sheet-shop').addEventListener('click', (e) => {
   const t = e.target.closest('button');
   if (!t) return;
@@ -352,6 +452,8 @@ $('#sheet-shop').addEventListener('click', (e) => {
   if (t.dataset.rodBuy) r = buyRod(state, t.dataset.rodBuy);
   else if (t.dataset.itemBuy) r = buyShopItem(state, t.dataset.itemBuy);
   else if (t.dataset.rodUse) { state.rod = t.dataset.rodUse; r = { ok: true }; }
+  else if (t.dataset.lineBuy) r = buyLine(state, t.dataset.lineBuy);
+  else if (t.dataset.lineUse) { state.line = t.dataset.lineUse; r = { ok: true }; }
   if (!r) return;
   if (r.ok) { beep(SOUND.catch); toast('✅ Thành công!'); save(); } else toast(`⚠️ ${r.reason}`);
   RENDER.shop();
@@ -539,7 +641,7 @@ $('#rank-refresh').addEventListener('click', loadRanking);
 // VÒNG CHƠI
 // mode: idle → charge → cast/wait → bite → fight (⇄ question) → result → idle
 // =====================================================================
-const game = { mode: 'idle', holding: false, useCharm: false, power: 0, powerDir: 1 };
+const game = { mode: 'idle', holding: false, boosts: { charm: false, tea: false, net: false }, power: 0, powerDir: 1 };
 const PERFECT = [0.82, 0.95];
 const HOOK_WINDOW = 1400;
 
@@ -629,9 +731,9 @@ async function doCast() {
   const perfect = p >= PERFECT[0] && p <= PERFECT[1];
   const dist = Math.round(6 + p * 18);
   const bonusLuck = p * 1 + (perfect ? 1.5 : 0);
-  attempt = startCast(state, Math.random, { useCharm: game.useCharm, bonusLuck });
+  attempt = startCast(state, Math.random, { useCharm: game.boosts.charm, useTea: game.boosts.tea, useNet: game.boosts.net, bonusLuck });
   attempt.distance = dist;
-  game.useCharm = false;
+  game.boosts = { charm: false, tea: false, net: false };
   save();
   setMode('cast');
   beep(SOUND.cast);
@@ -675,7 +777,8 @@ function hookFish() {
   const r = rarityOf(attempt.rarity);
   fight = createFight({
     rarity: attempt.rarity, kg: attempt.kg, distance: attempt.distance,
-    rodLuck: rodById(state.rod).luck, questions: attempt.questions, lives: 2,
+    rodLuck: rodById(state.rod).luck, questions: attempt.questions,
+    lives: lineById(attempt.line)?.lives || 2, lineStrength: lineById(attempt.line)?.strength || 0, calm: attempt.tea,
   });
   fightLog = [];
   $('#fh-fish').style.background = r.color;
@@ -875,7 +978,7 @@ async function finishCatch() {
   if (landed.record) gains.push('🏅 Kỷ lục cân nặng!');
   if (fightLog.some((l) => l.correct && l.question.isReview)) gains.push('📒 Đã sửa câu sai');
   $('#result-body').innerHTML = `
-    <div class="catch-stage" style="--ray:${r.color}"><div class="rays"></div>${fishSVG(fish.id, { size: 240, uid: 'catch' })}</div>
+    <div class="catch-stage" style="--ray:${r.color}"><div class="rays"></div><div class="viewer-box" id="catch-viewer">${fishSVG(fish.id, { size: 240, uid: 'catch' })}</div></div>
     ${tag(fish.rarity)}
     <h2>${esc(fish.name)}</h2>
     <div class="stats">
@@ -888,7 +991,7 @@ async function finishCatch() {
   $('#result-actions').innerHTML = `<button class="btn sea big" id="r-keep">🪣 Cho vào thùng</button><button class="btn gold big" id="r-sell">🪙 Bán ngay +${fmt(attempt.value)}</button>`;
   if (level > before) beep(SOUND.level);
   const uid = landed.fish.uid;
-  const choice = await showResult();
+  const choice = await showResult(() => show4D($('#catch-viewer'), fish.id));
   if (choice === 'sell') {
     sellFish(state, [uid]);
     save();
@@ -925,9 +1028,11 @@ async function finishLost(reason) {
   endTurn();
 }
 
-function showResult() {
+function showResult(onOpen) {
   const dlg = $('#result-dlg');
   dlg.showModal();
+  onOpen?.();
+  dlg.addEventListener('close', hide4D, { once: true });
   return new Promise((resolve) => {
     $('#result-actions').onclick = (e) => {
       const b = e.target.closest('button');

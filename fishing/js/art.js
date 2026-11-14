@@ -4,7 +4,7 @@ import { fishById, rarityOf, rarityIndex } from './data.js';
 
 // shape: classic | round | long | eel | flat | sword | lantern | puffer | koi | dragon
 // pattern: none | stripes | spots | scales | bands | glow | rainbow | whiskers
-const LOOK = {
+export const LOOK = {
   ro: { shape: 'classic', top: '#6b7f3a', belly: '#d8d48a', fin: '#4e5e27', pattern: 'stripes' },
   diec: { shape: 'round', top: '#9aa3a8', belly: '#eef1e6', fin: '#7c8a90', pattern: 'scales' },
   tre: { shape: 'long', top: '#4b4038', belly: '#a9967f', fin: '#2f2722', pattern: 'whiskers' },
