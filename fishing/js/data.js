@@ -94,14 +94,24 @@ export const fishById = (id) => FISH.find((f) => f.id === id);
 
 // luck: tăng tỉ lệ ra cá hiếm.
 export const RODS = [
-  { id: 'bamboo', name: 'Cần tre', icon: '🎋', luck: 0, price: 0, level: 1 },
-  { id: 'fiber', name: 'Cần sợi thuỷ tinh', icon: '🎣', luck: 1, price: 400, level: 2 },
-  { id: 'carbon', name: 'Cần carbon', icon: '🎣', luck: 2, price: 1500, level: 5 },
-  { id: 'gold', name: 'Cần vàng', icon: '✨', luck: 3, price: 5000, level: 9 },
-  { id: 'dragon', name: 'Cần rồng', icon: '🐉', luck: 5, price: 15000, level: 14 },
+  { id: 'bamboo', name: 'Cần tre', icon: '🎋', luck: 0, price: 0, level: 1, skill: 'calm', fx: '#d9f99d' },
+  { id: 'fiber', name: 'Cần sợi thuỷ tinh', icon: '🎣', luck: 1, price: 400, level: 2, skill: 'wave', fx: '#38bdf8' },
+  { id: 'carbon', name: 'Cần carbon', icon: '🎣', luck: 2, price: 1500, level: 5, skill: 'gust', fx: '#e2e8f0' },
+  { id: 'gold', name: 'Cần vàng', icon: '✨', luck: 3, price: 5000, level: 9, skill: 'gold', fx: '#fbbf24' },
+  { id: 'dragon', name: 'Cần rồng', icon: '🐉', luck: 5, price: 15000, level: 14, skill: 'dragon', fx: '#f97316' },
 ];
 
 export const rodById = (id) => RODS.find((r) => r.id === id);
+
+// Kỹ năng câu cá của từng cần – dùng khi đang kéo cá.
+// Mỗi trận có 1 lượt; mỗi câu trả lời đúng nạp thêm 1 lượt (tối đa 2).
+export const SKILLS = {
+  calm: { name: 'Thả dây khéo', icon: '🌿', desc: 'Giảm 50% độ căng dây ngay lập tức.' },
+  wave: { name: 'Sóng xanh', icon: '🌊', desc: 'Giảm 70% độ căng dây và làm cá ngừng vùng vẫy.' },
+  gust: { name: 'Lốc xoáy', icon: '🌪️', desc: 'Cuốn cá lại gần 25% quãng đường mà không làm căng dây.' },
+  gold: { name: 'Ánh vàng', icon: '✨', desc: 'Làm cá choáng 3 giây: không vùng vẫy, dây gần như không căng.' },
+  dragon: { name: 'Rồng cuộn', icon: '🐉', desc: 'Kéo cá lại gần 35%, xả hết độ căng và làm cá choáng 2 giây.' },
+};
 
 // Dây câu: thêm ❤️ độ bền (số câu được phép trả lời sai) và sức chịu căng khi kéo cá.
 export const LINES = [

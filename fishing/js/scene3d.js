@@ -297,11 +297,13 @@ export function createScene3D(canvas) {
   scene.add(caughtLight);
 
   // ---------- Nước bắn (hạt) ----------
-  const P_MAX = 400;
+  const P_MAX = 1400;
   const pPos = new Float32Array(P_MAX * 3).fill(-999);
   const pCol = new Float32Array(P_MAX * 3).fill(1);
   const pVel = new Float32Array(P_MAX * 3);
   const pLife = new Float32Array(P_MAX);
+  const pGrav = new Float32Array(P_MAX).fill(9.8);
+  const pFade = new Float32Array(P_MAX).fill(1.2);
   const pGeo = new THREE.BufferGeometry();
   pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
   pGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3));
@@ -315,6 +317,7 @@ export function createScene3D(canvas) {
     size: 0.16, map: new THREE.CanvasTexture(dot), vertexColors: true, transparent: true, depthWrite: false,
   }));
   particles.frustumCulled = false;
+  particles.material.blending = THREE.AdditiveBlending;
   scene.add(particles);
   let pNext = 0;
   function splash(pos, count = 40, power = 1, color = new THREE.Color(0xe8f6ff), up = 3) {
@@ -326,7 +329,97 @@ export function createScene3D(canvas) {
       pVel.set([Math.cos(a) * sp, (up * 0.5 + Math.random() * up) * power, Math.sin(a) * sp], i * 3);
       pCol.set([color.r, color.g, color.b], i * 3);
       pLife[i] = 1;
+      pGrav[i] = 9.8;
+      pFade[i] = 1.2;
     }
+  }
+
+  // Hệ hạt hiệu ứng riêng (hạt to, phát sáng) cho kỹ năng và trang bị.
+  const F_MAX = 1600;
+  const fPos = new Float32Array(F_MAX * 3).fill(-999);
+  const fCol = new Float32Array(F_MAX * 3).fill(1);
+  const fVel = new Float32Array(F_MAX * 3);
+  const fLife = new Float32Array(F_MAX);
+  const fGrav = new Float32Array(F_MAX);
+  const fFade = new Float32Array(F_MAX).fill(1);
+  const fAlpha = new Float32Array(F_MAX);
+  const fGeo = new THREE.BufferGeometry();
+  fGeo.setAttribute('position', new THREE.BufferAttribute(fPos, 3));
+  fGeo.setAttribute('color', new THREE.BufferAttribute(fCol, 3));
+  fGeo.setAttribute('alpha', new THREE.BufferAttribute(fAlpha, 1));
+  // Shader hạt: kích thước theo khoảng cách, lõi sáng trắng + viền màu, mờ dần theo tuổi hạt.
+  // Pha trộn thường (không cộng màu) nên giữ đúng màu lửa / vàng / xanh cả trên nền trời sáng.
+  const fxPoints = new THREE.Points(fGeo, new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, vertexColors: true,
+    uniforms: { uSize: { value: 0.5 }, uScale: { value: 600 } },
+    vertexShader: `
+      attribute float alpha; varying vec3 vCol; varying float vA; uniform float uSize; uniform float uScale;
+      void main() {
+        vCol = color; vA = alpha;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = uSize * uScale / -mv.z * (0.6 + 0.4 * alpha);
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `
+      varying vec3 vCol; varying float vA;
+      void main() {
+        float d = length(gl_PointCoord - 0.5) * 2.0;
+        if (d > 1.0) discard;
+        float glow = pow(1.0 - d, 1.6);
+        vec3 c = mix(vCol, vec3(1.0), pow(1.0 - d, 6.0) * 0.8);
+        gl_FragColor = vec4(c * (1.0 + glow * 0.6), glow * vA);
+        #include <colorspace_fragment>
+      }`,
+  }));
+  fxPoints.frustumCulled = false;
+  scene.add(fxPoints);
+  let fNext = 0;
+  function updateFx(dt) {
+    for (let i = 0; i < F_MAX; i++) {
+      if (fLife[i] <= 0) continue;
+      fLife[i] -= dt * fFade[i];
+      fVel[i * 3 + 1] -= fGrav[i] * dt;
+      fPos[i * 3] += fVel[i * 3] * dt;
+      fPos[i * 3 + 1] += fVel[i * 3 + 1] * dt;
+      fPos[i * 3 + 2] += fVel[i * 3 + 2] * dt;
+      fAlpha[i] = Math.max(0, Math.min(1, fLife[i] * 1.6));
+      if (fLife[i] <= 0 || fPos[i * 3 + 1] < -0.5) { fLife[i] = 0; fAlpha[i] = 0; fPos[i * 3 + 1] = -999; }
+    }
+    fGeo.attributes.position.needsUpdate = true;
+    fGeo.attributes.color.needsUpdate = true;
+    fGeo.attributes.alpha.needsUpdate = true;
+  }
+
+  // Hạt hiệu ứng tuỳ biến (vệt sáng, lửa, lá, bong bóng…).
+  // shape: 'sphere' toả đều | 'ring' toả ngang | 'up' phun lên | 'point' gần như đứng yên
+  function burst(pos, count, color, { speed = 1.5, up = 0, gravity = 2, fade = 1, shape = 'sphere', jitter = 0, colors = null } = {}) {
+    const c = new THREE.Color();
+    for (let k = 0; k < count; k++) {
+      const i = fNext; fNext = (fNext + 1) % F_MAX;
+      const a = Math.random() * Math.PI * 2;
+      const b = Math.acos(2 * Math.random() - 1);
+      let vx; let vy; let vz;
+      if (shape === 'ring') { vx = Math.cos(a) * speed; vy = up * (0.5 + Math.random() * 0.5); vz = Math.sin(a) * speed; }
+      else if (shape === 'up') { vx = Math.cos(a) * speed * Math.random(); vy = up * (0.6 + Math.random() * 0.8); vz = Math.sin(a) * speed * Math.random(); }
+      else if (shape === 'point') { vx = (Math.random() - 0.5) * speed; vy = up + (Math.random() - 0.5) * speed; vz = (Math.random() - 0.5) * speed; }
+      else { const sp = speed * (0.4 + Math.random() * 0.8); vx = Math.sin(b) * Math.cos(a) * sp; vy = Math.cos(b) * sp + up; vz = Math.sin(b) * Math.sin(a) * sp; }
+      fPos.set([pos.x + (Math.random() - 0.5) * jitter, pos.y + (Math.random() - 0.5) * jitter, pos.z + (Math.random() - 0.5) * jitter], i * 3);
+      fVel.set([vx, vy, vz], i * 3);
+      c.set(colors ? colors[k % colors.length] : color);
+      fCol.set([c.r, c.g, c.b], i * 3);
+      fLife[i] = 1;
+      fAlpha[i] = 1;
+      fGrav[i] = gravity;
+      fFade[i] = fade * (0.8 + Math.random() * 0.4);
+    }
+  }
+  // Ánh sáng loé khi dùng kỹ năng / kéo được cá.
+  const fxLight = new THREE.PointLight(0xffffff, 0, 14, 1.4);
+  scene.add(fxLight);
+  function flash(pos, color, power = 8) {
+    fxLight.position.copy(pos).add(new THREE.Vector3(0, 1, 0));
+    fxLight.color.set(color);
+    fxLight.intensity = power;
   }
 
   // ---------- Gợn sóng ----------
@@ -572,6 +665,13 @@ export function createScene3D(canvas) {
   const reelFrom = new THREE.Vector3();
   const fightNear = new THREE.Vector3(1.3, 0, -3.2);
   const fightState = { k: 1, tension: 0, surging: false, power: 0, tier: 0 };
+  // Trang bị hiện tại (cần, dây, mồi, vật phẩm hỗ trợ) – quyết định hiệu ứng.
+  const gear = { rod: 'bamboo', fx: new THREE.Color('#d9f99d'), line: new THREE.Color('#ffffff'), bait: 'worm', charm: false, tea: false, net: false };
+  const bobGlow = new THREE.PointLight(0xffd54a, 0, 3, 1.5);
+  scene.add(bobGlow);
+  let fxTick = 0;
+  const FIRE = ['#fde047', '#fb923c', '#ef4444', '#f97316'];
+  const GOLD = ['#fde68a', '#fbbf24', '#f59e0b', '#fff7cc'];
   // Bóng cá đang mắc câu bơi giằng co dưới nước
   const hooked = makeFish(0x0c2230, 0x081820);
   hooked.traverse((o) => { if (o.material) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.9; } });
@@ -587,6 +687,7 @@ export function createScene3D(canvas) {
     const w = canvas.clientWidth || 600;
     const h = canvas.clientHeight || 300;
     renderer.setSize(w, h, false);
+    if (typeof fxPoints !== 'undefined') fxPoints.material.uniforms.uScale.value = h * renderer.getPixelRatio() * 0.9;
     camera.aspect = w / h;
     camera.fov = camera.aspect < 1.5 ? 58 : 48;
     camera.updateProjectionMatrix();
@@ -638,7 +739,7 @@ export function createScene3D(canvas) {
     let sag = 0.3;
     let hideBobber = false;
     hooked.visible = phase === 'fight';
-    line.material.color.copy(lineWhite);
+    line.material.color.copy(gear.line);
     if (phase === 'idle' || phase === 'charge') {
       bobPos.set(tipPos.x + Math.sin(t * 1.5) * 0.08, tipPos.y - 1.1, tipPos.z + Math.cos(t * 1.2) * 0.05);
       sag = 0;
@@ -649,6 +750,7 @@ export function createScene3D(canvas) {
       sag = 0.1;
       if (k >= 1) {
         splash(target, 50, 0.8);
+        landFx(target);
         ripple(target.x, target.z, 1.3);
         setPhase('wait');
       }
@@ -674,7 +776,7 @@ export function createScene3D(canvas) {
       hooked.scale.setScalar(1.2 + fightState.tier * 0.2);
       if (fightState.surging && t - lastRipple > 0.12) { splash(bobPos, 8, 0.55, undefined, 2.2); ripple(bobPos.x, bobPos.z, 1.2); lastRipple = t; }
       else if (t - lastRipple > 0.3) { ripple(bobPos.x, bobPos.z, 0.8); splash(bobPos, 4, 0.35, undefined, 1.6); lastRipple = t; }
-      line.material.color.copy(lineWhite).lerp(lineRed, Math.max(0, (fightState.tension - 0.55) / 0.45));
+      line.material.color.copy(gear.line).lerp(lineRed, Math.max(0, (fightState.tension - 0.55) / 0.45));
       shake = Math.max(shake, fightState.surging ? 0.03 : fightState.tension > 0.85 ? 0.02 : 0);
     } else if (phase === 'reel' || phase === 'escape') {
       const k = Math.min(1, el / (REEL_MS / 1000));
@@ -704,6 +806,7 @@ export function createScene3D(canvas) {
         if (Math.random() < 0.15) splash(caught.position, 1, 0.15, caught.userData.sparkle, 0.6);
       }
     }
+    gearFx(t, dt);
     bobber.position.copy(bobPos);
     bobber.visible = !hideBobber;
     updateLine(tipPos, bobPos, sag);
@@ -727,13 +830,15 @@ export function createScene3D(canvas) {
     // Hạt nước
     for (let i = 0; i < P_MAX; i++) {
       if (pLife[i] <= 0) continue;
-      pLife[i] -= dt * 1.2;
-      pVel[i * 3 + 1] -= 9.8 * dt;
+      pLife[i] -= dt * pFade[i];
+      pVel[i * 3 + 1] -= pGrav[i] * dt;
       pPos[i * 3] += pVel[i * 3] * dt;
       pPos[i * 3 + 1] += pVel[i * 3 + 1] * dt;
       pPos[i * 3 + 2] += pVel[i * 3 + 2] * dt;
       if (pLife[i] <= 0 || pPos[i * 3 + 1] < -0.3) { pLife[i] = 0; pPos[i * 3 + 1] = -999; }
     }
+    fxLight.intensity *= Math.pow(0.04, dt);
+    updateFx(dt);
     pGeo.attributes.position.needsUpdate = true;
     pGeo.attributes.color.needsUpdate = true;
 
@@ -772,8 +877,114 @@ export function createScene3D(canvas) {
   }
   requestAnimationFrame(frame);
 
+  // Hiệu ứng liên tục theo trang bị.
+  function gearFx(t, dt) {
+    fxTick += dt;
+    const every = (s) => { if (fxTick >= s) { fxTick = 0; return true; } return false; };
+    // Mồi vàng: phao phát sáng
+    const goldBait = gear.bait === 'golden' && (phase === 'wait' || phase === 'bite' || phase === 'cast');
+    bobGlow.intensity = goldBait ? 2.5 + Math.sin(t * 6) * 0.8 : 0;
+    bobGlow.position.copy(bobPos).add(tmp.set(0, 0.25, 0));
+    bobTop.material.emissive.set(goldBait ? 0xffb21e : 0x000000);
+    bobTop.material.emissiveIntensity = goldBait ? 0.8 : 0;
+    if (phase === 'cast') {
+      // Vệt sáng theo cần câu
+      if (gear.rod === 'dragon') burst(bobPos, 5, null, { colors: FIRE, speed: 0.5, up: 0.6, gravity: -0.5, fade: 1.1, shape: 'point', jitter: 0.15 });
+      else if (gear.rod === 'gold') burst(bobPos, 4, null, { colors: GOLD, speed: 0.3, gravity: 0.5, fade: 1.1, shape: 'point', jitter: 0.1 });
+      else if (gear.rod !== 'bamboo') burst(bobPos, 3, gear.fx, { speed: 0.2, gravity: 0, fade: 1.3, shape: 'point', jitter: 0.06 });
+      return;
+    }
+    if (phase === 'wait' || phase === 'bite') {
+      if (gear.bait === 'shrimp' && Math.random() < dt * 4) burst(tmp.copy(bobPos).add(tmp2.set((Math.random() - 0.5) * 0.4, -0.05, (Math.random() - 0.5) * 0.4)), 1, '#dff6ff', { speed: 0.05, up: 0.5, gravity: -0.3, fade: 0.9, shape: 'point' });
+      if (goldBait && Math.random() < dt * 6) burst(bobPos, 1, null, { colors: GOLD, speed: 0.3, up: 0.6, gravity: 0, fade: 1.2, shape: 'point' });
+      if (gear.charm && every(0.06)) {
+        const a = t * 3;
+        burst(tmp.set(bobPos.x + Math.cos(a) * 0.5, bobPos.y + 0.1, bobPos.z + Math.sin(a) * 0.5), 1, null, { colors: ['#4ade80', '#86efac', '#bbf7d0'], speed: 0.05, up: 0.7, gravity: 0, fade: 0.9, shape: 'point' });
+      }
+    }
+    if (phase === 'fight') {
+      if (gear.tea && Math.random() < dt * 8) burst(tmp.copy(bobPos).add(tmp2.set(0, 0.1, 0)), 1, null, { colors: ['#d9f99d', '#ecfccb', '#fef9c3'], speed: 0.15, up: 0.5, gravity: -0.2, fade: 0.8, shape: 'point' });
+      if (fightState.stun > 0 && Math.random() < dt * 20) {
+        const a = Math.random() * 6.28;
+        burst(tmp.set(bobPos.x + Math.cos(a) * 0.6, bobPos.y + 0.4, bobPos.z + Math.sin(a) * 0.6), 1, null, { colors: gear.rod === 'dragon' ? FIRE : GOLD, speed: 0.1, gravity: 0, fade: 1.5, shape: 'point' });
+      }
+    }
+  }
+
+  // Phao rơi xuống nước: mỗi cần một kiểu.
+  function landFx(pos) {
+    if (gear.rod === 'fiber') { ripple(pos.x, pos.z, 2.6); burst(pos, 40, gear.fx, { shape: 'ring', speed: 2.2, up: 1.2, gravity: 4, fade: 1.4 }); }
+    else if (gear.rod === 'carbon') { burst(pos, 50, '#f8fafc', { shape: 'ring', speed: 3, up: 0.4, gravity: 1, fade: 1.6 }); ripple(pos.x, pos.z, 2); }
+    else if (gear.rod === 'gold') { burst(pos, 60, null, { colors: GOLD, shape: 'up', speed: 1.2, up: 4, gravity: 6, fade: 1 }); flash(pos, '#fbbf24', 5); }
+    else if (gear.rod === 'dragon') { burst(pos, 80, null, { colors: FIRE, shape: 'ring', speed: 3, up: 2, gravity: 2, fade: 1.2 }); flash(pos, '#f97316', 7); ripple(pos.x, pos.z, 3); }
+    if (gear.charm) burst(pos, 30, null, { colors: ['#4ade80', '#bbf7d0'], shape: 'up', speed: 0.6, up: 2.5, gravity: 0.5, fade: 0.9 });
+  }
+
+  // Vòng sáng quanh người câu khi tung kỹ năng.
+  function heroAura(colors, n = 90, up = 3) {
+    const base = new THREE.Vector3(fisher.position.x, 0.8, fisher.position.z);
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      burst(tmp2.set(base.x + Math.cos(a) * 0.9, base.y + Math.random() * 0.3, base.z + Math.sin(a) * 0.9), 1, null,
+        { colors, shape: 'point', speed: 0.3, up: up * (0.5 + Math.random() * 0.5), gravity: 0.8, fade: 0.9 });
+    }
+    burst(tipPos, 40, null, { colors, shape: 'sphere', speed: 1.6, gravity: 0.5, fade: 1.2 });
+  }
+
+  // Kỹ năng câu cá: hiệu ứng riêng cho từng kỹ năng.
+  function skillFx(skill) {
+    const pos = bobPos.clone();
+    const tip = tipPos.clone();
+    const AURA = { calm: ['#86efac', '#d9f99d'], wave: ['#38bdf8', '#e0f2fe'], gust: ['#f8fafc', '#cbd5e1'], gold: GOLD, dragon: FIRE };
+    heroAura(AURA[skill] || GOLD, skill === 'dragon' ? 140 : 90, skill === 'dragon' ? 5 : 3);
+    // Dải sáng chạy dọc dây câu từ đầu cần tới cá
+    for (let i = 0; i < 40; i++) {
+      const k = i / 40;
+      burst(tmp2.copy(tip).lerp(pos, k), 1, null, { colors: AURA[skill] || GOLD, shape: 'point', speed: 0.2, gravity: 0, fade: 1.1 });
+    }
+    if (skill === 'calm') {
+      for (let i = 0; i < 4; i++) setTimeout(() => ripple(pos.x, pos.z, 1 + i * 0.5), i * 140);
+      burst(pos, 40, null, { colors: ['#86efac', '#d9f99d', '#4ade80'], shape: 'up', speed: 0.8, up: 2, gravity: 0.4, fade: 0.7 });
+      flash(pos, '#86efac', 4);
+    } else if (skill === 'wave') {
+      for (let i = 0; i < 3; i++) setTimeout(() => ripple(pos.x, pos.z, 2 + i), i * 120);
+      burst(pos, 120, null, { colors: ['#38bdf8', '#7dd3fc', '#e0f2fe'], shape: 'ring', speed: 4, up: 3, gravity: 7, fade: 1.1 });
+      flash(pos, '#38bdf8', 9);
+      shake = 0.05;
+    } else if (skill === 'gust') {
+      // Lốc xoáy cuộn từ chỗ cá về đầu cần
+      for (let i = 0; i < 70; i++) {
+        const k = i / 70;
+        const a = k * Math.PI * 8;
+        const p = pos.clone().lerp(tip, k).add(tmp.set(Math.cos(a) * 0.5 * (1 - k), Math.sin(a) * 0.5 * (1 - k), 0));
+        burst(p, 1, null, { colors: ['#f8fafc', '#cbd5e1', '#e0f2fe'], shape: 'point', speed: 0.3, up: 0.2, gravity: 0, fade: 0.9 });
+      }
+      burst(pos, 60, '#f8fafc', { shape: 'ring', speed: 3.5, up: 1.5, gravity: 2, fade: 1.2 });
+      ripple(pos.x, pos.z, 3);
+      shake = 0.06;
+    } else if (skill === 'gold') {
+      burst(pos, 140, null, { colors: GOLD, shape: 'sphere', speed: 3, up: 1, gravity: 1, fade: 0.8 });
+      for (let i = 0; i < 3; i++) setTimeout(() => burst(pos, 30, null, { colors: GOLD, shape: 'ring', speed: 1.5 + i, up: 0.3, gravity: 0, fade: 1 }), i * 150);
+      flash(pos, '#fbbf24', 14);
+    } else if (skill === 'dragon') {
+      // Cột lửa – nước phun lên như rồng cuộn
+      burst(pos, 220, null, { colors: FIRE, shape: 'up', speed: 0.9, up: 9, gravity: 4, fade: 0.8, jitter: 0.3 });
+      burst(pos, 120, null, { colors: ['#e0f2fe', '#7dd3fc'], shape: 'up', speed: 1.5, up: 6, gravity: 8, fade: 0.9 });
+      for (let i = 0; i < 4; i++) setTimeout(() => { ripple(pos.x, pos.z, 2 + i); burst(pos, 40, null, { colors: FIRE, shape: 'ring', speed: 3 + i, up: 0.5, gravity: 0, fade: 1.2 }); }, i * 160);
+      flash(pos, '#f97316', 18);
+      shake = 0.1;
+    }
+  }
+
   return {
     setZone,
+    setGear({ rod, rodFx, lineColor, bait, charm = false, tea = false, net = false }) {
+      Object.assign(gear, { rod, bait, charm, tea, net });
+      gear.fx.set(rodFx || '#ffffff');
+      gear.line.set(lineColor || '#ffffff');
+    },
+    skill(skillId) { skillFx(skillId); },
+    stun(seconds) { fightState.stun = seconds; },
     // Giữ nút lấy lực: cần câu ngả ra sau theo lực.
     charge(power) {
       if (caught) { scene.remove(caught); caught = null; caughtLight.intensity = 0; }
@@ -799,7 +1010,8 @@ export function createScene3D(canvas) {
       setPhase('fight');
     },
     // k: 1 = ở chỗ thả câu, 0 = sát cầu; tension 0–1; surging: cá đang vùng vẫy.
-    fight(k, tension, surging) {
+    fight(k, tension, surging, stun = 0) {
+      fightState.stun = stun;
       fightState.k = Math.max(0, Math.min(1.4, k));
       fightState.tension = tension;
       fightState.surging = surging;
@@ -824,6 +1036,11 @@ export function createScene3D(canvas) {
       splash(reelFrom, 90, 1.1);
       if (tier >= 4) splash(reelFrom, 60, 1.3, new THREE.Color(color), 4);
       ripple(reelFrom.x, reelFrom.z, 2.2);
+      // Hiệu ứng mừng theo cần câu và vợt vàng
+      if (gear.rod === 'gold') { burst(reelFrom, 120, null, { colors: GOLD, shape: 'up', speed: 1.5, up: 7, gravity: 6, fade: 0.8 }); flash(reelFrom, '#fbbf24', 10); }
+      else if (gear.rod === 'dragon') { burst(reelFrom, 180, null, { colors: FIRE, shape: 'up', speed: 1, up: 9, gravity: 5, fade: 0.8 }); flash(reelFrom, '#f97316', 14); shake = 0.08; }
+      else if (gear.rod !== 'bamboo') burst(reelFrom, 70, gear.fx, { shape: 'ring', speed: 3, up: 2, gravity: 4, fade: 1 });
+      if (gear.net) setTimeout(() => { if (caught) { burst(caught.position, 90, null, { colors: GOLD, shape: 'ring', speed: 2, up: 0.2, gravity: 0, fade: 0.9 }); flash(caught.position, '#fde047', 8); } }, 700);
       setPhase('reel');
     },
     escape() {

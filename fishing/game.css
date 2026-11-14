@@ -533,3 +533,38 @@ textarea { width: 100%; resize: vertical; font-family: ui-monospace, monospace; 
   .viewer-box { width: 260px; height: 170px; }
   .zone-info { flex-direction: column; }
 }
+
+/* ---------- Kỹ năng câu cá ---------- */
+.skill-btn {
+  --fx: #ffc531;
+  position: relative; align-self: flex-end; margin-left: auto; margin-bottom: 10px;
+  width: 92px; height: 92px; border-radius: 50%; cursor: pointer; touch-action: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
+  font: inherit; color: #fff; border: 4px solid #fff;
+  background: radial-gradient(circle at 40% 30%, color-mix(in srgb, var(--fx) 55%, #fff), var(--fx) 60%, color-mix(in srgb, var(--fx) 60%, #000));
+  box-shadow: 0 6px 0 color-mix(in srgb, var(--fx) 45%, #000), 0 0 26px color-mix(in srgb, var(--fx) 80%, transparent);
+  animation: skillPulse 1.2s ease-in-out infinite;
+}
+.skill-btn:not([hidden]) + .action { margin-left: 12px; }
+.skill-btn[hidden] { display: none; }
+.skill-btn .skill-ico { font-size: 2rem; line-height: 1; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .4)); }
+.skill-btn .skill-name { font-size: .66rem; font-weight: 800; text-shadow: 0 1px 2px #000; line-height: 1.1; text-align: center; padding: 0 6px; }
+.skill-charges { position: absolute; bottom: -10px; display: flex; gap: 4px; }
+.skill-charges i { width: 14px; height: 14px; border-radius: 50%; background: rgba(0, 0, 0, .6); border: 2px solid #fff; }
+.skill-charges i.on { background: var(--fx); box-shadow: 0 0 8px var(--fx); }
+.skill-btn.empty { filter: grayscale(.85) brightness(.75); animation: none; }
+.skill-btn:disabled { filter: grayscale(.6) brightness(.7); animation: none; }
+.skill-btn:active:not(:disabled) { transform: translateY(4px) scale(.96); }
+@keyframes skillPulse { 50% { box-shadow: 0 6px 0 color-mix(in srgb, var(--fx) 45%, #000), 0 0 40px var(--fx); } }
+.screen-flash { position: fixed; inset: 0; z-index: 4; pointer-events: none; opacity: 0; background: radial-gradient(circle at 60% 55%, color-mix(in srgb, var(--fx, #fff) 70%, transparent), transparent 65%); }
+.screen-flash.go { animation: sflash .7s ease-out; }
+@keyframes sflash { 0% { opacity: .95; } 100% { opacity: 0; } }
+.skill-tag { display: inline-block; padding: 0 8px; border-radius: 99px; font-weight: 800; color: #0b2233; background: var(--fx); margin-right: 4px; }
+@media (max-width: 700px) {
+  .skill-btn { width: 76px; height: 76px; margin-bottom: 14px; }
+  .skill-btn .skill-ico { font-size: 1.6rem; }
+  .skill-btn .skill-name { font-size: .56rem; }
+}
+
+.skill-btn, .action { flex: none; }
+@media (max-width: 700px) { .gear { max-width: calc(100% - 200px); } .boosts { flex-wrap: wrap; } }

@@ -90,6 +90,17 @@ Trò chơi vừa học vừa chơi trong thư mục `fishing/` – mở `http://
 - **🐟 Cá 4D**: mỗi loài có mô hình 3D riêng (dáng, màu, hoa văn, râu, đèn lồng, mũi kiếm…) bơi uốn lượn theo thời gian thực – đuôi và vây vẫy. Xem ở thẻ cá câu được, nút **4D** trong Bộ sưu tập (kéo để xoay, có hào quang theo độ hiếm), và con cá treo trên dây trong cảnh 3D.
 - **🗺️ Bản đồ thế giới** minh hoạ: làng – sông – núi – biển – vực sâu nối bằng đường đi, sao ★ theo số loài đã câu, bấm từng khu để xem cá và mở khu.
 - **🎒 Trang bị & vật phẩm**: cửa hàng chia tab *Cần câu / Dây câu / Mồi & hỗ trợ* với biểu tượng vẽ riêng và thanh chỉ số. **Dây câu** (cước → dù bện → kevlar → titan) thêm ❤️ độ bền và sức chịu căng. Vật phẩm hỗ trợ bật/tắt ngay trên thanh dưới trước khi ném: 🍀 Bùa may mắn, 🍵 Trà gừng (dây căng chậm 35%), 🥅 Vợt vàng (cá bán giá ×2).
+- **⚡ Kỹ năng câu cá** (nút tròn cạnh nút kéo, hoặc phím **E**): mỗi cần câu một kỹ năng, dùng khi đang kéo cá. Mỗi trận có 1 lượt, **mỗi câu trả lời đúng nạp thêm 1 lượt** (tối đa 2). Kỹ năng kéo cá lại gần vẫn phải dừng ở mốc để trả lời câu hỏi.
+
+  | Cần | Kỹ năng | Tác dụng | Hiệu ứng |
+  |---|---|---|---|
+  | Cần tre | 🌿 Thả dây khéo | Giảm 50% độ căng | Gợn sóng lan, lá xanh bay |
+  | Cần sợi thuỷ tinh | 🌊 Sóng xanh | Giảm 70% căng, cá ngừng vùng vẫy | Vòng sóng nước xanh toả rộng |
+  | Cần carbon | 🌪️ Lốc xoáy | Cuốn cá lại gần 25% | Lốc gió cuộn dọc dây |
+  | Cần vàng | ✨ Ánh vàng | Cá choáng 3 giây | Bùng sáng vàng, vòng hào quang |
+  | Cần rồng | 🐉 Rồng cuộn | Kéo gần 35%, xả căng, choáng 2 giây | Cột lửa – nước phun như rồng, rung màn hình |
+
+- **✨ Hiệu ứng theo trang bị**: mỗi cần có vệt sáng riêng khi ném (lửa, vàng, gió…) và kiểu nước bắn riêng khi phao rơi / khi kéo được cá; dây câu hiện đúng màu; mồi vàng làm phao phát sáng, mồi tôm sủi bong bóng; bùa may mắn có hào quang cỏ bốn lá quanh phao, trà gừng toả hơi ấm khi kéo, vợt vàng loé vòng sáng khi cá lên.
 - **Hình minh hoạ cá**: 32 loài vẽ vector (SVG) theo phong cách thẻ game, mỗi loài một dáng, màu và hoa văn riêng; cá Huyền thoại/Thần thoại có hào quang.
 - **Vật phẩm**: cần câu (tăng may mắn), mồi tôm / mồi vàng, phao gợi ý 50/50, đồng hồ cát +15 giây, bùa may mắn (chắc chắn gặp cá Hiếm trở lên).
 - **Môn học**: Toán (sinh tự động theo trình độ Lớp 1–2 / 3–5 / 6–9), Tiếng Việt, Tiếng Anh, Khoa học, Lịch sử & Địa lý, và **Câu hỏi của tôi** – phụ huynh/thầy cô nhập bài cần ôn theo mẫu `Câu hỏi | Đáp án đúng | Sai 1 | Sai 2 | Sai 3`.

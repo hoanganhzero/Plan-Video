@@ -27,8 +27,33 @@ export function createFight({ rarity, kg = 1, distance = 12, rodLuck = 0, lineSt
     surge: 0,
     surgeTimer: 1 + rng() * 1.5,
     breakTimer: 0,
+    stun: 0,
+    charges: 1,
+    maxCharges: 2,
     done: null,
   };
+}
+
+// Hiệu ứng kỹ năng: tension = nhân độ căng, pull = kéo gần (phần quãng đường), stun = giây choáng.
+export const SKILL_EFFECTS = {
+  calm: { tension: 0.5 },
+  wave: { tension: 0.3, calmFish: true },
+  gust: { pull: 0.25 },
+  gold: { tension: 0.6, stun: 3, calmFish: true },
+  dragon: { tension: 0, pull: 0.35, stun: 2, calmFish: true },
+};
+
+// Dùng kỹ năng. Không bỏ qua được câu hỏi: kéo vượt mốc thì bước kế tiếp vẫn dừng ở mốc để hỏi.
+export function useSkill(f, skillId) {
+  const fx = SKILL_EFFECTS[skillId];
+  if (!fx || f.done || f.charges <= 0) return false;
+  f.charges -= 1;
+  if (fx.tension !== undefined) f.tension *= fx.tension;
+  if (fx.pull) f.distance = Math.max(0, f.distance - f.start * fx.pull);
+  if (fx.stun) f.stun = Math.max(f.stun, fx.stun);
+  if (fx.calmFish) f.surge = 0;
+  f.breakTimer = 0;
+  return true;
 }
 
 // Mốc khoảng cách của câu hỏi kế tiếp (chia đều quãng đường).
@@ -42,8 +67,9 @@ export function nextMilestone(f) {
 export function stepFight(f, dt, holding, rng = Math.random) {
   if (f.done) return null;
   // Cá thỉnh thoảng vùng vẫy mạnh (cá yếu thì ít vùng vẫy hơn).
+  if (f.stun > 0) { f.stun -= dt; f.surge = 0; }
   if (f.surge > 0) f.surge -= dt;
-  else {
+  else if (f.stun <= 0) {
     f.surgeTimer -= dt;
     if (f.surgeTimer <= 0) {
       f.surge = 0.5 + rng() * 0.8;
@@ -51,11 +77,12 @@ export function stepFight(f, dt, holding, rng = Math.random) {
     }
   }
   const surging = f.surge > 0;
-  const pull = f.pull * (0.35 + 0.65 * f.stamina) * (surging ? 2.2 : 1);
+  const stunned = f.stun > 0;
+  const pull = f.pull * (0.35 + 0.65 * f.stamina) * (surging ? 2.2 : 1) * (stunned ? 0.15 : 1);
 
   if (holding) {
     f.distance -= dt * REEL_SPEED * (surging ? 0.3 : 1);
-    f.tension += (dt * 0.85 * (0.18 + pull * 0.9)) / f.strength;
+    f.tension += ((dt * 0.85 * (0.18 + pull * 0.9)) / f.strength) * (stunned ? 0.25 : 1);
   } else {
     f.tension -= dt * 0.7;
     f.distance += dt * pull * (surging ? 1.6 : 0.4);
@@ -84,6 +111,7 @@ export function stepFight(f, dt, holding, rng = Math.random) {
 export function answerInFight(f, correct) {
   if (correct) {
     f.questionsLeft -= 1;
+    f.charges = Math.min(f.maxCharges, f.charges + 1); // trả lời đúng nạp lại kỹ năng
     f.stamina = f.questionsLeft / f.total;
     f.tension *= 0.4;
     f.surge = 0;

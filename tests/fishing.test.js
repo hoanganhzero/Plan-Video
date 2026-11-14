@@ -364,3 +364,46 @@ test('tea and golden net are consumed and take effect', () => {
   const plain = createFight({ rarity: 'rare' });
   assert.ok(calm.strength > plain.strength * 1.5);
 });
+
+// ---------- Kỹ năng câu cá ----------
+import { useSkill, SKILL_EFFECTS } from '../fishing/js/fight.js';
+import { SKILLS, RODS as ALL_RODS } from '../fishing/js/data.js';
+
+test('every rod has a skill with an effect', () => {
+  for (const r of ALL_RODS) {
+    assert.ok(SKILLS[r.skill], r.id);
+    assert.ok(SKILL_EFFECTS[r.skill], r.id);
+  }
+});
+
+test('skills spend charges, correct answers refill them', () => {
+  const f = createFight({ rarity: 'rare', distance: 20, questions: 2 });
+  f.tension = 0.9;
+  assert.ok(useSkill(f, 'calm'));
+  assert.ok(Math.abs(f.tension - 0.45) < 1e-9);
+  assert.equal(useSkill(f, 'calm'), false, 'no charges left');
+  f.distance = nextMilestone(f);
+  answerInFight(f, true);
+  assert.equal(f.charges, 1);
+  answerInFight(f, false);
+  assert.equal(f.charges, 1, 'wrong answers do not refill');
+});
+
+test('pulling skills cannot skip a question', () => {
+  const f = createFight({ rarity: 'legendary', distance: 20, questions: 3 });
+  f.charges = 2;
+  useSkill(f, 'dragon');
+  useSkill(f, 'dragon');
+  assert.ok(f.distance < nextMilestone(f));
+  assert.equal(stepFight(f, 0.01, false), 'question');
+  assert.equal(f.distance, nextMilestone(f));
+});
+
+test('stun stops surges and slows tension', () => {
+  const a = createFight({ rarity: 'mythic', kg: 100, distance: 20, questions: 3 });
+  const b = createFight({ rarity: 'mythic', kg: 100, distance: 20, questions: 3 });
+  useSkill(a, 'gold');
+  for (let i = 0; i < 40; i++) { stepFight(a, 0.05, true, () => 0.5); stepFight(b, 0.05, true, () => 0.5); }
+  assert.ok(a.tension < b.tension * 0.5);
+  assert.equal(a.surge, 0);
+});

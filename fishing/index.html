@@ -46,6 +46,7 @@
   </nav>
 
   <!-- THÔNG BÁO GIỮA MÀN HÌNH -->
+  <div class="screen-flash" id="screen-flash" aria-hidden="true"></div>
   <div class="banner" id="banner" aria-live="assertive"></div>
   <div class="hint-line" id="scene-msg" aria-live="polite"></div>
 
@@ -79,6 +80,11 @@
       </div>
       <div class="odds" id="odds"></div>
     </div>
+    <button class="skill-btn" id="skill-btn" hidden aria-label="Dùng kỹ năng câu cá (phím E)">
+      <span class="skill-ico" id="skill-ico">🌿</span>
+      <span class="skill-name" id="skill-name">Kỹ năng</span>
+      <span class="skill-charges" id="skill-charges"></span>
+    </button>
     <button class="action" id="action-btn" aria-label="Nút hành động">
       <span class="action-ico" id="action-ico">🎣</span>
       <span class="action-lbl" id="action-label">GIỮ ĐỂ NÉM</span>
@@ -193,6 +199,7 @@
           <li><b>Giữ</b> nút 🎣 để lấy lực, <b>thả</b> để ném. Thả trong vùng xanh = <b>Hoàn hảo</b> (dễ gặp cá hiếm hơn).</li>
           <li>Phao chìm, hiện <b>GIẬT CẦN!</b> → bấm ngay để móc cá.</li>
           <li><b>Giữ</b> để thu dây, <b>thả</b> khi dây căng đỏ kẻo đứt. Cá vùng vẫy thì nên thả bớt.</li>
+          <li>Bấm nút <b>kỹ năng</b> (hoặc phím <kbd>E</kbd>) lúc kéo cá: mỗi cần câu có một kỹ năng riêng. Mỗi trận có 1 lượt, <b>trả lời đúng được nạp thêm lượt</b>.</li>
           <li>Tới mốc, cá vùng vẫy mạnh → <b>trả lời câu hỏi</b>. Đúng: cá yếu đi. Sai: cá kéo ra xa và mất 1 ❤️ độ bền dây.</li>
         </ol>
         <p class="muted small">Phím tắt: giữ <kbd>Space</kbd> để ném / kéo, <kbd>1</kbd>–<kbd>4</kbd> chọn đáp án.</p>

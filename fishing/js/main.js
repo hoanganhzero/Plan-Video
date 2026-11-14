@@ -6,9 +6,9 @@ import {
   activeQuests, questProgress, claimQuest, describeReward, buyShopItem, buyRod, unlockZone, zoneFish, speciesTotal,
   RARITIES, ZONES, RODS, ITEMS, SHOP, QUESTS, fishById, zoneById, rodById,
 } from './engine.js';
-import { SUBJECTS, GRADES, rarityOf, rarityIndex, subjectById } from './data.js';
+import { SUBJECTS, GRADES, SKILLS, rarityOf, rarityIndex, subjectById } from './data.js';
 import { parseCustomQuestions } from './questions.js';
-import { createFight, stepFight, answerInFight, surging } from './fight.js';
+import { createFight, stepFight, answerInFight, surging, useSkill } from './fight.js';
 import { createScene } from './scene.js';
 import { fishSVG } from './art.js';
 import { itemIcon, rodIcon, lineIcon } from './icons.js';
@@ -171,6 +171,12 @@ function renderGear() {
   $('#odds').innerHTML = RARITIES.map((r, i) => (chances[i] > 0
     ? `<span style="border-color:${r.color};color:${r.color}">${r.name} ${(chances[i] * 100).toFixed(chances[i] < 0.01 ? 1 : 0)}%</span>` : '')).join('');
   $('#odds').hidden = !idle;
+  if (idle) {
+    scene.setGear?.({
+      rod: rod.id, rodFx: rod.fx, lineColor: line.color, bait,
+      charm: game.boosts.charm, tea: game.boosts.tea, net: game.boosts.net,
+    });
+  }
 }
 $('#bait-chip').addEventListener('click', () => {
   const owned = BAITS.filter((b) => b === 'worm' || state.items[b] > 0);
@@ -409,6 +415,7 @@ RENDER.shop = () => {
       const using = state.rod === r.id;
       return shopCard({
         icon: rodIcon(r.id, 64), title: esc(r.name), owned, using,
+        desc: `<span class="skill-tag" style="--fx:${r.fx}">${SKILLS[r.skill].icon} ${esc(SKILLS[r.skill].name)}</span> ${esc(SKILLS[r.skill].desc)}`,
         stats: bar('🍀 May mắn', r.luck, 5, '#4ade80') + bar('💪 Sức kéo', r.luck, 5, '#38bdf8'),
         action: using ? inUse : owned ? `<button class="btn sea" data-rod-use="${r.id}">Dùng</button>` : buyBtn('data-rod-buy', r.id, r.price, r.level),
       });
@@ -666,6 +673,7 @@ function setMode(mode) {
   setAction(mode === 'cast' ? 'wait' : mode === 'question' || mode === 'result' ? 'busy' : mode);
   $('#power').hidden = mode !== 'charge';
   $('#fight-hud').hidden = !(mode === 'fight' || mode === 'question');
+  if (typeof renderSkill === 'function') renderSkill();
   renderGear();
 }
 
@@ -737,6 +745,11 @@ async function doCast() {
   save();
   setMode('cast');
   beep(SOUND.cast);
+  const rodNow = rodById(state.rod);
+  scene.setGear?.({
+    rod: rodNow.id, rodFx: rodNow.fx, lineColor: lineById(attempt.line)?.color, bait: attempt.bait,
+    charm: attempt.charm, tea: attempt.tea, net: attempt.net,
+  });
   scene.cast(dist);
   if (perfect) banner(`HOÀN HẢO!<small>Ném xa ${dist} m · cá hiếm dễ cắn hơn</small>`, 'green', 1400);
   else banner(`${dist} m`, '', 900);
@@ -784,11 +797,55 @@ function hookFish() {
   $('#fh-fish').style.background = r.color;
   $('#fh-fish').textContent = `Cá ${r.name}`;
   banner(rarityIndex(attempt.rarity) >= 4 ? `😱 CÁ ${r.name.toUpperCase()}!` : 'MẮC CÂU!', rarityIndex(attempt.rarity) >= 2 ? 'gold' : '', 1100);
-  hint('<b>Giữ</b> để kéo · <b>thả</b> khi dây căng đỏ');
+  hint('<b>Giữ</b> để kéo · <b>thả</b> khi dây căng đỏ · <b>E</b> = kỹ năng');
   setMode('fight');
+  renderSkill();
   lastT = performance.now();
   rafId = requestAnimationFrame(fightTick);
 }
+
+// ---------- Kỹ năng câu cá ----------
+function renderSkill() {
+  const btn = $('#skill-btn');
+  const show = !!fight && (game.mode === 'fight' || game.mode === 'question');
+  btn.hidden = !show;
+  if (!show) return;
+  const rod = rodById(state.rod);
+  const sk = SKILLS[rod.skill];
+  $('#skill-ico').textContent = sk.icon;
+  $('#skill-name').textContent = sk.name;
+  $('#skill-charges').innerHTML = Array.from({ length: fight.maxCharges }, (_, i) => `<i class="${i < fight.charges ? 'on' : ''}"></i>`).join('');
+  btn.title = `${sk.name}: ${sk.desc}`;
+  btn.style.setProperty('--fx', rod.fx);
+  btn.classList.toggle('empty', fight.charges <= 0);
+  btn.disabled = game.mode !== 'fight';
+}
+function screenFlash(color) {
+  const el = $('#screen-flash');
+  el.style.setProperty('--fx', color);
+  el.classList.remove('go');
+  void el.offsetWidth;
+  el.classList.add('go');
+}
+function castSkill() {
+  if (game.mode !== 'fight' || !fight) return;
+  const rod = rodById(state.rod);
+  const sk = SKILLS[rod.skill];
+  if (!useSkill(fight, rod.skill)) {
+    toast('⚡ Hết lượt kỹ năng – trả lời đúng câu hỏi để nạp thêm!');
+    return;
+  }
+  scene.skill?.(rod.skill);
+  screenFlash(rod.fx);
+  beep([[392, 0.08], [523, 0.08], [784, 0.12], [1047, 0.2]], 'sawtooth', 0.06);
+  banner(`${sk.icon} ${sk.name.toUpperCase()}!<small>${esc(sk.desc)}</small>`, 'gold', 1300);
+  if (navigator.vibrate) navigator.vibrate([30, 40, 60]);
+  renderSkill();
+}
+$('#skill-btn').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); castSkill(); });
+document.addEventListener('keydown', (e) => {
+  if ((e.key === 'e' || e.key === 'E') && !e.repeat && !document.querySelector('dialog[open]')) castSkill();
+});
 
 function renderFight() {
   $('#fh-dist').textContent = fight.distance.toFixed(1);
@@ -811,7 +868,7 @@ function fightTick(now) {
     remaining -= dt;
     ev = stepFight(fight, dt, game.holding);
   }
-  scene.fight?.(fight.distance / Math.max(1, fight.start), fight.tension, surging(fight));
+  scene.fight?.(fight.distance / Math.max(1, fight.start), fight.tension, surging(fight), fight.stun);
   renderFight();
   if (surging(fight) && !lastSurge) { hint('🌊 Cá đang vùng vẫy – <b>thả bớt</b> dây!'); if (navigator.vibrate) navigator.vibrate(60); }
   if (!surging(fight) && lastSurge) hint('<b>Giữ</b> để kéo · <b>thả</b> khi dây căng đỏ');
@@ -839,14 +896,15 @@ async function fightQuestion() {
   renderFight();
   if (res.correct) {
     beep(SOUND.right);
-    banner(fight.questionsLeft ? `CHÍNH XÁC! +${res.xp} KN<small>Cá yếu đi – kéo tiếp!</small>` : `CHÍNH XÁC! +${res.xp} KN<small>Cá kiệt sức – kéo lên thôi!</small>`, 'green', 1300);
+    banner(`CHÍNH XÁC! +${res.xp} KN<small>${fight.questionsLeft ? 'Cá yếu đi' : 'Cá kiệt sức'} · ⚡ kỹ năng ${fight.charges}/${fight.maxCharges}</small>`, 'green', 1300);
   } else {
     beep(SOUND.wrong);
     if (outcome === 'lost') { finishLost('lost'); return; }
     banner('SAI RỒI!<small>Cá kéo ra xa – mất 1 ❤️</small>', 'red', 1400);
   }
-  hint('<b>Giữ</b> để kéo · <b>thả</b> khi dây căng đỏ');
+  hint('<b>Giữ</b> để kéo · <b>thả</b> khi dây căng đỏ · <b>E</b> = kỹ năng');
   setMode('fight');
+  renderSkill();
   lastT = performance.now();
   rafId = requestAnimationFrame(fightTick);
 }
