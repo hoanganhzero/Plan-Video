@@ -42,6 +42,7 @@
     <button data-open="dex"><span class="ico">📚</span><span class="lbl">Sưu tập</span></button>
     <button data-open="shop"><span class="ico">🏪</span><span class="lbl">Cửa hàng</span></button>
     <button data-open="review"><span class="ico">📒</span><span class="lbl">Ôn tập</span><i class="badge gray" id="review-badge" hidden></i></button>
+    <button data-open="sets"><span class="ico">📝</span><span class="lbl">Bộ đề</span><i class="badge blue" id="sets-badge" hidden></i></button>
     <button data-open="settings"><span class="ico">⚙️</span><span class="lbl">Cài đặt</span></button>
   </nav>
 
@@ -122,6 +123,18 @@
     </div>
   </dialog>
 
+  <dialog class="sheet wide" id="sheet-sets">
+    <header><h2>📝 Bộ đề học tập</h2><button class="close" data-close aria-label="Đóng">✕</button></header>
+    <div class="sheet-body">
+      <div class="tabs-row" id="sets-tabs" role="tablist">
+        <button data-stab="mine">📚 Bộ đề của tôi</button>
+        <button data-stab="import">🪄 Tạo từ tài liệu</button>
+        <button data-stab="join">🔑 Nhập mã</button>
+      </div>
+      <div id="sets-body"></div>
+    </div>
+  </dialog>
+
   <dialog class="sheet" id="sheet-quests">
     <header><h2>📜 Nhiệm vụ</h2><button class="close" data-close aria-label="Đóng">✕</button></header>
     <div class="sheet-body">
@@ -187,11 +200,12 @@
         <label class="check"><input type="checkbox" id="sound-toggle"> 🔊 Âm thanh</label>
       </div>
       <div class="card">
-        <h3>✍️ Câu hỏi của tôi</h3>
-        <p class="muted small">Phụ huynh / thầy cô nhập bài cần ôn, mỗi dòng một câu:<br>
-          <code>Câu hỏi | Đáp án đúng | Sai 1 | Sai 2 | Sai 3</code><br>(cần ít nhất 1 đáp án sai; dòng bắt đầu bằng # là ghi chú).</p>
-        <textarea id="custom-text" rows="6" placeholder="7 × 8 bằng bao nhiêu? | 56 | 54 | 48 | 64&#10;&quot;Dog&quot; nghĩa là gì? | Con chó | Con mèo | Con gà | Con vịt"></textarea>
-        <div class="row"><button class="btn gold" id="custom-save">Lưu câu hỏi</button><span id="custom-status" class="muted small"></span></div>
+        <h3>📝 Bộ đề của thầy cô / phụ huynh</h3>
+        <p class="muted small">Soạn câu hỏi theo bài đang học: gõ tay, nhập từ Excel (CSV), tạo tự động từ PDF / Word / ảnh trang SGK,
+          rồi chia sẻ cho học sinh bằng mã 6 ký tự.</p>
+        <div class="row"><button class="btn gold" data-open-sets="mine">📝 Mở Bộ đề</button>
+          <button class="btn sea" data-open-sets="import">🪄 Tạo từ tài liệu</button>
+          <button class="btn" data-open-sets="join">🔑 Nhập mã bộ đề</button><span id="custom-status" class="muted small"></span></div>
       </div>
       <div class="card">
         <h3>🎮 Cách chơi</h3>

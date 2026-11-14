@@ -96,3 +96,27 @@ export async function myRank(state, fetchImpl) {
 
 export const rarityColor = (tier) => RARITIES[Math.max(0, Math.min(5, tier || 0))].color;
 export const rarityName = (tier) => RARITIES[Math.max(0, Math.min(5, tier || 0))].name;
+
+// ---------- Chia sẻ bộ đề qua mã 6 ký tự ----------
+// Mã chủ sở hữu (bí mật, lưu trong trình duyệt người tạo) cho phép cập nhật lại đúng mã đã chia sẻ.
+export const SET_CODE_RE = /^[A-HJ-NP-Z2-9]{6}$/;
+export const cleanCode = (c) => String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+
+export async function publishSet(state, set, fetchImpl) {
+  state.online ||= {};
+  if (!state.online.ownerKey) state.online.ownerKey = ensurePlayerKey({ online: {} });
+  const payload = set.questions.map(({ q, a, w, e, d }) => ({ q, a, w, e: e || '', d: d || 1 }));
+  const code = await rpc('fishing_set_publish', {
+    p_owner: state.online.ownerKey, p_name: set.name, p_payload: payload, p_code: set.code || null,
+  }, fetchImpl);
+  set.code = code;
+  return code;
+}
+
+export async function fetchSet(code, fetchImpl) {
+  const c = cleanCode(code);
+  if (!SET_CODE_RE.test(c)) throw new Error('Mã bộ đề gồm 6 ký tự (chữ in hoa và số), ví dụ: K7M2QX.');
+  const rows = await rpc('fishing_set_get', { p_code: c }, fetchImpl);
+  if (!rows?.length) throw new Error(`Không tìm thấy bộ đề mã ${c}. Kiểm tra lại mã với thầy cô nhé.`);
+  return rows[0];
+}

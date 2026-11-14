@@ -151,7 +151,7 @@ export const SUBJECTS = [
   { id: 'en', name: 'Tiếng Anh', icon: '🔤' },
   { id: 'sci', name: 'Khoa học', icon: '🔬' },
   { id: 'his', name: 'Lịch sử & Địa lý', icon: '🌏' },
-  { id: 'custom', name: 'Câu hỏi của tôi', icon: '✍️' },
+  { id: 'custom', name: 'Bộ đề của thầy cô', icon: '📝' },
 ];
 
 export const subjectById = (id) => SUBJECTS.find((s) => s.id === id);

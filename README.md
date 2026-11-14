@@ -104,6 +104,16 @@ Trò chơi vừa học vừa chơi trong thư mục `fishing/` – mở `http://
 - **Hình minh hoạ cá**: 32 loài vẽ vector (SVG) theo phong cách thẻ game, mỗi loài một dáng, màu và hoa văn riêng; cá Huyền thoại/Thần thoại có hào quang.
 - **Vật phẩm**: cần câu (tăng may mắn), mồi tôm / mồi vàng, phao gợi ý 50/50, đồng hồ cát +15 giây, bùa may mắn (chắc chắn gặp cá Hiếm trở lên).
 - **Môn học**: Toán (sinh tự động theo trình độ Lớp 1–2 / 3–5 / 6–9), Tiếng Việt, Tiếng Anh, Khoa học, Lịch sử & Địa lý, và **Câu hỏi của tôi** – phụ huynh/thầy cô nhập bài cần ôn theo mẫu `Câu hỏi | Đáp án đúng | Sai 1 | Sai 2 | Sai 3`.
+- **📝 Bộ đề cho thầy cô / phụ huynh** (nút *Bộ đề* ở menu trái): cấu hình nội dung học theo bài đang học.
+  - **Thủ công**: soạn từng câu (câu hỏi, đáp án đúng, 3 đáp án sai, giải thích, độ khó Dễ/Vừa/Khó), dán nhanh nhiều câu `Câu hỏi | Đúng | Sai 1 | Sai 2 | Sai 3`, nhập/xuất **CSV** (mở bằng Excel / Google Sheets; cột: Câu hỏi, Đáp án đúng, Sai 1, Sai 2, Sai 3, Giải thích, Độ khó).
+  - **Tự động từ tài liệu**: tải **PDF**, **Word (.docx)**, **ảnh chụp trang SGK** hoặc dán nội dung, rồi chọn:
+    - 🔍 *Tìm câu trắc nghiệm có sẵn* – đọc đề/phiếu bài tập dạng "Câu 1… A. B. C. D.", nhận đáp án ghi "Đáp án: B", dấu `*`, "(đúng)" hoặc bảng đáp án cuối đề. Không cần mạng.
+    - ✂️ *Câu điền khuyết* – che năm, số liệu, tên riêng, khái niệm "… là …" trong bài học. Không cần mạng.
+    - ✨ *AI soạn câu hỏi* (Gemini, dùng chung API key với Plan Video) – đọc hiểu cả ảnh chụp và PDF scan, chọn số câu, lớp, môn, độ khó, trọng tâm.
+    - Mọi câu được **duyệt trước khi lưu**: sửa chữ, chọn lại đáp án đúng, bỏ câu không dùng.
+  - **Chia sẻ cho học sinh**: bấm *Chia sẻ* để nhận **mã 6 ký tự** (VD `K7M2QX`); học sinh vào *Bộ đề → Nhập mã* là có câu hỏi, có thể chọn "chỉ hỏi câu trong bộ đề này". Sửa bộ đề rồi chia sẻ lại thì mã giữ nguyên. Máy chủ: bảng `fishing_sets` (Supabase, khoá RLS, chỉ chủ bộ đề cập nhật được).
+  - Độ khó của câu quyết định loại cá: Dễ → cá Thường/Khá, Vừa → Hiếm/Quý, Khó → Huyền thoại/Thần thoại.
+  - Tệp được đọc ngay trong trình duyệt; chỉ khi dùng AI nội dung mới được gửi tới Google. Tệp .doc đời cũ cần lưu lại thành .docx hoặc PDF.
 - **Sổ ôn tập**: câu trả lời sai được ghi lại kèm đáp án và được hỏi lại sau; trả lời đúng thì xoá khỏi sổ.
 - Thùng cá (bán lấy xu), Bộ sưu tập, Cửa hàng; tự lưu trong trình duyệt, xuất/nhập file lưu; chơi được trên điện thoại.
 
@@ -151,12 +161,16 @@ fishing/                Trò chơi Câu Cá Học Giỏi
   js/fight.js           Mô phỏng pha kéo cá: căng dây, sức cá, khoảng cách, độ bền dây
   js/online.js          Bảng xếp hạng chung (Supabase)
   js/art.js             Hình minh hoạ 32 loài cá dạng SVG
+  js/content.js         Bộ đề: chuẩn hoá câu hỏi, đọc đề trắc nghiệm, câu điền khuyết, CSV
+  js/extract.js         Đọc chữ từ PDF (pdf.js) và Word .docx ngay trong trình duyệt
+  js/ai.js              Gemini soạn câu hỏi từ bài học / ảnh / PDF
+  js/sets-ui.js         Giao diện Bộ đề (soạn tay, tạo từ tài liệu, chia sẻ mã)
   js/fish3d.js          Cá 4D: mô hình 3D từng loài + chuyển động bơi, khung xem xoay được
   js/icons.js           Biểu tượng vật phẩm, cần câu, dây câu (SVG)
   js/map.js             Bản đồ thế giới minh hoạ (SVG)
   js/scene3d.js         Cảnh câu cá 3D (Three.js): nước, người câu, cá, hiệu ứng, cảnh từng khu
   js/scene.js           Cảnh 2D dự phòng khi máy không có WebGL
-  vendor/               Three.js r160 (giấy phép MIT) – để chạy được cả khi mất mạng
+  vendor/               Three.js r160 (MIT) và pdf.js 4.10 (Apache-2.0) – chạy được cả khi mất mạng
   js/main.js            Giao diện trò chơi
 tests/                  Kiểm thử (npm test)
 ```

@@ -407,3 +407,156 @@ test('stun stops surges and slows tension', () => {
   assert.ok(a.tension < b.tension * 0.5);
   assert.equal(a.surge, 0);
 });
+
+// ---------- Bộ đề: thủ công & tự động ----------
+import {
+  parseQuizText, makeClozeQuestions, parseCSV, setToCSV, parsePipeLines, parseAIQuestions,
+  reviewToQuestion, addToSet, newSet, normalizeQuestion,
+} from '../fishing/js/content.js';
+
+const WORKSHEET = `PHIẾU BÀI TẬP TOÁN 3
+Câu 1: 7 × 8 bằng bao nhiêu?
+A. 54   B. 56   C. 48   D. 64
+Đáp án: B
+Câu 2. Số liền sau của 99 là:
+A. 98
+*B. 100
+C. 101
+D. 90
+Câu 3) Hình vuông có mấy cạnh?
+A. 3
+B. 4 (đúng)
+C. 5
+D. 6
+Giải thích: Hình vuông có 4 cạnh bằng nhau.
+Câu 4: Thủ đô của Việt Nam là
+A. Hà Nội
+B. Huế
+C. Đà Nẵng
+D. Cần Thơ
+Câu 5: Câu chưa có đáp án
+A. x
+B. y
+
+ĐÁP ÁN:
+4A`;
+
+test('worksheet multiple-choice questions are detected with their answers', () => {
+  const r = parseQuizText(WORKSHEET);
+  assert.equal(r.length, 5);
+  assert.equal(r[0].q, '7 × 8 bằng bao nhiêu?');
+  assert.deepEqual(r[0].options, ['54', '56', '48', '64']);
+  assert.equal(r[0].correct, 1, 'Đáp án: B');
+  assert.equal(r[1].options[r[1].correct], '100', 'star marker');
+  assert.equal(r[2].options[r[2].correct], '4', '(đúng) marker');
+  assert.equal(r[2].e, 'Hình vuông có 4 cạnh bằng nhau.');
+  assert.equal(r[3].options[r[3].correct], 'Hà Nội', 'answer key at the end');
+  assert.equal(r[4].correct, null, 'unknown answer left for the teacher');
+  const q = reviewToQuestion(r[0]);
+  assert.equal(q.a, '56');
+  assert.deepEqual(q.w, ['54', '48', '64']);
+  assert.equal(reviewToQuestion(r[4]), null);
+});
+
+const LESSON = `Chiến thắng Bạch Đằng năm 938 do Ngô Quyền lãnh đạo đã chấm dứt hơn một nghìn năm Bắc thuộc.
+Năm 1010, Lý Thái Tổ dời đô từ Hoa Lư ra Thăng Long.
+Năm 1288, Trần Hưng Đạo chỉ huy quân dân nhà Trần đánh tan quân Nguyên trên sông Bạch Đằng.
+Năm 1789, Quang Trung đại phá quân Thanh ở Ngọc Hồi – Đống Đa.
+Quang hợp là quá trình cây xanh dùng ánh sáng để tạo ra chất dinh dưỡng.
+Hô hấp là quá trình sinh vật lấy ô-xi và thải ra khí các-bô-níc.
+Bay hơi là quá trình nước chuyển từ thể lỏng sang thể khí.
+Ngưng tụ là quá trình hơi nước chuyển thành nước ở thể lỏng.`;
+
+test('cloze questions are generated from lesson text with same-kind distractors', () => {
+  const qs = makeClozeQuestions(LESSON, { max: 8, rng: seeded(5) });
+  assert.ok(qs.length >= 4, `got ${qs.length}`);
+  for (const r of qs) {
+    assert.ok(r.q.includes('_____'));
+    assert.equal(r.options.length, 4);
+    assert.equal(new Set(r.options).size, 4);
+    assert.ok(r.e.includes(r.options[0]), 'explanation is the full sentence');
+    assert.ok(reviewToQuestion(r));
+  }
+});
+
+test('CSV round trip works with Excel-style separators and quotes', () => {
+  const set = newSet('Lịch sử 5');
+  addToSet(set, [{ q: 'Năm 938, ai thắng trên sông Bạch Đằng?', a: 'Ngô Quyền', w: ['Lê Lợi', 'Quang Trung', 'Lý Bí'], e: 'Trận Bạch Đằng, 938', d: 2 }]);
+  const csv = setToCSV(set);
+  const back = parseCSV(csv);
+  assert.equal(back.questions.length, 1);
+  assert.equal(back.questions[0].a, 'Ngô Quyền');
+  assert.equal(back.questions[0].e, 'Trận Bạch Đằng, 938');
+  const semi = parseCSV('Câu hỏi;Đáp án đúng;Sai 1;Sai 2;Sai 3\n2+2?;4;3;5;6\nthiếu;;;\n');
+  assert.equal(semi.questions.length, 1);
+  assert.deepEqual(semi.errors, [3]);
+});
+
+test('pipe lines, AI output and duplicates are handled', () => {
+  const p = parsePipeLines('# ghi chú\n2+3? | 5 | 4 | 6\nhỏng | chỉ đúng');
+  assert.equal(p.questions.length, 1);
+  assert.deepEqual(p.errors, [3]);
+  const ai = parseAIQuestions({ questions: [
+    { question: 'Nước sôi ở bao nhiêu độ?', correct: '100°C', wrong: ['50°C', '80°C', '100°C'], explanation: 'Ở áp suất thường', difficulty: 2 },
+    { question: '', correct: 'x', wrong: ['y', 'z'] },
+  ] });
+  assert.equal(ai.length, 1);
+  assert.deepEqual(ai[0].options, ['100°C', '50°C', '80°C']);
+  const set = newSet();
+  assert.equal(addToSet(set, p.questions), 1);
+  assert.equal(addToSet(set, p.questions), 0, 'duplicates skipped');
+  assert.equal(normalizeQuestion({ q: 'a', a: 'b', w: ['b'] }), null, 'needs a different wrong answer');
+});
+
+test('old custom questions migrate into a question set', () => {
+  const s = normalizeState({ custom: [{ q: '2+2?', a: '4', w: ['3', '5'] }] });
+  assert.equal(s.sets.length, 1);
+  assert.equal(s.sets[0].questions[0].a, '4');
+  assert.deepEqual(s.custom, []);
+});
+
+test('enabled question sets feed the game at matching difficulty', () => {
+  const state = newGame();
+  state.settings.subjects = ['custom'];
+  state.sets = [
+    { id: 's1', name: 'Đề 1', enabled: true, questions: [
+      { id: 'a', q: 'Dễ?', a: 'đúng', w: ['sai1', 'sai2', 'sai3'], e: 'vì vậy', d: 1 },
+      { id: 'b', q: 'Khó?', a: 'đúng', w: ['sai1', 'sai2', 'sai3'], d: 3 },
+    ] },
+    { id: 's2', name: 'Tắt', enabled: false, questions: [{ id: 'c', q: 'Không được hỏi', a: 'x', w: ['y'], d: 3 }] },
+  ];
+  const rng = seeded(8);
+  for (let i = 0; i < 20; i++) {
+    const q = nextQuestion(state, { difficulty: 3 }, rng);
+    if (q.isReview) continue;
+    assert.equal(q.text, 'Khó?');
+  }
+  const easy = nextQuestion(state, { difficulty: 1 }, rng);
+  assert.equal(easy.explain, 'vì vậy');
+});
+
+import { publishSet, fetchSet, cleanCode } from '../fishing/js/online.js';
+import { nextQuestion } from '../fishing/js/engine.js';
+
+test('question sets are shared and fetched by code', async () => {
+  const calls = [];
+  const fake = async (url, opts) => {
+    calls.push({ url, body: JSON.parse(opts.body) });
+    const name = url.split('/rpc/')[1];
+    const body = name === 'fishing_set_publish' ? '"K7M2QX"' : '[{"code":"K7M2QX","name":"Toán 3","payload":[{"q":"1+1?","a":"2","w":["3","4","5"]}],"question_count":1}]';
+    return { ok: true, status: 200, text: async () => body };
+  };
+  const state = newGame();
+  const set = { id: 's', name: 'Toán 3', questions: [{ id: 'x', q: '1+1?', a: '2', w: ['3', '4', '5'], e: '', d: 1 }] };
+  assert.equal(await publishSet(state, set, fake), 'K7M2QX');
+  assert.equal(set.code, 'K7M2QX');
+  assert.equal(calls[0].body.p_payload[0].q, '1+1?');
+  assert.ok(!('id' in calls[0].body.p_payload[0]), 'internal ids are not sent');
+  await publishSet(state, set, fake);
+  assert.equal(calls[1].body.p_code, 'K7M2QX', 'republish updates the same code');
+  assert.equal(calls[1].body.p_owner, calls[0].body.p_owner);
+  assert.equal(cleanCode(' k7m-2qx '), 'K7M2QX');
+  const got = await fetchSet('k7m2qx', fake);
+  assert.equal(got.name, 'Toán 3');
+  await assert.rejects(fetchSet('abc', fake), /6 ký tự/);
+});

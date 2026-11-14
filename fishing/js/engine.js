@@ -31,6 +31,7 @@ export function newGame() {
     review: [],
     recent: [],
     custom: [],
+    sets: [],
     stats: {
       casts: 0, answered: 0, correct: 0, correctBySubject: {},
       streak: 0, bestStreak: 0, catches: 0, catchesByRarity: {},
@@ -43,9 +44,25 @@ export function newGame() {
 }
 
 // Ghép dữ liệu đã lưu với mặc định (an toàn khi thêm tính năng mới).
+// Câu hỏi của mọi bộ đề đang bật (giáo viên / phụ huynh cấu hình).
+export function setQuestions(state) {
+  return (state.sets || []).filter((s) => s.enabled !== false).flatMap((s) => s.questions || []);
+}
+
 export function normalizeState(raw) {
   const base = newGame();
   if (!raw || typeof raw !== 'object') return base;
+  // Bản lưu cũ: "Câu hỏi của tôi" (state.custom) → chuyển thành một bộ đề.
+  if (!Array.isArray(raw.sets) && Array.isArray(raw.custom) && raw.custom.length) {
+    raw = {
+      ...raw,
+      sets: [{
+        id: 'set-legacy', name: 'Câu hỏi của tôi', subject: '', grade: '', enabled: true,
+        questions: raw.custom.map((c, i) => ({ id: `legacy${i}`, q: c.q, a: c.a, w: c.w || [], e: c.e || '', d: c.d || 1 })),
+      }],
+      custom: [],
+    };
+  }
   return {
     ...base,
     ...raw,
@@ -130,7 +147,7 @@ function questionOpts(state) {
   const grade = GRADES.find((g) => g.id === state.settings.grade) || GRADES[0];
   return {
     subjects: state.settings.subjects, mathOffset: grade.mathOffset,
-    recent: state.recent, review: state.review, custom: state.custom,
+    recent: state.recent, review: state.review, custom: setQuestions(state),
   };
 }
 

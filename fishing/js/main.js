@@ -7,7 +7,8 @@ import {
   RARITIES, ZONES, RODS, ITEMS, SHOP, QUESTS, fishById, zoneById, rodById,
 } from './engine.js';
 import { SUBJECTS, GRADES, SKILLS, rarityOf, rarityIndex, subjectById } from './data.js';
-import { parseCustomQuestions } from './questions.js';
+import { initSetsUI } from './sets-ui.js';
+import { setQuestions } from './engine.js';
 import { createFight, stepFight, answerInFight, surging, useSkill } from './fight.js';
 import { createScene } from './scene.js';
 import { fishSVG } from './art.js';
@@ -135,6 +136,9 @@ function renderHud() {
   $('#bucket-badge').textContent = state.bucket.length;
   const on = state.online || {};
   $('#hud-rank-text').textContent = on.nickname && on.rank ? `#${on.rank}` : 'Đua top';
+  const activeSets = (state.sets || []).filter((s) => s.enabled !== false && s.questions.length).length;
+  $('#sets-badge').hidden = !activeSets;
+  $('#sets-badge').textContent = activeSets;
   $('#review-badge').hidden = !state.review.length;
   $('#review-badge').textContent = state.review.length;
   renderGear();
@@ -496,8 +500,8 @@ RENDER.settings = () => {
   $('#subject-list').innerHTML = SUBJECTS.map((s) => `<label class="pill"><input type="checkbox" data-subject="${s.id}" ${state.settings.subjects.includes(s.id) ? 'checked' : ''}> ${s.icon} ${esc(s.name)}</label>`).join('');
   $('#grade-list').innerHTML = GRADES.map((g) => `<label class="pill"><input type="radio" name="grade" data-grade="${g.id}" ${state.settings.grade === g.id ? 'checked' : ''}> ${esc(g.name)}</label>`).join('');
   $('#sound-toggle').checked = state.settings.sound;
-  $('#custom-text').value = state.custom.map((c) => [c.q, c.a, ...c.w].join(' | ')).join('\n');
-  $('#custom-status').textContent = state.custom.length ? `Đang có ${state.custom.length} câu hỏi riêng.` : '';
+  const n = setQuestions(state).length;
+  $('#custom-status').textContent = n ? `Đang dùng ${n} câu từ ${state.sets.filter((s) => s.enabled !== false).length} bộ đề.` : 'Chưa có bộ đề nào.';
 };
 $('#subject-list').addEventListener('change', (e) => {
   const id = e.target.dataset.subject;
@@ -506,19 +510,23 @@ $('#subject-list').addEventListener('change', (e) => {
   if (e.target.checked) set.add(id); else set.delete(id);
   if (!set.size) { e.target.checked = true; toast('Cần chọn ít nhất một môn.'); return; }
   state.settings.subjects = SUBJECTS.map((s) => s.id).filter((s) => set.has(s));
-  if (id === 'custom' && e.target.checked && !state.custom.length) toast('Hãy nhập câu hỏi của bạn ở ô bên dưới rồi bấm Lưu.');
+  if (id === 'custom' && e.target.checked && !setQuestions(state).length) toast('Chưa có bộ đề nào – bấm "Mở Bộ đề" để soạn câu hỏi.');
   save();
 });
 $('#grade-list').addEventListener('change', (e) => { if (e.target.dataset.grade) { state.settings.grade = e.target.dataset.grade; save(); } });
 $('#sound-toggle').addEventListener('change', (e) => { state.settings.sound = e.target.checked; save(); });
-$('#custom-save').addEventListener('click', () => {
-  const { questions, errors } = parseCustomQuestions($('#custom-text').value);
-  state.custom = questions;
-  if (questions.length && !state.settings.subjects.includes('custom')) state.settings.subjects.push('custom');
-  save();
-  RENDER.settings();
-  $('#custom-status').textContent = `Đã lưu ${questions.length} câu.${errors.length ? ` Bỏ qua dòng ${errors.join(', ')} (thiếu đáp án).` : ''}`;
+// ---------- Bộ đề (giáo viên / phụ huynh) ----------
+const setsUI = initSetsUI({
+  getState: () => state, save, toast, esc,
+  beep: (notes) => beep(notes),
+  onChange: () => { renderHud(); if ($('#sheet-settings').open) RENDER.settings(); },
 });
+RENDER.sets = () => setsUI.render();
+$$('[data-open-sets]').forEach((b) => b.addEventListener('click', () => {
+  $('#sheet-settings').close();
+  setsUI.open(b.dataset.openSets);
+  $('#sheet-sets').showModal();
+}));
 $('#export-btn').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');

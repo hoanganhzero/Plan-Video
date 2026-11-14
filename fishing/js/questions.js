@@ -239,10 +239,12 @@ export function parseCustomQuestions(textBlock) {
   return { questions, errors };
 }
 
+// Câu từ bộ đề của giáo viên: { id, q, a, w, e, d }
+const customId = (item, index) => `custom-${item.id || index}-${item.q}`;
 function fromCustom(item, index, rng) {
   return makeQuestion({
-    id: `custom-${index}-${item.q}`, subject: 'custom', difficulty: 1, text: item.q,
-    correct: item.a, wrong: item.w,
+    id: customId(item, index), subject: 'custom', difficulty: item.d || 1, text: item.q,
+    correct: item.a, wrong: item.w, explain: item.e || '',
   }, rng);
 }
 
@@ -265,9 +267,13 @@ export function pickQuestion(difficulty, opts = {}, rng = Math.random) {
     return { ...q, difficulty };
   }
   if (subject === 'custom') {
-    const pool = custom.map((item, index) => ({ item, index }));
-    const fresh = pool.filter(({ item, index }) => !recent.includes(`custom-${index}-${item.q}`));
-    const { item, index } = (fresh.length ? fresh : pool)[Math.floor(rng() * (fresh.length || pool.length))];
+    // Ưu tiên câu đúng độ khó của con cá; hết thì lấy câu bất kỳ trong bộ đề.
+    const all = custom.map((item, index) => ({ item, index }));
+    const byLevel = all.filter(({ item }) => (item.d || 1) === difficulty);
+    const base = byLevel.length ? byLevel : all;
+    const fresh = base.filter(({ item, index }) => !recent.includes(customId(item, index)));
+    const pool = fresh.length ? fresh : base;
+    const { item, index } = pool[Math.floor(rng() * pool.length)];
     return fromCustom(item, index, rng);
   }
   const all = bankQuestions(subject);
