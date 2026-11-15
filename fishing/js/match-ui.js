@@ -490,5 +490,6 @@ export function initMatchUI({ getState, save, toast, esc, banner, beep, isIdle, 
     onFish,
     resume,
     leave() { active = null; stopPolling(); renderHud(); },
+    get code() { return active && matchClock(active.info, active.skew).phase !== 'done' ? active.code : null; },
   };
 }

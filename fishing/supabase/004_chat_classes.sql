@@ -349,7 +349,12 @@ begin
     'members', (select coalesce(jsonb_agg(jsonb_build_object('pid', x.public_id, 'name', x.nickname,
                   'online', x.last_seen > now() - interval '2 minutes',
                   'level', coalesce((x.progress->>'level')::integer, 1)) order by lower(x.nickname)), '[]'::jsonb)
-                from public.fishing_class_members x where x.class_code = c.code));
+                from public.fishing_class_members x where x.class_code = c.code),
+    -- các cuộc nhắn riêng của mình (để báo tin mới)
+    'dms', (select coalesce(jsonb_agg(jsonb_build_object('room', d.room, 'last_id', d.last_id) order by d.last_id desc), '[]'::jsonb)
+            from (select room, max(id) last_id from public.fishing_chat
+                  where room like 'dm:' || c.code || ':%' and (split_part(room, ':', 3) = m.public_id or split_part(room, ':', 4) = m.public_id)
+                    and not hidden group by room order by max(id) desc limit 8) d));
 end $$;
 
 create or replace function public.fishing_class_leave(p_player uuid, p_code text)

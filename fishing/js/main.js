@@ -11,6 +11,7 @@ import { initSetsUI } from './sets-ui.js';
 import { initMatchUI } from './match-ui.js';
 import { createWorld, assignSlots, EMOTES, makePublicId, colorFor } from './world.js';
 import { ONLINE } from './online.js';
+import { initChatUI } from './chat-ui.js';
 import { cloudCreate, cloudPush, cloudFetch, cleanSaveCode, logSetAnswer } from './online.js';
 import { setQuestions } from './engine.js';
 import { createFight, stepFight, answerInFight, surging, useSkill } from './fight.js';
@@ -588,7 +589,9 @@ const world = createWorld({
     }
   },
 });
+let chatZone = null;
 function syncWorld() {
+  if (typeof chatUI !== 'undefined' && chatZone !== state.zone) { chatZone = state.zone; chatUI.zoneChanged(); }
   if (state.settings.showWorld === false) { if (world.zone) world.leave(); return; }
   if (world.zone !== state.zone) { seats = new Map(); world.join(state.zone); }
 }
@@ -622,6 +625,16 @@ const matchUI = initMatchUI({
   onChange: () => renderHud(),
 });
 RENDER.match = () => matchUI.open();
+
+// ---------- Trò chuyện / lớp học ----------
+const chatUI = initChatUI({
+  getState: () => state, save, toast, esc, scene, levelFromXp,
+  beep: (notes) => beep(notes),
+  getZone: () => state.zone,
+  getZoneName: () => zoneById(state.zone).name,
+  getMatchCode: () => matchUI.code,
+  openSheet,
+});
 
 // ---------- Lưu tiến trình trên mạng ----------
 let cloudTimer = null;
@@ -726,6 +739,7 @@ $('#reset-btn').addEventListener('click', () => {
 
 function afterAction() {
   world.refreshMeta();
+  chatUI.afterAction();
   const nowDone = activeQuests(state).filter((q) => questProgress(state, q).done);
   for (const q of nowDone) {
     if (!doneQuestIds.has(q.id)) toast(`📜 Hoàn thành nhiệm vụ "<b>${esc(q.title)}</b>"! Mở 📜 Nhiệm vụ để nhận thưởng.`);
@@ -805,6 +819,7 @@ $('#nick-save').addEventListener('click', async () => {
   ensurePlayerKey(state);
   state.online.nickname = nick;
   save();
+  chatUI.nicknameChanged();
   $('#nick-error').textContent = '';
   const row = await syncOnline({ force: true });
   if (!row) {

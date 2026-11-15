@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trang thầy cô – Câu Cá Học Giỏi</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <header class="top">
+    <h1>👩‍🏫 Trang thầy cô</h1>
+    <span class="muted small">Câu Cá Học Giỏi</span>
+    <span class="spacer"></span>
+    <button class="btn small" id="key-btn">🔑 Mã giáo viên</button>
+    <a class="btn small" href="index.html">🎣 Vào trò chơi</a>
+  </header>
+  <main class="wrap layout">
+    <aside>
+      <div class="card">
+        <h2>Lớp của tôi</h2>
+        <div class="class-list" id="class-list"><div class="muted small">Đang tải…</div></div>
+        <h3>＋ Tạo lớp mới</h3>
+        <form id="create-form" class="row">
+          <input id="create-name" class="grow" maxlength="60" placeholder="Tên lớp, vd: 5A – Toán" required>
+          <button class="btn gold">Tạo</button>
+        </form>
+      </div>
+      <div class="card small muted">
+        <b>Cách dùng</b>
+        <ol style="padding-left:18px;margin:6px 0 0">
+          <li>Tạo lớp → đọc / chiếu <b>mã lớp</b> cho học sinh.</li>
+          <li>Học sinh vào trò chơi → 💬 Trò chuyện → 🏫 Lớp → nhập mã.</li>
+          <li>Xem tiến độ học tập, quản lý trò chuyện của lớp ở đây.</li>
+        </ol>
+      </div>
+    </aside>
+    <section id="main"><div class="card empty">Chọn một lớp bên trái hoặc tạo lớp mới.</div></section>
+  </main>
+  <div class="present" id="present" hidden></div>
+  <div class="toast" id="toast"></div>
+  <script type="module" src="js/teacher.js"></script>
+</body>
+</html>

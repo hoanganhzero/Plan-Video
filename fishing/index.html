@@ -45,12 +45,35 @@
     <button data-open="shop"><span class="ico">🏪</span><span class="lbl">Cửa hàng</span></button>
     <button data-open="review"><span class="ico">📒</span><span class="lbl">Ôn tập</span><i class="badge gray" id="review-badge" hidden></i></button>
     <button data-open="sets"><span class="ico">📝</span><span class="lbl">Bộ đề</span><i class="badge blue" id="sets-badge" hidden></i></button>
+    <button id="chat-open" class="chat-btn"><span class="ico">💬</span><span class="lbl">Trò chuyện</span><i class="badge" id="chat-badge" hidden></i></button>
     <button data-open="settings"><span class="ico">⚙️</span><span class="lbl">Cài đặt</span></button>
   </nav>
 
   <!-- THÔNG BÁO GIỮA MÀN HÌNH -->
   <div class="screen-flash" id="screen-flash" aria-hidden="true"></div>
   <div class="world-feed" id="world-feed" aria-live="polite"></div>
+  <aside class="chat-panel" id="chat-panel" hidden aria-label="Trò chuyện">
+    <header class="chat-top">
+      <nav class="chat-tabs">
+        <button data-chat-tab="lake">🌊 Hồ<i class="badge" hidden></i></button>
+        <button data-chat-tab="class">🏫 Lớp<i class="badge" hidden></i></button>
+        <button data-chat-tab="match" hidden>⚔️ Trận<i class="badge" hidden></i></button>
+        <button data-chat-tab="dm">👤 Riêng<i class="badge" hidden></i></button>
+      </nav>
+      <button class="close" id="chat-close" aria-label="Đóng">✕</button>
+    </header>
+    <div id="chat-head"></div>
+    <div class="chat-list" id="chat-list" aria-live="polite"></div>
+    <div class="chat-status" id="chat-status" hidden></div>
+    <div id="chat-compose">
+      <div class="chat-quick" id="chat-quick"></div>
+      <form class="chat-form" id="chat-form" autocomplete="off">
+        <input id="chat-input" maxlength="200" placeholder="Nhập tin nhắn lịch sự…" enterkeyhint="send">
+        <span class="count" id="chat-count"></span>
+        <button class="btn gold small" aria-label="Gửi">➤</button>
+      </form>
+    </div>
+  </aside>
   <div class="banner" id="banner" aria-live="assertive"></div>
   <div class="hint-line" id="scene-msg" aria-live="polite"></div>
 
@@ -220,7 +243,13 @@
         <div id="grade-list" class="subject-list"></div>
         <label class="check"><input type="checkbox" id="sound-toggle"> 🔊 Âm thanh</label>
         <label class="check"><input type="checkbox" id="world-toggle"> 👥 Thế giới chung – thấy và được các bạn cùng khu nhìn thấy</label>
-        <p class="muted small">Chỉ chia sẻ biệt danh, cấp và hành động câu cá. Không có ô chat gõ chữ – chỉ biểu cảm có sẵn.</p>
+        <p class="muted small">Chỉ chia sẻ biệt danh, cấp và hành động câu cá. Trò chuyện (💬) có bộ lọc từ xấu, số điện thoại và đường link; tin không phù hợp có thể bấm ⚑ để báo cáo.</p>
+      </div>
+      <div class="card">
+        <h3>👩‍🏫 Dành cho thầy cô</h3>
+        <p class="muted small">Tạo lớp, phát mã lớp cho học sinh, xem tiến độ học tập từng em, quản lý trò chuyện của lớp.</p>
+        <div class="row"><a class="btn sea" href="teacher.html" target="_blank" rel="noopener">👩‍🏫 Trang thầy cô</a>
+          <a class="btn" href="admin.html" target="_blank" rel="noopener">🛡️ Quản trị</a></div>
       </div>
       <div class="card">
         <h3>📝 Bộ đề của thầy cô / phụ huynh</h3>

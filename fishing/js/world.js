@@ -1,7 +1,7 @@
 // Thế giới chung: thấy các bạn đang câu cùng khu, theo thời gian thực.
 // - Mỗi khu câu là một "kênh": người cùng khu thấy nhau (tối đa MAX_VISIBLE người hiện trên hồ).
 // - Chia sẻ: biệt danh, cấp, cần câu, màu áo, hành động (ném / chờ / cá cắn / kéo / câu được), biểu cảm.
-// - KHÔNG có ô chat gõ tự do: chỉ biểu cảm + câu chào có sẵn (an toàn cho học sinh).
+// - Biểu cảm có sẵn đi qua kênh này; tin nhắn gõ chữ đi qua máy chủ (chat-ui.js) để được lọc và kiểm duyệt.
 // - Không gửi mã bí mật của người chơi: chỉ một mã công khai ngẫu nhiên (publicId).
 // Chạy bằng Supabase Realtime (presence + broadcast); để thử nghiệm có thể dùng BroadcastChannel giữa các tab.
 import { FISH, RODS } from './data.js';

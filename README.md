@@ -126,9 +126,22 @@ Trò chơi vừa học vừa chơi trong thư mục `fishing/` – mở `http://
 - **📊 Báo cáo bộ đề**: khi học sinh tải bộ đề bằng mã và trả lời trong trò chơi, giáo viên (người chia sẻ) xem được tỉ lệ đúng từng câu và các câu mỗi học sinh còn sai (Bộ đề → 📊 Báo cáo).
 - **👥 Thế giới chung**: các bạn đang câu cùng một khu thấy nhau ngay trên hồ 3D (tối đa 7 bạn hiện trên hồ, mỗi bạn một chiếc bè, áo màu riêng, bảng tên và cấp).
   - Thấy bạn khác ném câu, cá cắn, kéo cá (cần cong theo độ căng) và con cá họ vừa câu được; góc phải hiện tin "Bình câu được Cá chép hoá rồng".
-  - Nút 😀 gửi **biểu cảm có sẵn** (Xin chào!, Hay quá!, Cố lên!…). **Không có ô chat gõ chữ** để an toàn cho học sinh; chỉ chia sẻ biệt danh, cấp và hành động câu cá.
+  - Nút 😀 gửi **biểu cảm có sẵn** (Xin chào!, Hay quá!, Cố lên!…); tin nhắn ở 💬 Hồ cũng hiện thành bong bóng trên đầu nhân vật.
   - Nút 👥 trên cùng cho biết bao nhiêu bạn đang cùng khu. Tắt/bật trong Cài đặt.
   - Chạy bằng Supabase Realtime (presence + broadcast, kênh `fishing:world:<khu>`), không ghi gì vào cơ sở dữ liệu. Thử trên một máy: mở nhiều tab với `index.html?mp=local&pk=ban00001&name=An`.
+- **💬 Trò chuyện** (nút *Trò chuyện* ở menu trái – vừa câu vừa chat):
+  - 🌊 **Hồ**: mọi bạn đang câu cùng khu. 🏫 **Lớp**: nhập mã lớp thầy cô đưa. ⚔️ **Trận**: các bạn trong trận đang chơi. 👤 **Riêng**: nhắn 1-1 với bạn **cùng lớp**.
+  - **An toàn**: máy chủ che từ tục (tiếng Việt & Anh, cả kiểu viết tắt), số điện thoại, đường link, email; giới hạn tốc độ gửi;
+    3 tin bị che trong 10 phút → tự khoá chat 10 phút; bấm ⚑ để báo cáo, 3 bạn báo cáo → tin tự ẩn. Tin nhắn tự xoá sau 30 ngày.
+  - Thầy cô của lớp xem được chat lớp và tin nhắn riêng trong lớp; học sinh được báo trước điều này.
+- **👩‍🏫 Trang thầy cô** (`teacher.html`, có nút trong Cài đặt): tạo lớp → mã 6 ký tự (có nút chiếu lên bảng).
+  - 📊 Tiến độ từng học sinh: đang chơi / lần cuối, cấp, kinh nghiệm, cá, số loài, đúng / sai, **tỉ lệ đúng**, chuỗi đúng, câu cần ôn – sắp xếp theo cột, tải về Excel (CSV).
+  - 💬 Xem chat lớp, tin nhắn riêng trong lớp, chat trận do mình tạo; ẩn / hiện tin; ⚑ xử lý báo cáo; 🔇 tạm khoá chat (15 phút, 1 ngày), mời ra khỏi lớp.
+  - ⚙️ Bật/tắt chat lớp, bật/tắt nhắn riêng, đổi tên, xoá lớp. **Mã giáo viên** (🔑) để dùng các lớp trên máy khác.
+- **🛡️ Quản trị** (`admin.html`, đăng nhập bằng mã quản trị): tổng quan toàn hệ thống; xử lý báo cáo; duyệt tin (bị lọc / đã ẩn / tìm kiếm);
+  khoá chat người vi phạm (1 giờ – 7 ngày, hoặc khoá + ẩn toàn bộ tin); quản lý / xoá lớp; xoá biệt danh không phù hợp khỏi bảng xếp hạng;
+  công tắc khẩn cấp: tắt toàn bộ chat, tắt chat ở hồ, tắt nhắn riêng.
+  Thêm mã quản trị mới: xem cuối `supabase/004_chat_classes.sql` (máy chủ chỉ lưu SHA-256 của mã).
 - **Sổ ôn tập**: câu trả lời sai được ghi lại kèm đáp án và được hỏi lại sau; trả lời đúng thì xoá khỏi sổ.
 - Thùng cá (bán lấy xu), Bộ sưu tập, Cửa hàng; tự lưu trong trình duyệt, xuất/nhập file lưu; chơi được trên điện thoại.
 
@@ -183,6 +196,11 @@ fishing/                Trò chơi Câu Cá Học Giỏi
   js/match.js           Thi đấu: xếp hạng đội, đồng hồ theo giờ máy chủ, báo cáo giáo viên
   js/match-ui.js        Giao diện Thi đấu (tạo / tham gia / phòng chờ / bảng điểm / kết quả)
   js/world.js           Thế giới chung: thấy các bạn cùng câu theo thời gian thực, biểu cảm có sẵn
+  js/chat.js            Trò chuyện / lớp học / quản trị: gọi máy chủ, tên phòng, lỗi tiếng Việt
+  js/chat-ui.js         Khung trò chuyện trong trò chơi (Hồ / Lớp / Trận / Riêng)
+  teacher.html, js/teacher.js   Trang thầy cô
+  admin.html, js/admin.js       Trang quản trị
+  panel.css             Giao diện chung của trang thầy cô & quản trị
   supabase/             SQL máy chủ thi đấu (bảng khoá RLS + hàm chấm điểm)
   js/fish3d.js          Cá 4D: mô hình 3D từng loài + chuyển động bơi, khung xem xoay được
   js/icons.js           Biểu tượng vật phẩm, cần câu, dây câu (SVG)

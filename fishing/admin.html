@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Quản trị – Câu Cá Học Giỏi</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <header class="top">
+    <h1>🛡️ Quản trị</h1>
+    <span class="muted small">Câu Cá Học Giỏi</span>
+    <span class="spacer"></span>
+    <button class="btn small" id="logout" hidden>🚪 Đăng xuất</button>
+    <a class="btn small" href="index.html">🎣 Trò chơi</a>
+  </header>
+  <main class="wrap" id="main">
+    <form class="card login" id="login">
+      <h2>🔐 Đăng nhập quản trị</h2>
+      <p class="muted small">Nhập mã quản trị. Mã chỉ giữ trong tab này và tự xoá khi đóng trình duyệt.</p>
+      <input id="admin-code" type="password" autocomplete="off" placeholder="XXXXX-XXXXX-XXXXX-XXXXX" required>
+      <button class="btn gold">Đăng nhập</button>
+      <p class="small" id="login-err" style="color:var(--bad)"></p>
+    </form>
+  </main>
+  <div class="toast" id="toast"></div>
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>
