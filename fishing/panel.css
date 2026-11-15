@@ -108,3 +108,8 @@ tr:hover td { background: rgba(255, 255, 255, .03); }
   .wrap { padding: 12px; }
   .big-code { font-size: 1.8rem; letter-spacing: 5px; }
 }
+
+.pin-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.pin-card { border: 2px dashed var(--line); border-radius: 12px; padding: 8px 12px; font-size: .9rem; }
+.pin-card .pin { font-size: 1.3rem; letter-spacing: 3px; color: var(--gold); }
+textarea:focus { outline: none; border-color: var(--gold) !important; }

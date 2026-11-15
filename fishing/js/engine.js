@@ -9,6 +9,8 @@ import { pickQuestion } from './questions.js';
 export const SAVE_KEY = 'cauca-hocgioi-v1';
 export const ACTIVE_QUESTS = 3;
 export const REVIEW_LIMIT = 50;
+// Sổ ôn tập: trả lời đúng một câu MASTERY_GOAL lần liên tiếp thì "thuộc bài" và rời sổ.
+export const MASTERY_GOAL = 3;
 export const TIME_LIMIT = { 1: 20, 2: 25, 3: 30 }; // giây cho mỗi độ khó
 
 export function newGame() {
@@ -32,6 +34,8 @@ export function newGame() {
     recent: [],
     custom: [],
     sets: [],
+    skillEnergy: 0,
+    practice: { day: '', coins: 0, answered: 0, correct: 0, streak: 0, best: 0, sessions: 0, rescues: 0 },
     stats: {
       casts: 0, answered: 0, correct: 0, correctBySubject: {},
       streak: 0, bestStreak: 0, catches: 0, catchesByRarity: {},
@@ -71,6 +75,7 @@ export function normalizeState(raw) {
     stats: { ...base.stats, ...(raw.stats || {}) },
     settings: { ...base.settings, ...(raw.settings || {}) },
     online: { ...base.online, ...(raw.online || {}) },
+    practice: { ...base.practice, ...(raw.practice || {}) },
   };
 }
 
@@ -144,7 +149,7 @@ export function rollFish(zoneId, luck, rng = Math.random, { charm = false } = {}
 }
 
 // ---------- Thả câu ----------
-function questionOpts(state) {
+export function questionOpts(state) {
   const grade = GRADES.find((g) => g.id === state.settings.grade) || GRADES[0];
   return {
     subjects: state.settings.subjects, mathOffset: grade.mathOffset,
@@ -225,10 +230,15 @@ export function answerQuestion(state, question, choice) {
     s.correctBySubject[question.subject] = (s.correctBySubject[question.subject] || 0) + 1;
     s.streak += 1;
     s.bestStreak = Math.max(s.bestStreak, s.streak);
-    if (question.isReview || state.review.some((q) => q.id === question.id)) {
-      state.review = state.review.filter((q) => q.id !== question.id);
-      s.reviewedOk += 1;
-      out.reviewed = true;
+    const r = state.review.find((q) => q.id === question.id);
+    if (r) {
+      r.mastery = (r.mastery || 0) + 1;
+      out.mastery = r.mastery;
+      if (r.mastery >= MASTERY_GOAL) {
+        state.review = state.review.filter((q) => q.id !== question.id);
+        s.reviewedOk += 1;
+        out.reviewed = true;
+      }
     }
     // Chuỗi đúng liên tiếp thưởng thêm kinh nghiệm (tối đa +50%).
     const streakBonus = 1 + Math.min(0.5, (s.streak - 1) * 0.05);
@@ -236,9 +246,11 @@ export function answerQuestion(state, question, choice) {
     state.xp += out.xp;
   } else {
     s.streak = 0;
-    if (question.subject && !state.review.some((q) => q.id === question.id)) {
-      const { isReview, ...plain } = question;
-      state.review = [plain, ...state.review].slice(0, REVIEW_LIMIT);
+    const r = state.review.find((q) => q.id === question.id);
+    if (r) r.mastery = 0;
+    else if (question.subject) {
+      const { isReview, mastery, ...plain } = question;
+      state.review = [{ ...plain, mastery: 0 }, ...state.review].slice(0, REVIEW_LIMIT);
     }
   }
   return out;

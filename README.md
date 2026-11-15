@@ -129,12 +129,24 @@ Trò chơi vừa học vừa chơi trong thư mục `fishing/` – mở `http://
   - Nút 😀 gửi **biểu cảm có sẵn** (Xin chào!, Hay quá!, Cố lên!…); tin nhắn ở 💬 Hồ cũng hiện thành bong bóng trên đầu nhân vật.
   - Nút 👥 trên cùng cho biết bao nhiêu bạn đang cùng khu. Tắt/bật trong Cài đặt.
   - Chạy bằng Supabase Realtime (presence + broadcast, kênh `fishing:world:<khu>`), không ghi gì vào cơ sở dữ liệu. Thử trên một máy: mở nhiều tab với `index.html?mp=local&pk=ban00001&name=An`.
+- **🌐 Server lớp học**: thầy cô tạo server (trang thầy cô) → học sinh bấm *🌐 Server*, nhập **mã server + tên + PIN** (4–6 số).
+  - **Mỗi server có thế giới riêng** (cấp, cá, xu, cần câu…), tự lưu lên mạng: sang máy khác chỉ cần nhập lại mã server + tên + PIN là chơi tiếp.
+    Thế giới cá nhân (🏠) vẫn giữ nguyên; chuyển qua lại giữa các server bất cứ lúc nào.
+  - Hai cách có tài khoản: **tự đăng ký** (nếu thầy cô bật) hoặc **thầy cô tạo sẵn** từ danh sách tên → PIN 6 số, in phiếu phát cho từng em.
+  - An toàn: PIN lưu dạng băm; sai 5 lần → khoá 5 phút; quên PIN → thầy cô bấm *Đặt lại PIN*.
+  - Trong server: bảng xếp hạng riêng của server, chỉ thấy các bạn cùng server trên hồ, chat lớp tự vào, thầy cô có thể **giao một bộ đề** cho cả server.
+- **🧠 Ôn tập nhận thưởng** (📒 Ôn tập → *Bắt đầu ôn tập*, không cần câu cá): câu trong Sổ ôn tập được hỏi trước.
+  - Mỗi câu đúng +🪙 xu (tối đa 160 xu/ngày). Chuỗi **3 câu đúng = ⚡ năng lượng kỹ năng** (tối đa 3) – khi kéo cá mà hết lượt kỹ năng, bấm kỹ năng sẽ dùng ⚡.
+    Chuỗi 5 = 🦐 mồi tôm, chuỗi 10 = ✨ mồi vàng.
+  - **Thẻ ghi nhớ**: câu sai vào sổ; trả lời đúng **3 lần liên tiếp** thì “thuộc bài” và rời sổ (●●○ hiện độ thuộc).
+  - **🛟 Cứu cá**: khi cá thoát / đứt dây, trả lời 3 câu (ưu tiên câu vừa sai). Đúng cả 3 → kéo được cá lên; đúng 2 → được trả lại mồi. (Không dùng khi đang thi đấu.)
 - **💬 Trò chuyện** (nút *Trò chuyện* ở menu trái – vừa câu vừa chat):
   - 🌊 **Hồ**: mọi bạn đang câu cùng khu. 🏫 **Lớp**: nhập mã lớp thầy cô đưa. ⚔️ **Trận**: các bạn trong trận đang chơi. 👤 **Riêng**: nhắn 1-1 với bạn **cùng lớp**.
   - **An toàn**: máy chủ che từ tục (tiếng Việt & Anh, cả kiểu viết tắt), số điện thoại, đường link, email; giới hạn tốc độ gửi;
     3 tin bị che trong 10 phút → tự khoá chat 10 phút; bấm ⚑ để báo cáo, 3 bạn báo cáo → tin tự ẩn. Tin nhắn tự xoá sau 30 ngày.
   - Thầy cô của lớp xem được chat lớp và tin nhắn riêng trong lớp; học sinh được báo trước điều này.
-- **👩‍🏫 Trang thầy cô** (`teacher.html`, có nút trong Cài đặt): tạo lớp → mã 6 ký tự (có nút chiếu lên bảng).
+- **👩‍🏫 Trang thầy cô** (`teacher.html`, có nút trong Cài đặt): tạo server lớp → mã 6 ký tự (có nút chiếu lên bảng).
+  - 🔑 Tài khoản: tạo sẵn tài khoản từ danh sách tên (in phiếu PIN), đặt lại PIN, xem ai đã lưu tiến trình; ⚙️ bật/tắt tự đăng ký, lời nhắn, giao bộ đề cho server.
   - 📊 Tiến độ từng học sinh: đang chơi / lần cuối, cấp, kinh nghiệm, cá, số loài, đúng / sai, **tỉ lệ đúng**, chuỗi đúng, câu cần ôn – sắp xếp theo cột, tải về Excel (CSV).
   - 💬 Xem chat lớp, tin nhắn riêng trong lớp, chat trận do mình tạo; ẩn / hiện tin; ⚑ xử lý báo cáo; 🔇 tạm khoá chat (15 phút, 1 ngày), mời ra khỏi lớp.
   - ⚙️ Bật/tắt chat lớp, bật/tắt nhắn riêng, đổi tên, xoá lớp. **Mã giáo viên** (🔑) để dùng các lớp trên máy khác.
@@ -198,6 +210,9 @@ fishing/                Trò chơi Câu Cá Học Giỏi
   js/world.js           Thế giới chung: thấy các bạn cùng câu theo thời gian thực, biểu cảm có sẵn
   js/chat.js            Trò chuyện / lớp học / quản trị: gọi máy chủ, tên phòng, lỗi tiếng Việt
   js/chat-ui.js         Khung trò chuyện trong trò chơi (Hồ / Lớp / Trận / Riêng)
+  js/servers.js         Server lớp học: thế giới riêng từng server, lưu / tải tiến trình, tài khoản
+  js/server-ui.js       Bảng 🌐 Server (vào server bằng mã + tên + PIN, chuyển server, xếp hạng server)
+  js/practice.js        Ôn tập nhận thưởng, năng lượng kỹ năng, thẻ ghi nhớ, cứu cá
   teacher.html, js/teacher.js   Trang thầy cô
   admin.html, js/admin.js       Trang quản trị
   panel.css             Giao diện chung của trang thầy cô & quản trị

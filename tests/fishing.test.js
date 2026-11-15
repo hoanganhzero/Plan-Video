@@ -114,9 +114,14 @@ test('correct answer lands the fish, wrong answer loses it and saves it for revi
   assert.equal(state.stats.streak, 0);
   assert.equal(state.review[0].id, a2.question.id);
 
-  // Trả lời đúng câu đã sai → được gỡ khỏi sổ ôn tập.
+  // Trả lời đúng câu đã sai 3 lần liên tiếp → thuộc bài, được gỡ khỏi sổ ôn tập.
   const again = { ...a2, question: { ...state.review[0], isReview: true } };
   resolveCast(state, again, again.question.answer);
+  assert.equal(state.review.length, 1);
+  assert.equal(state.review[0].mastery, 1);
+  resolveCast(state, again, (again.question.answer + 1) % 4); // sai → đếm lại từ đầu
+  assert.equal(state.review[0].mastery, 0);
+  for (let i = 0; i < 3; i++) resolveCast(state, again, again.question.answer);
   assert.equal(state.review.length, 0);
   assert.equal(state.stats.reviewedOk, 1);
 });

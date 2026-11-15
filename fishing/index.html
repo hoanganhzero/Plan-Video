@@ -25,7 +25,10 @@
         <div class="xpbar" id="hud-xpbar"><span id="hud-xp"></span><em id="hud-xptext"></em></div>
       </div>
     </div>
-    <button class="zone-pill" id="zone-pill" data-open="map"></button>
+    <div class="pills">
+      <button class="zone-pill" id="zone-pill" data-open="map"></button>
+      <button class="server-pill" id="server-pill" data-open="server" title="Server lớp học"></button>
+    </div>
     <div class="resources">
       <span class="res" title="Xu">🪙 <b id="hud-coins">0</b></span>
       <span class="res" title="Chuỗi trả lời đúng liên tiếp">🔥 <b id="hud-streak">0</b></span>
@@ -45,6 +48,7 @@
     <button data-open="shop"><span class="ico">🏪</span><span class="lbl">Cửa hàng</span></button>
     <button data-open="review"><span class="ico">📒</span><span class="lbl">Ôn tập</span><i class="badge gray" id="review-badge" hidden></i></button>
     <button data-open="sets"><span class="ico">📝</span><span class="lbl">Bộ đề</span><i class="badge blue" id="sets-badge" hidden></i></button>
+    <button data-open="server" class="server-btn"><span class="ico">🌐</span><span class="lbl">Server</span></button>
     <button id="chat-open" class="chat-btn"><span class="ico">💬</span><span class="lbl">Trò chuyện</span><i class="badge" id="chat-badge" hidden></i></button>
     <button data-open="settings"><span class="ico">⚙️</span><span class="lbl">Cài đặt</span></button>
   </nav>
@@ -116,6 +120,7 @@
       <span class="skill-ico" id="skill-ico">🌿</span>
       <span class="skill-name" id="skill-name">Kỹ năng</span>
       <span class="skill-charges" id="skill-charges"></span>
+      <span class="skill-energy" id="skill-energy" hidden title="Năng lượng từ ôn tập: dùng khi hết lượt kỹ năng"></span>
     </button>
     <button class="action" id="action-btn" aria-label="Nút hành động">
       <span class="action-ico" id="action-ico">🎣</span>
@@ -224,10 +229,28 @@
     </div>
   </dialog>
 
+  <dialog class="sheet wide" id="sheet-server">
+    <header><h2>🌐 Server lớp học</h2><button class="close" data-close aria-label="Đóng">✕</button></header>
+    <div class="sheet-body" id="server-body"></div>
+  </dialog>
+
   <dialog class="sheet" id="sheet-review">
-    <header><h2>📒 Sổ ôn tập</h2><button class="close" data-close aria-label="Đóng">✕</button></header>
+    <header><h2>📒 Ôn tập</h2><button class="close" data-close aria-label="Đóng">✕</button></header>
     <div class="sheet-body">
-      <p class="muted">Câu trả lời sai được ghi lại kèm đáp án đúng. Trò chơi sẽ hỏi lại – trả lời đúng thì câu đó được xoá khỏi sổ.</p>
+      <div class="card practice-card">
+        <div class="practice-hero">
+          <div class="big">🧠</div>
+          <div class="grow">
+            <h3 style="margin:0">Ôn tập nhận thưởng</h3>
+            <p class="muted small" style="margin:4px 0 0">Không cần câu cá: trả lời câu hỏi để nhận <b>🪙 xu</b>, chuỗi <b>3 câu đúng = ⚡ năng lượng kỹ năng</b>
+              (dùng khi kéo cá mà hết lượt kỹ năng), chuỗi 5 = 🦐 mồi tôm, chuỗi 10 = ✨ mồi vàng. Câu trong sổ được hỏi trước.</p>
+          </div>
+        </div>
+        <div class="practice-stats" id="practice-stats"></div>
+        <button class="btn gold big" id="practice-start">🧠 Bắt đầu ôn tập</button>
+      </div>
+      <h3>📒 Sổ ôn tập</h3>
+      <p class="muted small">Câu trả lời sai được ghi lại kèm đáp án đúng. Trả lời đúng <b>3 lần liên tiếp</b> thì “thuộc bài” và câu đó rời sổ.</p>
       <div class="row"><span id="review-summary" class="muted"></span><span class="spacer"></span><button class="btn" id="review-clear">Xoá sổ</button></div>
       <div id="review-list" class="review-list"></div>
     </div>
@@ -305,6 +328,23 @@
       <button class="btn small" id="q-time">⏳ +15 giây (<span id="q-time-count">0</span>)</button>
     </div>
     <div class="row center" id="q-next-row" hidden><button class="btn gold" id="q-next">Tiếp tục kéo 💪</button></div>
+  </dialog>
+
+  <!-- ÔN TẬP / CỨU CÁ -->
+  <dialog id="practice-dlg" class="dlg qcard practice-dlg">
+    <div class="q-head">
+      <span class="q-step" id="pr-title">🧠 Ôn tập</span>
+      <span id="pr-subject" class="muted small"></span>
+      <span class="spacer"></span>
+      <button class="close" id="pr-close" aria-label="Dừng ôn tập">✕</button>
+    </div>
+    <div class="pr-bar" id="pr-bar"></div>
+    <p id="pr-lead" class="q-lead"></p>
+    <h2 id="pr-text" class="q-text"></h2>
+    <div id="pr-choices" class="choices"></div>
+    <div id="pr-reward" class="pr-reward" hidden></div>
+    <div id="pr-explain" class="explain" hidden></div>
+    <div class="row center" id="pr-next-row" hidden><button class="btn gold" id="pr-next">Câu tiếp ➜</button></div>
   </dialog>
 
   <!-- XEM CÁ 4D -->

@@ -12,6 +12,12 @@ import { initMatchUI } from './match-ui.js';
 import { createWorld, assignSlots, EMOTES, makePublicId, colorFor } from './world.js';
 import { ONLINE } from './online.js';
 import { initChatUI } from './chat-ui.js';
+import { initServerUI } from './server-ui.js';
+import { serverApi, knownServers, activeWorld, setActiveWorld, applyServerIdentity, serverSnapshot, slotKey, isNewer } from './servers.js';
+import { progressSummary, chatError } from './chat.js';
+import { fetchSet } from './online.js';
+import { newSet, addToSet } from './content.js';
+import { practiceQuestion, practiceAnswer, startPractice, spendEnergy, rescueOutcome, refundBait, ENERGY_MAX, DAILY_COIN_CAP, RESCUE_QUESTIONS, MASTERY } from './practice.js';
 import { cloudCreate, cloudPush, cloudFetch, cleanSaveCode, logSetAnswer } from './online.js';
 import { setQuestions } from './engine.js';
 import { createFight, stepFight, answerInFight, surging, useSkill } from './fight.js';
@@ -33,15 +39,26 @@ const tag = (rarityId, label) => { const r = rarityOf(rarityId); return `<span c
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ---------- Lưu / tải ----------
+// Thế giới đang chơi: cá nhân (SAVE_KEY) hoặc một server lớp học (mỗi server một bản lưu riêng).
+const worldCode = (() => { try { return activeWorld(localStorage); } catch { return null; } })();
+const worldEntry = worldCode ? knownServers(localStorage).find((s) => s.code === worldCode) : null;
 function load() {
+  if (worldEntry) {
+    let raw = null;
+    try { raw = JSON.parse(localStorage.getItem(slotKey(worldCode))); } catch { /* hỏng */ }
+    const s = applyServerIdentity(normalizeState(raw || newGame()), worldEntry);
+    s.serverSavedAt = raw?.serverSavedAt || null;
+    return s;
+  }
   try { return normalizeState(JSON.parse(localStorage.getItem(SAVE_KEY))); } catch { return newGame(); }
 }
 function saveLocal() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch { /* bộ nhớ đầy hoặc bị chặn */ }
+  try { localStorage.setItem(slotKey(state.server?.code), JSON.stringify(state)); } catch { /* bộ nhớ đầy hoặc bị chặn */ }
 }
 function save() {
   saveLocal();
   if (typeof scheduleCloud === 'function') scheduleCloud();
+  if (typeof scheduleServer === 'function') scheduleServer();
 }
 let state = load();
 
@@ -138,6 +155,8 @@ function renderHud() {
   $('#hud-species').textContent = `${Object.keys(state.collection).length}/${speciesTotal()}`;
   const z = zoneById(state.zone);
   $('#zone-pill').innerHTML = `${z.icon} ${esc(z.name)} ▾`;
+  $('#server-pill').innerHTML = state.server ? `🏫 ${esc(state.server.name)}` : '🏠 Cá nhân';
+  $('#server-pill').classList.toggle('in-server', !!state.server);
   if (typeof world !== 'undefined') syncWorld();
   const ready = activeQuests(state).filter((q) => questProgress(state, q).done).length;
   $('#quest-badge').hidden = !ready;
@@ -483,6 +502,14 @@ $('#sheet-shop').addEventListener('click', (e) => {
 
 // ---------- Ôn tập ----------
 RENDER.review = () => {
+  const p = state.practice || {};
+  const isToday = p.day === practiceToday();
+  $('#practice-stats').innerHTML = `
+    <span class="chip">⚡ Năng lượng <b>${state.skillEnergy || 0}/${ENERGY_MAX}</b></span>
+    <span class="chip">🪙 Hôm nay <b>${isToday ? p.coins : 0}/${DAILY_COIN_CAP}</b></span>
+    <span class="chip">✅ Hôm nay đúng <b>${isToday ? p.correct : 0}/${isToday ? p.answered : 0}</b></span>
+    <span class="chip">🔥 Chuỗi tốt nhất <b>${p.best || 0}</b></span>
+    <span class="chip">🎓 Đã thuộc <b>${state.stats.reviewedOk}</b></span>`;
   $('#review-summary').textContent = state.review.length
     ? `${state.review.length} câu cần ôn · đã sửa được ${state.stats.reviewedOk} câu`
     : `Không có câu nào cần ôn 🎉 (đã sửa được ${state.stats.reviewedOk} câu)`;
@@ -491,12 +518,148 @@ RENDER.review = () => {
     const s = subjectById(q.subject);
     return `<div class="review-item">
       <div class="muted small">${s ? `${s.icon} ${esc(s.name)}` : ''}</div>
-      <div><b>${esc(q.text)}</b></div>
+      <div><b>${esc(q.text)}</b> <span class="mastery" title="Đúng ${q.mastery || 0}/${MASTERY} lần liên tiếp">${'●'.repeat(q.mastery || 0)}${'○'.repeat(Math.max(0, MASTERY - (q.mastery || 0)))}</span></div>
       <div>Đáp án đúng: <span class="ans">${esc(q.choices[q.answer])}</span></div>
       ${q.explain ? `<div class="muted small">${esc(q.explain)}</div>` : ''}
     </div>`;
   }).join('');
 };
+$('#practice-start').addEventListener('click', () => openPractice());
+
+// ---------- Ôn tập nhận thưởng & Cứu cá ----------
+let pr = null; // { mode: 'practice' | 'rescue', q, asked, right, n, total, coins, energy, resolve }
+const practiceToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+function openPractice() {
+  if (game.mode !== 'idle') { toast('Đang câu – xong lượt này rồi ôn tập nhé!'); return; }
+  $('#sheet-review').close();
+  startPractice(state);
+  save();
+  pr = { mode: 'practice', asked: [], right: 0, n: 0, coins: 0, energy: 0 };
+  $('#pr-title').textContent = '🧠 Ôn tập nhận thưởng';
+  $('#practice-dlg').classList.remove('rescue');
+  $('#practice-dlg').showModal();
+  nextPractice();
+}
+function runRescue(wrongQuestions) {
+  return new Promise((resolve) => {
+    const queue = [];
+    for (const q of wrongQuestions) if (queue.length < RESCUE_QUESTIONS && !queue.some((x) => x.id === q.id)) {
+      const right = q.choices[q.answer];
+      const choices = [...q.choices].sort(() => Math.random() - 0.5);
+      queue.push({ ...q, choices, answer: choices.indexOf(right) });
+    }
+    while (queue.length < RESCUE_QUESTIONS) queue.push(practiceQuestion(state, Math.random, queue.map((x) => x.id)));
+    pr = { mode: 'rescue', queue, asked: [], right: 0, n: 0, total: RESCUE_QUESTIONS, resolve };
+    $('#pr-title').textContent = '🛟 Cứu cá';
+    $('#practice-dlg').classList.add('rescue');
+    $('#practice-dlg').showModal();
+    nextPractice();
+  });
+}
+function renderPracticeBar() {
+  if (pr.mode === 'rescue') {
+    $('#pr-bar').innerHTML = Array.from({ length: pr.total }, (_, i) => `<span class="dot ${i < pr.n ? (pr.marks?.[i] ? 'ok' : 'no') : ''}"></span>`).join('')
+      + `<span class="muted small">Đúng cả ${pr.total} câu để kéo cá lên · đúng ${pr.total - 1} câu được trả lại mồi</span>`;
+    return;
+  }
+  const p = state.practice;
+  $('#pr-bar').innerHTML = `<span class="chip">⚡ ${'<i class="on"></i>'.repeat(state.skillEnergy || 0)}${'<i></i>'.repeat(ENERGY_MAX - (state.skillEnergy || 0))}</span>
+    <span class="chip">🔥 Chuỗi <b>${p.streak}</b></span><span class="chip">🪙 Hôm nay <b>${p.coins}/${DAILY_COIN_CAP}</b></span>
+    <span class="chip">📒 Sổ ôn <b>${state.review.length}</b></span>`;
+}
+function nextPractice() {
+  const q = pr.mode === 'rescue' ? pr.queue[pr.n] : practiceQuestion(state, Math.random, pr.asked.slice(-8));
+  pr.q = q;
+  pr.asked.push(q.id);
+  pr.locked = false;
+  const s = subjectById(q.subject);
+  $('#pr-subject').textContent = s ? `${s.icon} ${s.name}` : '';
+  const inBook = state.review.find((x) => x.id === q.id);
+  $('#pr-lead').innerHTML = pr.mode === 'rescue'
+    ? `Câu ${pr.n + 1}/${pr.total}${inBook ? ' · câu em vừa trả lời sai' : ''}`
+    : inBook ? `📒 Câu trong sổ ôn · đã đúng ${inBook.mastery || 0}/${MASTERY} lần liên tiếp` : 'Trả lời đúng để nhận thưởng';
+  $('#pr-text').textContent = q.text;
+  $('#pr-choices').innerHTML = q.choices.map((c, i) => `<button class="choice" data-i="${i}"><span class="k">${i + 1}</span>${esc(c)}</button>`).join('');
+  $('#pr-explain').hidden = true;
+  $('#pr-reward').hidden = true;
+  $('#pr-next-row').hidden = true;
+  renderPracticeBar();
+}
+function answerPractice(i) {
+  if (!pr || pr.locked) return;
+  pr.locked = true;
+  const q = pr.q;
+  const btns = $('#pr-choices').querySelectorAll('.choice');
+  btns.forEach((b) => { b.disabled = true; });
+  btns[q.answer].classList.add('right');
+  const ok = i === q.answer;
+  if (!ok) btns[i]?.classList.add('wrong');
+  const bits = [];
+  if (pr.mode === 'rescue') {
+    const a = answerQuestion(state, q, i);
+    (pr.marks ||= [])[pr.n] = ok;
+    if (ok) { pr.right += 1; bits.push(`✅ Đúng!${a.xp ? ` ⭐ +${a.xp} KN` : ''}`); } else bits.push('❌ Chưa đúng');
+  } else {
+    const r = practiceAnswer(state, q, i);
+    if (ok) {
+      pr.right += 1; pr.coins += r.coins; pr.energy += r.energy;
+      bits.push('✅ Đúng!');
+      if (r.xp) bits.push(`⭐ +${r.xp} KN`);
+      if (r.coins) bits.push(`🪙 +${r.coins}`); else if (r.capped) bits.push('🪙 đã đủ xu hôm nay');
+      if (r.energy) bits.push('⚡ +1 năng lượng kỹ năng!');
+      if (r.bait === 'shrimp') bits.push('🦐 +1 mồi tôm!');
+      if (r.bait === 'golden') bits.push('✨ +1 mồi vàng!');
+      if (r.mastered) bits.push('🎓 Thuộc bài – rời sổ ôn!');
+      else if (r.mastery) bits.push(`📒 Thuộc ${r.mastery}/${MASTERY}`);
+    } else bits.push('❌ Chưa đúng – câu này đã vào sổ ôn tập');
+  }
+  pr.n += 1;
+  beep(ok ? SOUND.right : SOUND.wrong);
+  if (ok && bits.some((b) => b.includes('⚡') || b.includes('🎓'))) beep(SOUND.level);
+  $('#pr-reward').innerHTML = bits.map((b) => `<span>${b}</span>`).join('');
+  $('#pr-reward').className = `pr-reward ${ok ? 'ok' : 'no'}`;
+  $('#pr-reward').hidden = false;
+  if (!ok || q.explain) {
+    $('#pr-explain').innerHTML = `${ok ? '' : `Đáp án đúng: <b style="color:var(--good)">${esc(q.choices[q.answer])}</b>`}${q.explain ? `${ok ? '' : '<br>'}<span class="muted">${esc(q.explain)}</span>` : ''}`;
+    $('#pr-explain').hidden = false;
+  }
+  const done = pr.mode === 'rescue' && pr.n >= pr.total;
+  $('#pr-next').textContent = done ? 'Xem kết quả 🛟' : 'Câu tiếp ➜';
+  $('#pr-next-row').hidden = false;
+  renderPracticeBar();
+  save();
+  renderHud();
+  $('#pr-next').focus({ preventScroll: true });
+}
+function closePractice() {
+  const dlg = $('#practice-dlg');
+  if (dlg.open) dlg.close();
+  if (!pr) return;
+  const done = pr;
+  pr = null;
+  if (done.mode === 'rescue') { done.resolve(done.right); return; }
+  const answered = done.n;
+  if (answered) toast(`🧠 Ôn tập: đúng <b>${done.right}/${answered}</b>${done.coins ? ` · 🪙 +${done.coins}` : ''}${done.energy ? ` · ⚡ +${done.energy}` : ''}`);
+  afterAction();
+}
+$('#pr-choices').addEventListener('click', (e) => { const b = e.target.closest('.choice'); if (b) answerPractice(Number(b.dataset.i)); });
+$('#pr-next').addEventListener('click', () => {
+  if (!pr) return;
+  if (pr.mode === 'rescue' && pr.n >= pr.total) { closePractice(); return; }
+  nextPractice();
+});
+$('#pr-close').addEventListener('click', () => {
+  if (pr?.mode === 'rescue' && pr.n < pr.total && !confirm('Dừng cứu cá? Các câu còn lại tính là chưa đúng.')) return;
+  closePractice();
+});
+$('#practice-dlg').addEventListener('cancel', (e) => { e.preventDefault(); $('#pr-close').click(); });
+$('#practice-dlg').addEventListener('keydown', (e) => {
+  if (!pr) return;
+  const n = Number(e.key);
+  if (n >= 1 && n <= (pr.q?.choices.length || 0) && !pr.locked) answerPractice(n - 1);
+  else if (e.key === 'Enter' && pr.locked) { e.preventDefault(); $('#pr-next').click(); }
+});
+
 $('#review-clear').addEventListener('click', () => {
   if (!confirm('Xoá toàn bộ sổ ôn tập?')) return;
   state.review = [];
@@ -593,7 +756,9 @@ let chatZone = null;
 function syncWorld() {
   if (typeof chatUI !== 'undefined' && chatZone !== state.zone) { chatZone = state.zone; chatUI.zoneChanged(); }
   if (state.settings.showWorld === false) { if (world.zone) world.leave(); return; }
-  if (world.zone !== state.zone) { seats = new Map(); world.join(state.zone); }
+  // Trong server lớp học: chỉ thấy các bạn cùng server (kênh riêng của server).
+  const room = state.server ? `${state.server.code.toLowerCase()}-${state.zone}` : state.zone;
+  if (world.zone !== room) { seats = new Map(); world.join(room); }
 }
 // Biểu cảm có sẵn (không có chat gõ tự do)
 $('#emote-pop').innerHTML = EMOTES.map(([e, text], i) => `<button data-emote="${i}" title="${esc(text)}"><span>${e}</span><small>${esc(text)}</small></button>`).join('');
@@ -615,7 +780,7 @@ $('#world-pill').addEventListener('click', () => {
 });
 $('#world-toggle').addEventListener('change', (e) => { state.settings.showWorld = e.target.checked; save(); syncWorld(); });
 // Chỉ ở chế độ thử nhiều người trên một máy: cho script kiểm thử điều khiển.
-if (worldMode === 'local') window.__fishTest = { world, scene };
+if (worldMode === 'local') window.__fishTest = { world, scene, get pr() { return pr; }, rescue: (qs) => runRescue(qs), get state() { return state; } };
 
 // ---------- Thi đấu ----------
 const matchUI = initMatchUI({
@@ -635,6 +800,85 @@ const chatUI = initChatUI({
   getMatchCode: () => matchUI.code,
   openSheet,
 });
+
+// ---------- Server lớp học: đồng bộ tiến trình ----------
+let serverTimer = null;
+let serverBusy = false;
+let serverDirty = false;
+function scheduleServer(delay = 6000) {
+  if (!state.server) return;
+  serverDirty = true;
+  clearTimeout(serverTimer);
+  serverTimer = setTimeout(pushServer, delay);
+}
+async function pushServer({ keepalive = false } = {}) {
+  if (!state.server || serverBusy || !serverDirty) return;
+  serverBusy = true;
+  serverDirty = false;
+  const f = keepalive ? (u, o) => fetch(u, { ...o, keepalive: true }) : undefined;
+  try {
+    state.serverSavedAt = await serverApi.save(state.online.key, state.server.code, serverSnapshot(state), progressSummary(state, levelFromXp), f);
+    saveLocal();
+    $('#server-pill')?.classList.remove('unsynced');
+  } catch (err) {
+    serverDirty = true;
+    $('#server-pill')?.classList.add('unsynced');
+    console.warn('Chưa lưu được lên server:', err);
+    if (/join the class first|class not found/.test(String(err.message))) leaveRemovedServer();
+  }
+  serverBusy = false;
+}
+function leaveRemovedServer() {
+  toast('🏫 Tài khoản của em không còn trong server này (thầy cô đã xoá). Về thế giới của em.');
+  setActiveWorld(localStorage, null);
+  setTimeout(() => location.reload(), 2500);
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') pushServer({ keepalive: true }); });
+window.addEventListener('pagehide', () => pushServer({ keepalive: true }));
+// Mở trò chơi trong server: lấy bản lưu mới hơn trên mạng (chơi ở máy khác), nạp bộ đề thầy cô giao.
+async function startServerWorld() {
+  if (!state.server) return;
+  let r = null;
+  try { r = await serverApi.load(state.online.key, state.server.code); } catch (err) {
+    if (/join the class first|class not found/.test(String(err.message))) leaveRemovedServer();
+    else console.warn('Không tải được server:', err);
+    return;
+  }
+  if (r.save && isNewer(r.save_at, state.serverSavedAt) && !sessionStorage.getItem(`cauca-adopt-${r.save_at}`)) {
+    sessionStorage.setItem(`cauca-adopt-${r.save_at}`, '1');
+    const fresh = applyServerIdentity(normalizeState(r.save), worldEntry);
+    fresh.serverSavedAt = r.save_at;
+    localStorage.setItem(slotKey(state.server.code), JSON.stringify(fresh));
+    sessionStorage.setItem('cauca-flash', '☁️ Đã tải tiến trình mới nhất của em từ server.');
+    location.reload();
+    return;
+  }
+  if (r.server?.name && r.server.name !== state.server.name) { state.server.name = r.server.name; saveLocal(); renderHud(); }
+  // Bộ đề thầy cô giao cho server
+  const code = r.server?.set_code;
+  if (code && !state.sets.some((s) => s.fromCode === code)) {
+    try {
+      const set = await fetchSet(code);
+      const s = newSet(set.name, { fromCode: set.code, fromServer: true });
+      addToSet(s, set.payload);
+      state.sets.push(s);
+      if (!state.settings.subjects.includes('custom')) state.settings.subjects.push('custom');
+      save();
+      toast(`📝 Thầy cô đã giao bộ đề “<b>${esc(set.name)}</b>” – câu hỏi sẽ xuất hiện khi câu cá và ôn tập.`);
+    } catch (err) { console.warn('Không tải được bộ đề của server:', err); }
+  }
+  if (!state.serverSavedAt) scheduleServer(1500); // tài khoản mới: lưu lần đầu
+}
+const serverUI = initServerUI({
+  getState: () => state, toast, esc, normalizeState, newGame,
+  saveNow: () => { saveLocal(); pushServer({ keepalive: true }); },
+});
+RENDER.server = () => serverUI.open();
+startServerWorld();
+{
+  const flash = sessionStorage.getItem('cauca-flash');
+  if (flash) { sessionStorage.removeItem('cauca-flash'); setTimeout(() => toast(flash), 600); }
+}
 
 // ---------- Lưu tiến trình trên mạng ----------
 let cloudTimer = null;
@@ -752,7 +996,7 @@ function afterAction() {
 let syncing = null;
 // Nộp điểm lên bảng xếp hạng chung (không chặn trò chơi nếu mất mạng).
 async function syncOnline({ force = false } = {}) {
-  if (!state.online?.nickname) return null;
+  if (!state.online?.nickname || state.server) return null; // trong server: dùng bảng xếp hạng của server
   if (syncing) return syncing;
   if (!force && Date.now() - (state.online.lastSubmit || 0) < 8000) return null;
   const before = state.online.rank;
@@ -1008,7 +1252,9 @@ function renderSkill() {
   $('#skill-charges').innerHTML = Array.from({ length: fight.maxCharges }, (_, i) => `<i class="${i < fight.charges ? 'on' : ''}"></i>`).join('');
   btn.title = `${sk.name}: ${sk.desc}`;
   btn.style.setProperty('--fx', rod.fx);
-  btn.classList.toggle('empty', fight.charges <= 0);
+  btn.classList.toggle('empty', fight.charges <= 0 && !(state.skillEnergy > 0));
+  $('#skill-energy').hidden = !(state.skillEnergy > 0);
+  $('#skill-energy').textContent = `⚡${state.skillEnergy || 0}`;
   btn.disabled = game.mode !== 'fight';
 }
 function screenFlash(color) {
@@ -1022,8 +1268,12 @@ function castSkill() {
   if (game.mode !== 'fight' || !fight) return;
   const rod = rodById(state.rod);
   const sk = SKILLS[rod.skill];
+  if (fight.charges <= 0 && spendEnergy(state, fight)) {
+    save();
+    toast(`⚡ Dùng 1 năng lượng ôn tập (còn ${state.skillEnergy})`);
+  }
   if (!useSkill(fight, rod.skill)) {
-    toast('⚡ Hết lượt kỹ năng – trả lời đúng câu hỏi để nạp thêm!');
+    toast('⚡ Hết lượt kỹ năng – trả lời đúng câu hỏi để nạp thêm, hoặc 🧠 Ôn tập để tích năng lượng!');
     return;
   }
   scene.skill?.(rod.skill);
@@ -1288,8 +1538,27 @@ async function finishLost(reason) {
     <p class="muted">Đó là một con cá ${tag(attempt.rarity)} … lần sau nhé!</p>
     <p>${why}</p>
     ${wrongs.map((l) => `<div class="explain"><b>${esc(l.question.text)}</b><br>Đáp án đúng: <b style="color:var(--good)">${esc(l.question.choices[l.question.answer])}</b>${l.question.explain ? `<br><span class="muted">${esc(l.question.explain)}</span>` : ''}</div>`).join('')}`;
-  $('#result-actions').innerHTML = '<button class="btn gold big" id="r-ok">Câu tiếp 🎣</button>';
-  await showResult();
+  // Không cứu cá khi đang thi đấu (giữ công bằng cho trận).
+  const canRescue = !attempt.rescued && !matchUI.code;
+  $('#result-actions').innerHTML = (canRescue ? `<button class="btn sea big" id="r-rescue" title="Trả lời đúng ${RESCUE_QUESTIONS} câu để kéo cá lên">🛟 Cứu cá (${RESCUE_QUESTIONS} câu)</button>` : '')
+    + '<button class="btn gold big" id="r-ok">Câu tiếp 🎣</button>';
+  const pick = await showResult();
+  if (pick === 'rescue') {
+    attempt.rescued = true;
+    const right = await runRescue(wrongs.map((l) => l.question).filter((q) => q.answer >= 0 && q.subject !== 'match'));
+    const outcome = rescueOutcome(right);
+    state.practice.rescues = (state.practice.rescues || 0) + (outcome === 'catch' ? 1 : 0);
+    if (outcome === 'catch') {
+      state.stats.escaped = Math.max(0, state.stats.escaped - 1);
+      banner('🛟 CỨU ĐƯỢC CÁ!', 'gold', 1400);
+      await finishCatch();
+      return;
+    }
+    if (outcome === 'bait' && refundBait(state, attempt.bait)) toast(`🛟 Đúng ${right}/${RESCUE_QUESTIONS} câu – được trả lại mồi ${esc(ITEMS[attempt.bait]?.name || '')}!`);
+    else if (outcome === 'bait') toast(`🛟 Đúng ${right}/${RESCUE_QUESTIONS} câu – suýt nữa thì cứu được!`);
+    else toast(`🛟 Đúng ${right}/${RESCUE_QUESTIONS} câu – ôn lại trong 📒 Ôn tập rồi thử lại nhé!`);
+    save();
+  }
   endTurn();
 }
 
@@ -1303,7 +1572,7 @@ function showResult(onOpen) {
       const b = e.target.closest('button');
       if (!b) return;
       dlg.close();
-      resolve(b.id === 'r-sell' ? 'sell' : 'keep');
+      resolve(b.id === 'r-sell' ? 'sell' : b.id === 'r-rescue' ? 'rescue' : 'keep');
     };
     dlg.oncancel = () => resolve('keep');
   });

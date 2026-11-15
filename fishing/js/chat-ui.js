@@ -187,11 +187,10 @@ export function initChatUI({ getState, save, toast, esc, beep, scene, getZone, g
     if ((tab === 'class' || tab === 'dm') && !cls) {
       head.innerHTML = '';
       list.innerHTML = `<div class="chat-empty">
-        🏫 Nhập <b>mã lớp</b> thầy cô đưa để vào lớp: chat cùng lớp, nhắn riêng với bạn, và thầy cô xem được tiến độ học tập của em.
-        <form id="chat-join" class="join-row"><input id="chat-code" maxlength="6" placeholder="Mã lớp, vd: K7PQ2M" autocomplete="off"><button class="btn small">Vào lớp</button></form>
-        <small class="muted">Em vào lớp với biệt danh <b>${esc(nick())}</b>.</small></div>`;
+        🏫 Vào <b>server lớp học</b> của thầy cô (mã server + tên + PIN) để chat cùng lớp và nhắn riêng với bạn.
+        <button class="btn gold small" id="chat-server">🌐 Vào server lớp học</button></div>`;
       compose.hidden = true;
-      $('#chat-join').onsubmit = joinClass;
+      $('#chat-server').onclick = () => { close(); openSheet('server'); };
       renderStatus(); badge();
       return;
     }
