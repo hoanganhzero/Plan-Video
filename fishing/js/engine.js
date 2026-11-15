@@ -46,7 +46,8 @@ export function newGame() {
 // Ghép dữ liệu đã lưu với mặc định (an toàn khi thêm tính năng mới).
 // Câu hỏi của mọi bộ đề đang bật (giáo viên / phụ huynh cấu hình).
 export function setQuestions(state) {
-  return (state.sets || []).filter((s) => s.enabled !== false).flatMap((s) => s.questions || []);
+  return (state.sets || []).filter((s) => s.enabled !== false)
+    .flatMap((s) => (s.questions || []).map((q) => (s.fromCode ? { ...q, setCode: s.fromCode } : q)));
 }
 
 export function normalizeState(raw) {

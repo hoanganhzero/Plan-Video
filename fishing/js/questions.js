@@ -242,10 +242,12 @@ export function parseCustomQuestions(textBlock) {
 // Câu từ bộ đề của giáo viên: { id, q, a, w, e, d }
 const customId = (item, index) => `custom-${item.id || index}-${item.q}`;
 function fromCustom(item, index, rng) {
-  return makeQuestion({
+  const q = makeQuestion({
     id: customId(item, index), subject: 'custom', difficulty: item.d || 1, text: item.q,
     correct: item.a, wrong: item.w, explain: item.e || '',
   }, rng);
+  if (item.setCode) q.setCode = item.setCode; // bộ đề tải bằng mã → ghi báo cáo cho giáo viên
+  return q;
 }
 
 // Chọn câu hỏi phù hợp độ khó, tránh lặp câu vừa hỏi, ưu tiên ôn lại câu từng sai.

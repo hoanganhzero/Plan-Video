@@ -560,3 +560,95 @@ test('question sets are shared and fetched by code', async () => {
   assert.equal(got.name, 'Toán 3');
   await assert.rejects(fetchSet('abc', fake), /6 ký tự/);
 });
+
+// ---------- Thi đấu & lưu trên mạng ----------
+import { teamStandings, mvp, matchClock, clockSkew, nextMatchIndex, summarizeReport, reportToCSV, formatDuration } from '../fishing/js/match.js';
+import { cleanSaveCode, cloudSnapshot, cloudCreate, cloudPush, cloudFetch, matchApi, friendlyError } from '../fishing/js/online.js';
+
+const BOARD = {
+  team_names: ['Cá Mập', 'Cá Heo'],
+  players: [
+    { nickname: 'An', team: 0, score: 300, correct: 3, answered: 3 },
+    { nickname: 'Bình', team: 0, score: 100, correct: 1, answered: 3 },
+    { nickname: 'Chi', team: 1, score: 290, correct: 3, answered: 3 },
+  ],
+};
+
+test('teams are ranked by average score so smaller teams are not penalised', () => {
+  const t = teamStandings(BOARD);
+  assert.equal(t[0].name, 'Cá Heo', 'avg 290 beats avg 200 even with a lower total');
+  assert.equal(t[0].rank, 1);
+  assert.equal(t[1].total, 400);
+  assert.equal(t[1].avg, 200);
+  assert.equal(t[1].accuracy, 67);
+  assert.equal(mvp(BOARD).nickname, 'An');
+});
+
+test('match clock follows server time through lobby, countdown, running and done', () => {
+  const now = Date.parse('2026-11-15T10:00:00Z');
+  const skew = clockSkew('2026-11-15T10:00:02Z', now);
+  assert.equal(skew, 2000);
+  assert.equal(matchClock({ status: 'lobby' }, 0, now).phase, 'lobby');
+  const m = { status: 'running', starts_at: '2026-11-15T10:00:05Z', ends_at: '2026-11-15T10:05:05Z' };
+  assert.deepEqual(matchClock(m, skew, now), { phase: 'countdown', left: 3 });
+  assert.deepEqual(matchClock(m, skew, now + 63000), { phase: 'running', left: 240 });
+  assert.equal(matchClock(m, skew, now + 400000).phase, 'done');
+  assert.equal(formatDuration(75), '1:15');
+  assert.equal(formatDuration(90000), '1 ngày 1 giờ');
+  assert.equal(nextMatchIndex(4, [0, 2]), 1);
+  assert.equal(nextMatchIndex(2, [0, 1]), null);
+});
+
+test('teacher report finds the hardest questions and each student\'s mistakes', () => {
+  const s = summarizeReport({
+    questions: [{ q: 'A?', a: '1' }, { q: 'B?', a: '2' }],
+    players: [
+      { nickname: 'An', team: 0, score: 145, correct: 1, answered: 2, answers: [{ i: 0, ok: true, ms: 3000 }, { i: 1, ok: false, ms: 5000 }] },
+      { nickname: 'Chi', team: 1, score: 0, correct: 0, answered: 1, answers: [{ i: 1, ok: false, ms: 9000 }] },
+    ],
+  }, ['Cá Mập', 'Cá Heo']);
+  assert.equal(s.hardest[0].q, 'B?');
+  assert.equal(s.hardest[0].rate, 0);
+  assert.deepEqual(s.students[0].wrong, [2]);
+  assert.equal(s.students[0].avgSec, 4);
+  assert.match(reportToCSV(s), /Học sinh,Đội,Điểm/);
+});
+
+test('cloud save codes, snapshots and calls', async () => {
+  assert.equal(cleanSaveCode('qcvr kdct-zdsz'), 'QCVR-KDCT-ZDSZ');
+  const state = newGame();
+  state.cloud = { code: 'OLD' };
+  assert.ok(!('cloud' in cloudSnapshot(state)), 'device-only info is not uploaded');
+  const calls = [];
+  const fake = async (url, opts) => {
+    const name = url.split('/rpc/')[1];
+    calls.push({ name, body: JSON.parse(opts.body) });
+    const body = name === 'fishing_cloud_create' ? '"QCVR-KDCT-ZDSZ"' : name === 'fishing_cloud_put' ? '"2026-11-15T00:00:00Z"'
+      : '[{"save":{"xp":5},"updated_at":"2026-11-15T00:00:00Z"}]';
+    return { ok: true, status: 200, text: async () => body };
+  };
+  delete state.cloud;
+  assert.equal(await cloudCreate(state, fake), 'QCVR-KDCT-ZDSZ');
+  assert.equal(state.cloud.code, 'QCVR-KDCT-ZDSZ');
+  await cloudPush(state, fake);
+  assert.equal(calls[1].body.p_code, 'QCVR-KDCT-ZDSZ');
+  const got = await cloudFetch('qcvrkdctzdsz', fake);
+  assert.equal(got.save.xp, 5);
+  await assert.rejects(cloudFetch('ABC', fake), /12 ký tự/);
+});
+
+test('match api sends the right keys and friendly errors are in Vietnamese', async () => {
+  const calls = [];
+  const fake = async (url, opts) => { calls.push({ name: url.split('/rpc/')[1], body: JSON.parse(opts.body) }); return { ok: true, status: 200, text: async () => '"K7M2QX"' }; };
+  const state = newGame();
+  await matchApi.create(state, { mode: 'teams', title: 'Thi', teams: ['A', 'B'], teamSize: 8, live: true, minutes: 5,
+    questions: [{ id: 'x', q: '1?', a: '1', w: ['2'], d: 1 }] }, fake);
+  assert.equal(calls[0].body.p_owner, state.online.ownerKey);
+  assert.ok(!('id' in calls[0].body.p_questions[0]));
+  await matchApi.join(state, 'k7m2qx', ' Bé  Na ', 1, fake);
+  assert.equal(calls[1].body.p_code, 'K7M2QX');
+  assert.equal(calls[1].body.p_nickname, 'Bé Na');
+  assert.equal(calls[1].body.p_player, state.online.key);
+  assert.notEqual(state.online.key, state.online.ownerKey, 'player and owner keys differ');
+  assert.equal(friendlyError(new Error('team is full')), 'Đội này đã đủ người – chọn đội khác nhé.');
+});

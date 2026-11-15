@@ -114,6 +114,16 @@ Trò chơi vừa học vừa chơi trong thư mục `fishing/` – mở `http://
   - **Chia sẻ cho học sinh**: bấm *Chia sẻ* để nhận **mã 6 ký tự** (VD `K7M2QX`); học sinh vào *Bộ đề → Nhập mã* là có câu hỏi, có thể chọn "chỉ hỏi câu trong bộ đề này". Sửa bộ đề rồi chia sẻ lại thì mã giữ nguyên. Máy chủ: bảng `fishing_sets` (Supabase, khoá RLS, chỉ chủ bộ đề cập nhật được).
   - Độ khó của câu quyết định loại cá: Dễ → cá Thường/Khá, Vừa → Hiếm/Quý, Khó → Huyền thoại/Thần thoại.
   - Tệp được đọc ngay trong trình duyệt; chỉ khi dùng AI nội dung mới được gửi tới Google. Tệp .doc đời cũ cần lưu lại thành .docx hoặc PDF.
+- **⚔️ Thi đấu** (nút *Thi đấu* ở menu trái): tạo trận và gửi **mã 6 ký tự** cho bạn bè / cả lớp.
+  - **1 vs 1**, **Đội vs Đội** (2 đội, tối đa 8 người/đội) hoặc **Lớp học** (2–6 đội, tối đa 8 người/đội).
+  - **Trực tiếp**: phòng chờ hiện ai đã vào đội nào → chủ trận bấm *Bắt đầu* → đếm ngược → đồng hồ chung 2–20 phút, bảng điểm cập nhật liên tục.
+    **Không cần cùng lúc**: mỗi bạn chơi trong hạn chót (1 giờ – 7 ngày) rồi so điểm.
+  - Mọi người trả lời **cùng một bộ câu hỏi** (câu có sẵn của trò chơi hoặc một bộ đề của thầy cô). Câu hỏi hiện ra khi kéo cá như bình thường.
+  - **Máy chủ chấm điểm** – trình duyệt chỉ nhận đáp án đúng sau khi đã trả lời. Mỗi câu đúng: 100 + 25 × (độ khó − 1) + tối đa 50 điểm trả lời nhanh; câu được cá thưởng thêm (tối đa 300).
+  - Đội xếp hạng theo **điểm trung bình mỗi thành viên** nên đội ít người không bị thiệt. Kết thúc có bục vinh quang, người chơi xuất sắc nhất.
+  - **Báo cáo cho giáo viên** (chủ trận): tỉ lệ đúng từng câu (câu khó nhất lên đầu), từng học sinh sai câu nào, thời gian trung bình – tải về CSV / Excel.
+- **☁️ Lưu tiến trình trên mạng** (Cài đặt): tạo **mã lưu 12 ký tự**, tiến trình tự đồng bộ sau mỗi lượt câu; sang máy khác nhập mã để chơi tiếp. Máy chủ chỉ giữ mã dạng băm (SHA-256).
+- **📊 Báo cáo bộ đề**: khi học sinh tải bộ đề bằng mã và trả lời trong trò chơi, giáo viên (người chia sẻ) xem được tỉ lệ đúng từng câu và các câu mỗi học sinh còn sai (Bộ đề → 📊 Báo cáo).
 - **Sổ ôn tập**: câu trả lời sai được ghi lại kèm đáp án và được hỏi lại sau; trả lời đúng thì xoá khỏi sổ.
 - Thùng cá (bán lấy xu), Bộ sưu tập, Cửa hàng; tự lưu trong trình duyệt, xuất/nhập file lưu; chơi được trên điện thoại.
 
@@ -164,7 +174,10 @@ fishing/                Trò chơi Câu Cá Học Giỏi
   js/content.js         Bộ đề: chuẩn hoá câu hỏi, đọc đề trắc nghiệm, câu điền khuyết, CSV
   js/extract.js         Đọc chữ từ PDF (pdf.js) và Word .docx ngay trong trình duyệt
   js/ai.js              Gemini soạn câu hỏi từ bài học / ảnh / PDF
-  js/sets-ui.js         Giao diện Bộ đề (soạn tay, tạo từ tài liệu, chia sẻ mã)
+  js/sets-ui.js         Giao diện Bộ đề (soạn tay, tạo từ tài liệu, chia sẻ mã, báo cáo)
+  js/match.js           Thi đấu: xếp hạng đội, đồng hồ theo giờ máy chủ, báo cáo giáo viên
+  js/match-ui.js        Giao diện Thi đấu (tạo / tham gia / phòng chờ / bảng điểm / kết quả)
+  supabase/             SQL máy chủ thi đấu (bảng khoá RLS + hàm chấm điểm)
   js/fish3d.js          Cá 4D: mô hình 3D từng loài + chuyển động bơi, khung xem xoay được
   js/icons.js           Biểu tượng vật phẩm, cần câu, dây câu (SVG)
   js/map.js             Bản đồ thế giới minh hoạ (SVG)

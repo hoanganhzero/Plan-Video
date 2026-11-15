@@ -8,6 +8,8 @@ import {
 } from './engine.js';
 import { SUBJECTS, GRADES, SKILLS, rarityOf, rarityIndex, subjectById } from './data.js';
 import { initSetsUI } from './sets-ui.js';
+import { initMatchUI } from './match-ui.js';
+import { cloudCreate, cloudPush, cloudFetch, cleanSaveCode, logSetAnswer } from './online.js';
 import { setQuestions } from './engine.js';
 import { createFight, stepFight, answerInFight, surging, useSkill } from './fight.js';
 import { createScene } from './scene.js';
@@ -31,8 +33,12 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 function load() {
   try { return normalizeState(JSON.parse(localStorage.getItem(SAVE_KEY))); } catch { return newGame(); }
 }
-function save() {
+function saveLocal() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch { /* bộ nhớ đầy hoặc bị chặn */ }
+}
+function save() {
+  saveLocal();
+  if (typeof scheduleCloud === 'function') scheduleCloud();
 }
 let state = load();
 
@@ -500,6 +506,7 @@ RENDER.settings = () => {
   $('#subject-list').innerHTML = SUBJECTS.map((s) => `<label class="pill"><input type="checkbox" data-subject="${s.id}" ${state.settings.subjects.includes(s.id) ? 'checked' : ''}> ${s.icon} ${esc(s.name)}</label>`).join('');
   $('#grade-list').innerHTML = GRADES.map((g) => `<label class="pill"><input type="radio" name="grade" data-grade="${g.id}" ${state.settings.grade === g.id ? 'checked' : ''}> ${esc(g.name)}</label>`).join('');
   $('#sound-toggle').checked = state.settings.sound;
+  renderCloud();
   const n = setQuestions(state).length;
   $('#custom-status').textContent = n ? `Đang dùng ${n} câu từ ${state.sets.filter((s) => s.enabled !== false).length} bộ đề.` : 'Chưa có bộ đề nào.';
 };
@@ -515,6 +522,73 @@ $('#subject-list').addEventListener('change', (e) => {
 });
 $('#grade-list').addEventListener('change', (e) => { if (e.target.dataset.grade) { state.settings.grade = e.target.dataset.grade; save(); } });
 $('#sound-toggle').addEventListener('change', (e) => { state.settings.sound = e.target.checked; save(); });
+// ---------- Thi đấu ----------
+const matchUI = initMatchUI({
+  getState: () => state, save, toast, esc, banner,
+  beep: (notes) => beep(notes),
+  isIdle: () => game.mode === 'idle',
+  onChange: () => renderHud(),
+});
+RENDER.match = () => matchUI.open();
+
+// ---------- Lưu tiến trình trên mạng ----------
+let cloudTimer = null;
+let cloudBusy = false;
+function scheduleCloud(delay = 15000) {
+  if (!state.cloud?.code) return;
+  clearTimeout(cloudTimer);
+  cloudTimer = setTimeout(pushCloud, delay);
+}
+async function pushCloud() {
+  if (!state.cloud?.code || cloudBusy) return;
+  cloudBusy = true;
+  try { await cloudPush(state); saveLocal(); } catch (err) { console.warn('Chưa đồng bộ được:', err); }
+  cloudBusy = false;
+  if ($('#sheet-settings').open) renderCloud();
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') pushCloud(); });
+function renderCloud() {
+  const c = state.cloud;
+  $('#cloud-body').innerHTML = c?.code ? `
+    <p class="muted small">Tiến trình của bạn tự lưu lên mạng sau mỗi lượt câu. Sang máy khác, nhập mã này để chơi tiếp.</p>
+    <div class="save-code">${esc(c.code)}</div>
+    <p class="small">Lần đồng bộ gần nhất: ${c.syncedAt ? new Date(c.syncedAt).toLocaleString('vi-VN') : 'chưa'}</p>
+    <div class="row"><button class="btn sea" id="cloud-sync">🔄 Đồng bộ ngay</button><button class="btn" id="cloud-copy">📋 Chép mã</button></div>
+    <p class="muted small">⚠️ Giữ kín mã này như mật khẩu – ai có mã sẽ mở được tiến trình của bạn.</p>`
+    : `<p class="muted small">Chưa bật. Tạo mã lưu để không mất cá, cấp và vật phẩm khi đổi máy hay xoá dữ liệu trình duyệt.</p>
+    <div class="row"><button class="btn gold" id="cloud-create">☁️ Tạo mã lưu</button></div>`;
+  $('#cloud-body').innerHTML += `
+    <details><summary class="small"><b>Khôi phục tiến trình bằng mã lưu</b></summary>
+      <div class="row"><input id="cloud-code-in" class="nick-input code-input" maxlength="16" placeholder="XXXX-XXXX-XXXX" autocomplete="off">
+        <button class="btn" id="cloud-restore">⬇️ Khôi phục</button></div></details>`;
+}
+$('#cloud-body').addEventListener('click', async (e) => {
+  const id = e.target.id;
+  if (id === 'cloud-create') {
+    try {
+      const code = await cloudCreate(state);
+      saveLocal();
+      renderCloud();
+      toast(`☁️ Mã lưu của bạn: <b style="font-size:1.3em;letter-spacing:2px">${esc(code)}</b> – hãy ghi lại!`);
+    } catch (err) { toast(`⚠️ Chưa tạo được mã (cần mạng): ${esc(err.message)}`); }
+  } else if (id === 'cloud-sync') { await pushCloud(); toast('☁️ Đã đồng bộ.'); }
+  else if (id === 'cloud-copy') { try { await navigator.clipboard.writeText(state.cloud.code); toast('📋 Đã chép mã lưu.'); } catch { /* bỏ qua */ } }
+  else if (id === 'cloud-restore') {
+    const code = cleanSaveCode($('#cloud-code-in').value);
+    try {
+      const r = await cloudFetch(code);
+      const s = r.save;
+      if (!confirm(`Khôi phục tiến trình (cấp ${levelFromXp(s.xp || 0)}, ${Object.keys(s.collection || {}).length} loài cá, lưu lúc ${new Date(r.updatedAt).toLocaleString('vi-VN')})?\nTiến trình hiện tại trên máy này sẽ được thay thế.`)) return;
+      state = normalizeState(s);
+      state.cloud = { code: r.code, syncedAt: Date.now() };
+      saveLocal();
+      $('#sheet-settings').close();
+      renderHud();
+      toast('✅ Đã khôi phục tiến trình!');
+    } catch (err) { toast(`⚠️ ${esc(err.message)}`); }
+  }
+});
+
 // ---------- Bộ đề (giáo viên / phụ huynh) ----------
 const setsUI = initSetsUI({
   getState: () => state, save, toast, esc,
@@ -893,12 +967,15 @@ async function fightQuestion() {
   $('#action-btn').classList.remove('pressed');
   setMode('question');
   const n = fight.total - fight.questionsLeft + 1;
-  const question = fightLog.length === 0 ? attempt.question : nextQuestion(state, attempt);
+  // Đang thi đấu: câu hỏi lấy từ trận (máy chủ chấm); không thì câu thường.
+  const question = matchUI.nextQuestion() || (fightLog.length === 0 ? attempt.question : nextQuestion(state, attempt));
   banner('CÁ VÙNG VẪY!', 'red', 900);
   await wait(500);
   const choice = await askQuestion(question, { step: `Câu ${n}/${fight.total}`, lives: fight.lives });
   const res = answerQuestion(state, question, choice);
   fightLog.push({ question, choice, correct: res.correct, xp: res.xp });
+  // Học sinh làm bộ đề của thầy cô (tải bằng mã) → ghi kết quả cho báo cáo giáo viên.
+  if (question.setCode) logSetAnswer(state, question.setCode, question.text, res.correct).catch(() => {});
   const outcome = answerInFight(fight, res.correct);
   save();
   renderFight();
@@ -925,7 +1002,8 @@ function askQuestion(q, { step, lives }) {
   $('#q-rarity').textContent = `Cá ${r.name}`;
   $('#q-rarity').style.background = r.color;
   $('#q-step').textContent = `${step} · ${'❤️'.repeat(lives)}`;
-  $('#q-subject').textContent = `${subject ? `${subject.icon} ${subject.name}` : ''}${q.isReview ? ' · 📒 Ôn lại câu từng sai' : ''}`;
+  $('#q-subject').textContent = q.matchLabel || `${subject ? `${subject.icon} ${subject.name}` : ''}${q.isReview ? ' · 📒 Ôn lại câu từng sai' : ''}`;
+  const askedAt = performance.now();
   $('#q-lead').textContent = rarityIndex(attempt.rarity) >= 4 ? '😱 Cá cực hiếm đang vùng vẫy! Trả lời đúng để giữ chặt!'
     : 'Cá đang vùng vẫy! Trả lời đúng để làm cá yếu đi.';
   $('#q-text').textContent = q.text;
@@ -959,11 +1037,19 @@ function askQuestion(q, { step, lives }) {
       if (timeLeft <= 0) finish(null);
     }, 250);
     function close(choice) { dlg.close(); resolve(choice); }
-    function finish(choice) {
+    async function finish(choice) {
       if (finished) return;
       finished = true;
       clearInterval(timer);
       document.removeEventListener('keydown', onKey);
+      $('#q-choices').querySelectorAll('.choice').forEach((b) => { b.disabled = true; });
+      $('#q-tools').hidden = true;
+      // Câu thi đấu: gửi đáp án cho máy chủ chấm rồi mới hiện đúng/sai.
+      if (q.grade) {
+        $('#q-explain').hidden = false;
+        $('#q-explain').innerHTML = '⏳ Đang chấm…';
+        await q.grade(choice, performance.now() - askedAt);
+      }
       $('#q-choices').querySelectorAll('.choice').forEach((b) => {
         b.disabled = true;
         const i = Number(b.dataset.i);
@@ -998,6 +1084,7 @@ function askQuestion(q, { step, lives }) {
       if (btn && !btn.disabled) finish(Number(btn.dataset.i));
     };
     $('#q-hint').onclick = () => {
+      if (q.grade) { toast('Phao gợi ý không dùng được trong trận đấu.'); return; }
       if (usedHint || !useHelper(state, 'hint')) return;
       usedHint = true;
       for (const i of fiftyFifty(q)) $(`#q-choices [data-i="${i}"]`).classList.add('hidden-choice');
@@ -1027,6 +1114,7 @@ async function finishCatch() {
   const before = levelFromXp(state.xp - fightLog.reduce((a, l) => a + l.xp, 0));
   const landed = landFish(state, attempt);
   save();
+  matchUI.onFish(rarityIndex(attempt.rarity));
   const fish = fishById(attempt.fishId);
   const r = rarityOf(fish.rarity);
   setMode('result');
@@ -1123,6 +1211,7 @@ function endTurn() {
 setMode('idle');
 renderHud();
 syncOnline({ force: true });
+matchUI.resume();
 if (!state.stats.casts) {
   setTimeout(() => banner('CÂU CÁ HỌC GIỎI<small>Giữ nút 🎣 để lấy lực, thả tay để ném!</small>', 'gold', 3200), 400);
 }

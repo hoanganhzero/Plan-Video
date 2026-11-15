@@ -9,7 +9,7 @@ import {
 } from './content.js';
 import { extractText, fileKind, fileToBase64 } from './extract.js';
 import { generateQuestionsAI, loadKey, saveKey, MAX_FILE_BYTES } from './ai.js';
-import { publishSet, fetchSet, cleanCode } from './online.js';
+import { publishSet, fetchSet, cleanCode, setReport } from './online.js';
 
 const DIFF = { 1: 'Dễ', 2: 'Vừa', 3: 'Khó' };
 
@@ -23,6 +23,7 @@ export function initSetsUI({ getState, save, toast, esc, beep, onChange }) {
   let doc = { text: '', file: null, kind: '', note: '', name: '' };
   let fetched = null; // bộ đề tải theo mã
   let busy = '';
+  let reportView = null; // { set, data } – báo cáo bộ đề đã chia sẻ
 
   const state = () => getState();
   const sets = () => (state().sets ||= []);
@@ -42,7 +43,7 @@ export function initSetsUI({ getState, save, toast, esc, beep, onChange }) {
   // ------------------------------------------------------------------ render
   function render() {
     document.querySelectorAll('#sets-tabs [data-stab]').forEach((b) => b.classList.toggle('active', b.dataset.stab === tab));
-    if (tab === 'mine') body.innerHTML = editingId ? renderEditor() : renderList();
+    if (tab === 'mine') body.innerHTML = reportView ? renderSetReport() : editingId ? renderEditor() : renderList();
     else if (tab === 'import') body.innerHTML = renderImport();
     else body.innerHTML = renderJoin();
   }
@@ -70,6 +71,7 @@ export function initSetsUI({ getState, save, toast, esc, beep, onChange }) {
           <div class="set-acts">
             <button class="btn small" data-act="edit" data-id="${s.id}">✏️ Sửa</button>
             <button class="btn small sea" data-act="share" data-id="${s.id}" ${s.questions.length ? '' : 'disabled'}>🔗 Chia sẻ</button>
+            ${s.code ? `<button class="btn small gold" data-act="set-report" data-id="${s.id}">📊 Báo cáo</button>` : ''}
             <button class="btn small" data-act="csv" data-id="${s.id}" ${s.questions.length ? '' : 'disabled'}>⬇️ CSV</button>
             <button class="btn small danger" data-act="del-set" data-id="${s.id}">🗑️</button>
           </div>
@@ -130,6 +132,29 @@ export function initSetsUI({ getState, save, toast, esc, beep, onChange }) {
           <div class="q-acts"><button class="btn small" data-act="edit-q" data-id="${q.id}">✏️</button><button class="btn small danger" data-act="del-q" data-id="${q.id}">🗑️</button></div>
         </li>`).join('')}</ol>
       ${s.questions.length ? '' : '<p class="muted">Chưa có câu hỏi – thêm bằng biểu mẫu ở trên, dán nhanh, hoặc tạo từ tài liệu.</p>'}`;
+  }
+
+  function renderSetReport() {
+    const { set, data } = reportView;
+    if (!data) return '<p>⏳ Đang tải báo cáo…</p>';
+    const qs = data.questions || [];
+    const st = data.students || [];
+    const pct = (ok, total) => (total ? Math.round((ok / total) * 100) : 0);
+    const color = (r) => (r < 50 ? '#ef4444' : r < 80 ? '#f59e0b' : '#22c55e');
+    return `<div class="row"><button class="btn small" data-act="report-back">← Danh sách bộ đề</button><span class="spacer"></span>
+        <span class="code-pill">🔑 ${esc(set.code)}</span></div>
+      <h3>📊 ${esc(set.name)}</h3>
+      <p class="muted small">Ghi lại khi học sinh tải bộ đề bằng mã rồi trả lời trong trò chơi. ${st.length} học sinh · ${qs.reduce((a, q) => a + q.total, 0)} lượt trả lời.</p>
+      ${qs.length ? `<h3>📉 Câu học sinh sai nhiều nhất</h3><div class="rep-q">${qs.map((q, i) => {
+        const r = pct(q.ok, q.total);
+        return `<div class="rq"><span class="rq-n">${i + 1}</span><div class="rq-main"><b>${esc(q.q)}</b></div>
+          <div class="rq-bar"><i style="width:${r}%;background:${color(r)}"></i></div><b>${r}%</b><span class="muted small">${q.ok}/${q.total}</span></div>`;
+      }).join('')}</div>
+      <h3>👩‍🎓 Từng học sinh</h3>
+      <table class="rep-t"><thead><tr><th>Học sinh</th><th>Đúng</th><th>Tỉ lệ</th><th>Câu còn sai</th><th>Lần cuối</th></tr></thead><tbody>
+        ${st.map((p) => `<tr><td>${esc(p.nickname)}</td><td>${p.ok}/${p.total}</td><td style="color:${color(pct(p.ok, p.total))}">${pct(p.ok, p.total)}%</td>
+          <td class="small">${(p.wrong || []).map((w) => esc(w)).join('<br>') || '–'}</td><td class="small">${new Date(p.last).toLocaleString('vi-VN')}</td></tr>`).join('')}
+      </tbody></table>` : '<div class="card">Chưa có học sinh nào trả lời. Gửi mã bộ đề cho học sinh, các em vào <b>Bộ đề → Nhập mã</b> rồi đi câu nhé.</div>'}`;
   }
 
   function renderImport() {
@@ -387,6 +412,14 @@ export function initSetsUI({ getState, save, toast, esc, beep, onChange }) {
       const set = findSet(id);
       download(`${set.name}.csv`, setToCSV(set), 'text/csv;charset=utf-8');
     } else if (act === 'share') share(id);
+    else if (act === 'set-report') {
+      const set = findSet(id);
+      reportView = { set, data: null };
+      render();
+      setReport(state(), set.code)
+        .then((data) => { reportView = { set, data }; render(); })
+        .catch((err) => { reportView = null; render(); toast(`⚠️ Chưa tải được báo cáo: ${esc(err.message)}`); });
+    } else if (act === 'report-back') { reportView = null; render(); }
     else if (act === 'save-q' && s) {
       const raw = readForm();
       const q = normalizeQuestion({ ...raw, id: editingQ || undefined });

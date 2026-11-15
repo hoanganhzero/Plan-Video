@@ -37,6 +37,7 @@
   <!-- MENU BÊN TRÁI -->
   <nav class="side-menu" aria-label="Menu">
     <button data-open="rank" class="rank-btn"><span class="ico">🏆</span><span class="lbl">Xếp hạng</span></button>
+    <button data-open="match" class="match-btn"><span class="ico">⚔️</span><span class="lbl">Thi đấu</span></button>
     <button data-open="quests"><span class="ico">📜</span><span class="lbl">Nhiệm vụ</span><i class="badge" id="quest-badge" hidden></i></button>
     <button data-open="bucket"><span class="ico">🪣</span><span class="lbl">Thùng cá</span><i class="badge blue" id="bucket-badge" hidden></i></button>
     <button data-open="dex"><span class="ico">📚</span><span class="lbl">Sưu tập</span></button>
@@ -50,6 +51,9 @@
   <div class="screen-flash" id="screen-flash" aria-hidden="true"></div>
   <div class="banner" id="banner" aria-live="assertive"></div>
   <div class="hint-line" id="scene-msg" aria-live="polite"></div>
+
+  <!-- TRẬN ĐẤU ĐANG DIỄN RA -->
+  <button class="match-hud" id="match-hud" hidden aria-label="Bảng điểm trận đấu"></button>
 
   <!-- BẢNG KÉO CÁ -->
   <div class="fight-hud" id="fight-hud" hidden>
@@ -120,6 +124,19 @@
         <button class="btn small sea" id="rank-refresh">🔄 Làm mới</button></div>
       <ol id="rank-list" class="rank-list"></ol>
       <p class="muted small">Điểm xếp hạng = tổng kinh nghiệm (KN) kiếm được nhờ trả lời đúng và câu cá. Bảng tự cập nhật mỗi 20 giây khi đang mở.</p>
+    </div>
+  </dialog>
+
+  <dialog class="sheet wide" id="sheet-match">
+    <header><h2>⚔️ Thi đấu</h2><button class="close" data-close aria-label="Đóng">✕</button></header>
+    <div class="sheet-body">
+      <div class="tabs-row" id="match-tabs" role="tablist">
+        <button data-mtab="join">🔑 Tham gia</button>
+        <button data-mtab="create">🚀 Tạo trận</button>
+        <button data-mtab="play" hidden>📺 Trận hiện tại</button>
+        <button data-mtab="mine">🗂️ Trận của tôi</button>
+      </div>
+      <div id="match-body"></div>
     </div>
   </dialog>
 
@@ -217,6 +234,10 @@
           <li>Tới mốc, cá vùng vẫy mạnh → <b>trả lời câu hỏi</b>. Đúng: cá yếu đi. Sai: cá kéo ra xa và mất 1 ❤️ độ bền dây.</li>
         </ol>
         <p class="muted small">Phím tắt: giữ <kbd>Space</kbd> để ném / kéo, <kbd>1</kbd>–<kbd>4</kbd> chọn đáp án.</p>
+      </div>
+      <div class="card" id="cloud-card">
+        <h3>☁️ Lưu tiến trình trên mạng</h3>
+        <div id="cloud-body"></div>
       </div>
       <div class="card">
         <h3>💾 Dữ liệu</h3>
