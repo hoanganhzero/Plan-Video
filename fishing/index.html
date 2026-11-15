@@ -30,6 +30,7 @@
       <span class="res" title="Xu">🪙 <b id="hud-coins">0</b></span>
       <span class="res" title="Chuỗi trả lời đúng liên tiếp">🔥 <b id="hud-streak">0</b></span>
       <span class="res hide-sm" title="Loài cá đã câu được">🐟 <b id="hud-species">0</b></span>
+      <button class="res world-pill" id="world-pill" title="Các bạn đang câu cùng khu">👥 <b id="world-count">1</b></button>
       <button class="res rank-pill" id="hud-rank" data-open="rank" title="Bảng xếp hạng">🏆 <b id="hud-rank-text">Đua top</b></button>
     </div>
   </header>
@@ -49,6 +50,7 @@
 
   <!-- THÔNG BÁO GIỮA MÀN HÌNH -->
   <div class="screen-flash" id="screen-flash" aria-hidden="true"></div>
+  <div class="world-feed" id="world-feed" aria-live="polite"></div>
   <div class="banner" id="banner" aria-live="assertive"></div>
   <div class="hint-line" id="scene-msg" aria-live="polite"></div>
 
@@ -78,6 +80,8 @@
       <button class="gear-chip" id="rod-chip" data-open="shop" title="Cần câu đang dùng"></button>
       <button class="gear-chip" id="line-chip" data-open="shop" title="Dây câu đang dùng"></button>
       <button class="gear-chip" id="bait-chip" title="Bấm để đổi mồi"></button>
+      <button class="gear-chip emote-chip" id="emote-btn" title="Gửi biểu cảm cho các bạn cùng hồ">😀</button>
+      <div class="emote-pop" id="emote-pop" hidden></div>
       <div class="boosts" id="boosts" aria-label="Vật phẩm hỗ trợ (bấm để bật cho lượt tới)">
         <button class="boost" data-boost="charm"></button>
         <button class="boost" data-boost="tea"></button>
@@ -215,6 +219,8 @@
         <h3>Trình độ Toán</h3>
         <div id="grade-list" class="subject-list"></div>
         <label class="check"><input type="checkbox" id="sound-toggle"> 🔊 Âm thanh</label>
+        <label class="check"><input type="checkbox" id="world-toggle"> 👥 Thế giới chung – thấy và được các bạn cùng khu nhìn thấy</label>
+        <p class="muted small">Chỉ chia sẻ biệt danh, cấp và hành động câu cá. Không có ô chat gõ chữ – chỉ biểu cảm có sẵn.</p>
       </div>
       <div class="card">
         <h3>📝 Bộ đề của thầy cô / phụ huynh</h3>
@@ -286,6 +292,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+  <script src="vendor/supabase.min.js" defer></script>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

@@ -124,6 +124,11 @@ Trò chơi vừa học vừa chơi trong thư mục `fishing/` – mở `http://
   - **Báo cáo cho giáo viên** (chủ trận): tỉ lệ đúng từng câu (câu khó nhất lên đầu), từng học sinh sai câu nào, thời gian trung bình – tải về CSV / Excel.
 - **☁️ Lưu tiến trình trên mạng** (Cài đặt): tạo **mã lưu 12 ký tự**, tiến trình tự đồng bộ sau mỗi lượt câu; sang máy khác nhập mã để chơi tiếp. Máy chủ chỉ giữ mã dạng băm (SHA-256).
 - **📊 Báo cáo bộ đề**: khi học sinh tải bộ đề bằng mã và trả lời trong trò chơi, giáo viên (người chia sẻ) xem được tỉ lệ đúng từng câu và các câu mỗi học sinh còn sai (Bộ đề → 📊 Báo cáo).
+- **👥 Thế giới chung**: các bạn đang câu cùng một khu thấy nhau ngay trên hồ 3D (tối đa 7 bạn hiện trên hồ, mỗi bạn một chiếc bè, áo màu riêng, bảng tên và cấp).
+  - Thấy bạn khác ném câu, cá cắn, kéo cá (cần cong theo độ căng) và con cá họ vừa câu được; góc phải hiện tin "Bình câu được Cá chép hoá rồng".
+  - Nút 😀 gửi **biểu cảm có sẵn** (Xin chào!, Hay quá!, Cố lên!…). **Không có ô chat gõ chữ** để an toàn cho học sinh; chỉ chia sẻ biệt danh, cấp và hành động câu cá.
+  - Nút 👥 trên cùng cho biết bao nhiêu bạn đang cùng khu. Tắt/bật trong Cài đặt.
+  - Chạy bằng Supabase Realtime (presence + broadcast, kênh `fishing:world:<khu>`), không ghi gì vào cơ sở dữ liệu. Thử trên một máy: mở nhiều tab với `index.html?mp=local&pk=ban00001&name=An`.
 - **Sổ ôn tập**: câu trả lời sai được ghi lại kèm đáp án và được hỏi lại sau; trả lời đúng thì xoá khỏi sổ.
 - Thùng cá (bán lấy xu), Bộ sưu tập, Cửa hàng; tự lưu trong trình duyệt, xuất/nhập file lưu; chơi được trên điện thoại.
 
@@ -177,6 +182,7 @@ fishing/                Trò chơi Câu Cá Học Giỏi
   js/sets-ui.js         Giao diện Bộ đề (soạn tay, tạo từ tài liệu, chia sẻ mã, báo cáo)
   js/match.js           Thi đấu: xếp hạng đội, đồng hồ theo giờ máy chủ, báo cáo giáo viên
   js/match-ui.js        Giao diện Thi đấu (tạo / tham gia / phòng chờ / bảng điểm / kết quả)
+  js/world.js           Thế giới chung: thấy các bạn cùng câu theo thời gian thực, biểu cảm có sẵn
   supabase/             SQL máy chủ thi đấu (bảng khoá RLS + hàm chấm điểm)
   js/fish3d.js          Cá 4D: mô hình 3D từng loài + chuyển động bơi, khung xem xoay được
   js/icons.js           Biểu tượng vật phẩm, cần câu, dây câu (SVG)

@@ -9,6 +9,8 @@ import {
 import { SUBJECTS, GRADES, SKILLS, rarityOf, rarityIndex, subjectById } from './data.js';
 import { initSetsUI } from './sets-ui.js';
 import { initMatchUI } from './match-ui.js';
+import { createWorld, assignSlots, EMOTES, makePublicId, colorFor } from './world.js';
+import { ONLINE } from './online.js';
 import { cloudCreate, cloudPush, cloudFetch, cleanSaveCode, logSetAnswer } from './online.js';
 import { setQuestions } from './engine.js';
 import { createFight, stepFight, answerInFight, surging, useSkill } from './fight.js';
@@ -135,6 +137,7 @@ function renderHud() {
   $('#hud-species').textContent = `${Object.keys(state.collection).length}/${speciesTotal()}`;
   const z = zoneById(state.zone);
   $('#zone-pill').innerHTML = `${z.icon} ${esc(z.name)} ▾`;
+  if (typeof world !== 'undefined') syncWorld();
   const ready = activeQuests(state).filter((q) => questProgress(state, q).done).length;
   $('#quest-badge').hidden = !ready;
   $('#quest-badge').textContent = ready;
@@ -506,6 +509,7 @@ RENDER.settings = () => {
   $('#subject-list').innerHTML = SUBJECTS.map((s) => `<label class="pill"><input type="checkbox" data-subject="${s.id}" ${state.settings.subjects.includes(s.id) ? 'checked' : ''}> ${s.icon} ${esc(s.name)}</label>`).join('');
   $('#grade-list').innerHTML = GRADES.map((g) => `<label class="pill"><input type="radio" name="grade" data-grade="${g.id}" ${state.settings.grade === g.id ? 'checked' : ''}> ${esc(g.name)}</label>`).join('');
   $('#sound-toggle').checked = state.settings.sound;
+  $('#world-toggle').checked = state.settings.showWorld !== false;
   renderCloud();
   const n = setQuestions(state).length;
   $('#custom-status').textContent = n ? `Đang dùng ${n} câu từ ${state.sets.filter((s) => s.enabled !== false).length} bộ đề.` : 'Chưa có bộ đề nào.';
@@ -522,6 +526,94 @@ $('#subject-list').addEventListener('change', (e) => {
 });
 $('#grade-list').addEventListener('change', (e) => { if (e.target.dataset.grade) { state.settings.grade = e.target.dataset.grade; save(); } });
 $('#sound-toggle').addEventListener('change', (e) => { state.settings.sound = e.target.checked; save(); });
+// ---------- Thế giới chung: thấy các bạn cùng câu ----------
+// Khoá "anon" công khai (dành cho trình duyệt) – Realtime dùng khoá dạng JWT này.
+const REALTIME_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNrYmRiY3Byc2dzaXVubGlxaGhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0NzUyNTMsImV4cCI6MjEwMTA1MTI1M30.jokp_ihSS_-EsOVmn6Vd830XO8F5t2c7_mb6JHjqdq0';
+const qs = new URLSearchParams(location.search);
+// ?mp=local&pk=...&name=... : thử nhiều người trên một máy (các tab cùng trình duyệt), không cần mạng.
+const worldMode = qs.get('mp') === 'local' ? 'local' : 'supabase';
+const testId = /^[a-z0-9]{6,24}$/.test(qs.get('pk') || '') ? qs.get('pk') : null;
+state.online ||= {};
+if (!state.online.publicId) { state.online.publicId = makePublicId(); saveLocal(); }
+const worldNames = new Map();
+let seats = new Map();
+let worldStatus = 'idle';
+function identity() {
+  const id = testId || state.online.publicId;
+  const name = (testId && qs.get('name')) || cleanNickname(state.online.nickname) || `Ngư dân ${id.slice(0, 3).toUpperCase()}`;
+  return { id, name, level: levelFromXp(state.xp), rod: state.rod, color: colorFor(id), title: state.titles.at(-1) || '' };
+}
+function feed(html) {
+  const el = document.createElement('div');
+  el.className = 'feed-item';
+  el.innerHTML = html;
+  const box = $('#world-feed');
+  box.prepend(el);
+  while (box.children.length > 4) box.lastChild.remove();
+  setTimeout(() => el.classList.add('out'), 6000);
+  setTimeout(() => el.remove(), 6800);
+}
+const world = createWorld({
+  identity, mode: worldMode, url: ONLINE.url, key: REALTIME_KEY,
+  onPlayers(players, total) {
+    seats = assignSlots(players, seats);
+    const shown = players.filter((p) => seats.has(p.id)).map((p) => ({ ...p, seat: seats.get(p.id) }));
+    for (const p of players) {
+      if (!worldNames.has(p.id) && worldStatus === 'SUBSCRIBED' && worldNames.size) feed(`👋 <b>${esc(p.name)}</b> vừa đến câu cùng bạn`);
+      worldNames.set(p.id, p.name);
+    }
+    scene.setRemotePlayers?.(shown);
+    $('#world-count').textContent = world.zone ? Math.max(1, total || players.length + 1) : '–';
+    $('#world-pill').title = players.length ? `Đang câu cùng: ${players.map((p) => p.name).join(', ')}` : 'Chưa có bạn nào cùng khu – rủ bạn vào chơi nhé!';
+  },
+  onEvent(type, ev) {
+    const name = worldNames.get(ev.id) || 'Một bạn';
+    if (type === 'act') scene.remoteAct?.(ev.id, ev);
+    else if (type === 'catch') {
+      const fish = fishById(ev.fishId);
+      const r = rarityOf(fish.rarity);
+      scene.remoteCatch?.(ev.id, fish.id, r.color, `🎉 ${fish.name}!`);
+      feed(`🎣 <b>${esc(name)}</b> câu được ${tag(fish.rarity, esc(fish.name))}${ev.kg ? ` <span class="muted">${ev.kg} kg</span>` : ''}`);
+      if (rarityIndex(fish.rarity) >= 4) banner(`✨ ${esc(name)} câu được ${esc(fish.name)}!`, 'gold', 2200);
+    } else if (type === 'emote') {
+      const [e, text] = EMOTES[ev.e];
+      scene.remoteEmote?.(ev.id, `${e} ${text}`);
+    }
+  },
+  onStatus(s) {
+    worldStatus = s;
+    if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'ERROR') {
+      $('#world-count').textContent = '–';
+      $('#world-pill').title = 'Chưa kết nối được thế giới chung (cần mạng).';
+    }
+  },
+});
+function syncWorld() {
+  if (state.settings.showWorld === false) { if (world.zone) world.leave(); return; }
+  if (world.zone !== state.zone) { seats = new Map(); world.join(state.zone); }
+}
+// Biểu cảm có sẵn (không có chat gõ tự do)
+$('#emote-pop').innerHTML = EMOTES.map(([e, text], i) => `<button data-emote="${i}" title="${esc(text)}"><span>${e}</span><small>${esc(text)}</small></button>`).join('');
+$('#emote-btn').addEventListener('click', (e) => { e.stopPropagation(); $('#emote-pop').hidden = !$('#emote-pop').hidden; });
+$('#emote-pop').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-emote]');
+  if (!b) return;
+  const [emo, text] = EMOTES[Number(b.dataset.emote)];
+  const sent = world.emote(Number(b.dataset.emote));
+  if (!sent && world.zone) { toast('Chậm lại chút nhé 🙂'); return; }
+  scene.selfEmote?.(`${emo} ${text}`);
+  beep(SOUND.click);
+  $('#emote-pop').hidden = true;
+});
+document.addEventListener('click', (e) => { if (!e.target.closest('#emote-pop, #emote-btn')) $('#emote-pop').hidden = true; });
+$('#world-pill').addEventListener('click', () => {
+  const names = [...worldNames.values()];
+  toast(names.length ? `👥 Đang câu cùng bạn: <b>${names.map(esc).join(', ')}</b>` : '👥 Chưa có bạn nào ở khu này – rủ bạn vào cùng câu nhé!');
+});
+$('#world-toggle').addEventListener('change', (e) => { state.settings.showWorld = e.target.checked; save(); syncWorld(); });
+// Chỉ ở chế độ thử nhiều người trên một máy: cho script kiểm thử điều khiển.
+if (worldMode === 'local') window.__fishTest = { world, scene };
+
 // ---------- Thi đấu ----------
 const matchUI = initMatchUI({
   getState: () => state, save, toast, esc, banner,
@@ -633,6 +725,7 @@ $('#reset-btn').addEventListener('click', () => {
 });
 
 function afterAction() {
+  world.refreshMeta();
   const nowDone = activeQuests(state).filter((q) => questProgress(state, q).done);
   for (const q of nowDone) {
     if (!doneQuestIds.has(q.id)) toast(`📜 Hoàn thành nhiệm vụ "<b>${esc(q.title)}</b>"! Mở 📜 Nhiệm vụ để nhận thưởng.`);
@@ -752,6 +845,7 @@ function setAction(mode) {
 
 function setMode(mode) {
   game.mode = mode;
+  if (typeof world !== 'undefined') world.act(mode === 'question' ? 'fight' : mode, { dist: attempt?.distance || 12, tension: fight?.tension || 0 });
   setAction(mode === 'cast' ? 'wait' : mode === 'question' || mode === 'result' ? 'busy' : mode);
   $('#power').hidden = mode !== 'charge';
   $('#fight-hud').hidden = !(mode === 'fight' || mode === 'question');
@@ -951,6 +1045,7 @@ function fightTick(now) {
     ev = stepFight(fight, dt, game.holding);
   }
   scene.fight?.(fight.distance / Math.max(1, fight.start), fight.tension, surging(fight), fight.stun);
+  world.act('fight', { tension: fight.tension });
   renderFight();
   if (surging(fight) && !lastSurge) { hint('🌊 Cá đang vùng vẫy – <b>thả bớt</b> dây!'); if (navigator.vibrate) navigator.vibrate(60); }
   if (!surging(fight) && lastSurge) hint('<b>Giữ</b> để kéo · <b>thả</b> khi dây căng đỏ');
@@ -1115,6 +1210,7 @@ async function finishCatch() {
   const landed = landFish(state, attempt);
   save();
   matchUI.onFish(rarityIndex(attempt.rarity));
+  world.caught(attempt.fishId, attempt.kg);
   const fish = fishById(attempt.fishId);
   const r = rarityOf(fish.rarity);
   setMode('result');

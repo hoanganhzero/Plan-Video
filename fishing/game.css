@@ -723,3 +723,35 @@ details.card summary { cursor: pointer; }
 @media (max-width: 700px) {
   .side-menu { top: calc(118px + env(safe-area-inset-top)); bottom: auto; max-height: calc(100dvh - 118px - 150px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
 }
+
+/* ---------- Thế giới chung ---------- */
+.world-pill { cursor: pointer; font: inherit; color: var(--text); background: linear-gradient(180deg, rgba(61, 220, 132, .3), rgba(9, 30, 48, .85)); border-color: rgba(61, 220, 132, .6); }
+.emote-chip { font-size: 1.3rem; padding: 2px 10px; }
+.emote-pop {
+  position: absolute; bottom: 64px; left: 0; z-index: 8; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 10px;
+  background: var(--panel); border: 2px solid var(--gold); border-radius: 18px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.emote-pop[hidden] { display: none; }
+.emote-pop button {
+  display: flex; flex-direction: column; align-items: center; gap: 0; width: 82px; padding: 6px 2px; border-radius: 12px; cursor: pointer;
+  font: inherit; color: var(--text); background: rgba(255, 255, 255, .08); border: 2px solid transparent;
+}
+.emote-pop button:hover { border-color: var(--gold); }
+.emote-pop span { font-size: 1.7rem; line-height: 1.1; }
+.emote-pop small { font-size: .66rem; font-weight: 700; }
+.gear { position: relative; }
+.world-feed {
+  position: fixed; right: calc(14px + env(safe-area-inset-right)); top: calc(70px + env(safe-area-inset-top)); z-index: 5;
+  display: flex; flex-direction: column; gap: 6px; align-items: flex-end; pointer-events: none; max-width: min(340px, 60vw);
+}
+.feed-item {
+  padding: 6px 12px; border-radius: 14px; font-size: .88rem; background: var(--panel); border: 2px solid var(--line);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); animation: rise .3s; transition: opacity .7s, transform .7s;
+}
+.feed-item.out { opacity: 0; transform: translateX(30px); }
+@media (max-width: 700px) {
+  .world-feed { top: calc(170px + env(safe-area-inset-top)); max-width: 70vw; }
+  .feed-item { font-size: .78rem; }
+  .emote-pop { grid-template-columns: repeat(4, 1fr); left: -4px; }
+  .emote-pop button { width: 70px; }
+}

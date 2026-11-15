@@ -807,6 +807,7 @@ export function createScene3D(canvas) {
       }
     }
     gearFx(t, dt);
+    updateRemotes(t, dt);
     bobber.position.copy(bobPos);
     bobber.visible = !hideBobber;
     updateLine(tipPos, bobPos, sag);
@@ -976,7 +977,227 @@ export function createScene3D(canvas) {
     }
   }
 
+  // ===================================================================
+  // NGƯỜI CHƠI KHÁC – ngồi trên bè gỗ quanh hồ, hành động theo thời gian thực
+  // ===================================================================
+  // Chỗ ngồi (x, z) trên mặt nước, tránh đường ném câu của chính mình.
+  // Chỗ ngồi nằm trong khung nhìn của camera và tránh đường ném phao của mình.
+  const SEATS = [[13, -20], [-1, -16], [17, -27], [-3, -11], [1, -24], [9, -12], [-2, -29]];
+  const LAKE_CENTER = new THREE.Vector3(3, 0, -15);
+  const remotes = new Map(); // id → avatar
+
+  function labelSprite(lines, { bg = 'rgba(9,30,48,.85)', fg = '#fff', accent = '#ffc531', font = 34 } = {}) {
+    const c = document.createElement('canvas');
+    const g = c.getContext('2d');
+    g.font = `800 ${font}px "Baloo 2", system-ui, sans-serif`;
+    const w = Math.ceil(Math.max(...lines.map((l) => g.measureText(l.text).width))) + 44;
+    const h = lines.length * (font + 10) + 20;
+    c.width = w; c.height = h;
+    g.font = `800 ${font}px "Baloo 2", system-ui, sans-serif`;
+    g.fillStyle = bg;
+    g.strokeStyle = accent;
+    g.lineWidth = 4;
+    g.beginPath(); g.roundRect(2, 2, w - 4, h - 4, 22); g.fill(); g.stroke();
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    lines.forEach((l, i) => { g.fillStyle = l.color || fg; g.fillText(l.text, w / 2, 10 + (font + 10) * (i + 0.5)); });
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+    const k = 0.0105;
+    sp.scale.set(w * k, h * k, 1);
+    sp.renderOrder = 10;
+    return sp;
+  }
+
+  function makeAvatar(meta, seat) {
+    const g = new THREE.Group();
+    const [sx, sz] = SEATS[seat % SEATS.length];
+    g.position.set(sx, 0, sz);
+    // Quay mặt về giữa hồ
+    const look = Math.atan2(LAKE_CENTER.x - sx, LAKE_CENTER.z - sz);
+    const body = new THREE.Group();
+    body.rotation.y = look + Math.PI;
+    g.add(body);
+    // Bè gỗ
+    const raft = new THREE.Group();
+    for (let i = 0; i < 4; i++) raft.add(shadowed(mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.9, 7).rotateZ(Math.PI / 2), i % 2 ? M.wood : M.woodDark, 0, 0.12, -0.5 + i * 0.33)));
+    body.add(raft);
+    // Người câu (giống nhân vật chính, khác màu áo)
+    const shirt = mat(meta.color);
+    const person = new THREE.Group();
+    person.position.set(0, 0.3, 0.2);
+    person.add(shadowed(mesh(new THREE.CapsuleGeometry(0.24, 0.38, 4, 10), shirt, 0, 0.5, 0)));
+    person.add(shadowed(mesh(new THREE.SphereGeometry(0.19, 16, 12), M.skin, 0, 1.03, 0)));
+    person.add(shadowed(mesh(new THREE.ConeGeometry(0.44, 0.28, 20), M.hat, 0, 1.24, 0)));
+    const band = mesh(new THREE.TorusGeometry(0.3, 0.035, 6, 24), shirt, 0, 1.16, 0);
+    band.rotation.x = Math.PI / 2;
+    person.add(band);
+    const arm = shadowed(mesh(new THREE.CapsuleGeometry(0.065, 0.38, 3, 8), shirt, 0, 0.6, -0.25));
+    arm.rotation.x = 1.1;
+    person.add(arm);
+    body.add(person);
+    // Cần câu
+    const pivot = new THREE.Group();
+    pivot.position.set(0.05, 0.85, -0.45);
+    const rodColors = { bamboo: 0x8a6a2f, fiber: 0x0369a1, carbon: 0x111827, gold: 0xd97706, dragon: 0x991b1b };
+    const rod = shadowed(mesh(new THREE.CylinderGeometry(0.012, 0.035, 3, 6), new THREE.MeshStandardMaterial({ color: rodColors[meta.rod] || 0x8a6a2f, roughness: 0.5 }), 0, 1.5, 0));
+    pivot.add(rod);
+    pivot.rotation.x = -0.95;
+    body.add(pivot);
+    // Dây + phao
+    const lg = new THREE.BufferGeometry();
+    lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(12 * 3), 3));
+    const lineObj = new THREE.Line(lg, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 }));
+    lineObj.frustumCulled = false;
+    scene.add(lineObj);
+    const bob = new THREE.Group();
+    bob.add(mesh(new THREE.SphereGeometry(0.09, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: meta.color })));
+    bob.add(mesh(new THREE.SphereGeometry(0.09, 12, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xffffff })));
+    scene.add(bob);
+    // Bảng tên
+    const tag = labelSprite([{ text: `${meta.name}` }, { text: `⭐ Cấp ${meta.level}`, color: '#ffc531' }], { accent: meta.color, font: 30 });
+    tag.position.set(0, 2.45, 0);
+    g.add(tag);
+    scene.add(g);
+    const target = new THREE.Vector3(sx, 0, sz).lerp(LAKE_CENTER, 0.35);
+    return {
+      meta, seat, g, body, pivot, rod, lineObj, bob, tag, bubble: null, bubbleUntil: 0, target,
+      phase: 'idle', phaseAt: time.t, fish: null, fishUntil: 0, tension: 0, tip: new THREE.Vector3(), bobPos: new THREE.Vector3(),
+    };
+  }
+
+  function disposeAvatar(a) {
+    scene.remove(a.g); scene.remove(a.lineObj); scene.remove(a.bob);
+    if (a.fish) scene.remove(a.fish);
+    a.g.traverse((o) => { o.geometry?.dispose?.(); o.material?.map?.dispose?.(); });
+  }
+
+  function setBubble(a, text, ms = 3200) {
+    if (a.bubble) a.g.remove(a.bubble);
+    a.bubble = labelSprite([{ text }], { bg: 'rgba(255,255,255,.95)', fg: '#0b2233', accent: '#ffc531', font: 36 });
+    a.bubble.position.set(0, 3.25, 0);
+    a.g.add(a.bubble);
+    a.bubbleUntil = time.t + ms / 1000;
+  }
+
+  function updateRemotes(t, dt) {
+    for (const a of remotes.values()) {
+      const el = t - a.phaseAt;
+      // Bè nổi theo sóng
+      a.g.position.y = waveHeight(a.g.position.x, a.g.position.z) * 0.8;
+      a.body.rotation.z = Math.sin(t * 1.2 + a.seat) * 0.03;
+      let pitch = 0;
+      if (a.phase === 'charge') pitch = 0.6;
+      else if (a.phase === 'cast') pitch = el < 0.2 ? 0.6 : -0.3;
+      else if (a.phase === 'bite') pitch = -0.2 - Math.abs(Math.sin(t * 16)) * 0.1;
+      else if (a.phase === 'fight' || a.phase === 'question') pitch = -0.1 - a.tension * 0.35 + Math.sin(t * 20) * 0.02;
+      else if (a.phase === 'reel') pitch = 0.45;
+      a.pivot.rotation.x = -0.95 + pitch;
+      a.g.updateMatrixWorld(true);
+      a.rod.localToWorld(a.tip.set(0, 1.5, 0));
+      const wh = waveHeight(a.target.x, a.target.z);
+      let sag = 0.2;
+      if (a.phase === 'idle' || a.phase === 'charge' || a.phase === 'result') {
+        a.bobPos.set(a.tip.x, a.tip.y - 1, a.tip.z); sag = 0;
+      } else if (a.phase === 'cast') {
+        const k = Math.min(1, el / 0.75);
+        a.bobPos.lerpVectors(a.tip, a.target, k);
+        a.bobPos.y = a.tip.y + (wh - a.tip.y) * k + Math.sin(k * Math.PI) * 1.8;
+        if (k >= 1 && !a.landed) { a.landed = true; splash(a.target, 20, 0.6); ripple(a.target.x, a.target.z, 1); }
+      } else if (a.phase === 'wait') {
+        a.bobPos.set(a.target.x, wh + Math.sin(t * 2 + a.seat) * 0.02, a.target.z);
+      } else if (a.phase === 'bite') {
+        a.bobPos.set(a.target.x, wh - 0.05 - Math.max(0, Math.sin(t * 9)) * 0.2, a.target.z);
+        if (Math.random() < dt * 3) ripple(a.target.x, a.target.z, 0.7);
+      } else if (a.phase === 'fight' || a.phase === 'question') {
+        a.bobPos.set(a.target.x + Math.sin(t * 1.7 + a.seat) * 0.6, wh - 0.1, a.target.z + Math.cos(t * 1.3) * 0.3);
+        sag = 0;
+        if (Math.random() < dt * 4) { splash(a.bobPos, 4, 0.35, undefined, 1.5); ripple(a.bobPos.x, a.bobPos.z, 0.7); }
+      } else if (a.phase === 'reel') {
+        const k = Math.min(1, el / 1);
+        a.bobPos.lerpVectors(a.target, tmp2.set(a.tip.x, a.tip.y - 1.2, a.tip.z), 1 - (1 - k) ** 3);
+        a.bobPos.y += Math.sin(k * Math.PI) * 1.2;
+      }
+      if (a.fish) {
+        if (t > a.fishUntil) { scene.remove(a.fish); a.fish = null; }
+        else {
+          if (a.phase !== 'reel') a.bobPos.set(a.tip.x + Math.sin(t * 1.5) * 0.1, a.tip.y - 1.2, a.tip.z);
+          a.fish.position.copy(a.bobPos).add(tmp.set(0, -0.3 * a.fish.scale.y, 0));
+          a.fish.rotation.set(Math.sin(t * 6) * 0.3, t * 0.8, Math.PI / 2 + Math.sin(t * 5) * 0.2);
+          a.fish.userData.swim?.(t * 1.6, 1.2);
+        }
+      }
+      a.bob.position.copy(a.bobPos);
+      a.bob.visible = !a.fish;
+      const arr = a.lineObj.geometry.attributes.position.array;
+      for (let i = 0; i < 12; i++) {
+        const k = i / 11;
+        arr[i * 3] = a.tip.x + (a.bobPos.x - a.tip.x) * k;
+        arr[i * 3 + 1] = a.tip.y + (a.bobPos.y - a.tip.y) * k - Math.sin(k * Math.PI) * sag;
+        arr[i * 3 + 2] = a.tip.z + (a.bobPos.z - a.tip.z) * k;
+      }
+      a.lineObj.geometry.attributes.position.needsUpdate = true;
+      if (a.bubble && t > a.bubbleUntil) { a.g.remove(a.bubble); a.bubble = null; }
+      if (a.bubble) a.bubble.position.y = 3.25 + Math.sin(t * 3) * 0.05;
+    }
+    if (selfBubble && time.t > selfBubbleUntil) { scene.remove(selfBubble); selfBubble = null; }
+    if (selfBubble) { fisher.updateMatrixWorld(true); selfBubble.position.copy(fisher.position).add(tmp.set(0, 2.3 + Math.sin(t * 3) * 0.05, 0)); }
+  }
+  let selfBubble = null;
+  let selfBubbleUntil = 0;
+
   return {
+    // players: [{ id, name, level, rod, color, seat }]
+    setRemotePlayers(players) {
+      const keep = new Set(players.map((p) => p.id));
+      for (const [id, a] of remotes) {
+        if (!keep.has(id)) { burst(a.g.position.clone().add(new THREE.Vector3(0, 0.8, 0)), 30, '#e0f2fe', { shape: 'sphere', speed: 1.5, gravity: 1, fade: 1.2 }); disposeAvatar(a); remotes.delete(id); }
+      }
+      for (const p of players) {
+        const cur = remotes.get(p.id);
+        if (cur && cur.seat === p.seat && cur.meta.name === p.name && cur.meta.level === p.level && cur.meta.rod === p.rod) continue;
+        if (cur) { disposeAvatar(cur); remotes.delete(p.id); }
+        const a = makeAvatar(p, p.seat);
+        remotes.set(p.id, a);
+        if (!cur) { burst(a.g.position.clone().add(new THREE.Vector3(0, 0.8, 0)), 40, p.color, { shape: 'up', speed: 1, up: 2.5, gravity: 1, fade: 1 }); setBubble(a, '👋 Xin chào!', 2200); }
+      }
+    },
+    remoteAct(id, ev) {
+      const a = remotes.get(id);
+      if (!a) return;
+      if (ev.phase === 'fight' && a.phase === 'fight') { a.tension = ev.tension; return; }
+      if (ev.phase === 'cast') {
+        a.landed = false;
+        const [sx, sz] = SEATS[a.seat % SEATS.length];
+        const dir = tmp.set(LAKE_CENTER.x - sx, 0, LAKE_CENTER.z - sz).normalize();
+        a.target.set(sx + dir.x * (2 + ev.dist * 0.2), 0, sz + dir.z * (2 + ev.dist * 0.2));
+      }
+      if (ev.phase === 'bite') setBubble(a, '❗', 1200);
+      a.phase = ev.phase === 'question' ? 'fight' : ev.phase;
+      a.tension = ev.tension || 0;
+      a.phaseAt = time.t;
+    },
+    remoteCatch(id, fishId, color, label) {
+      const a = remotes.get(id);
+      if (!a) return;
+      if (a.fish) scene.remove(a.fish);
+      a.fish = buildFish3D(fishId);
+      a.fish.scale.setScalar(0.45);
+      scene.add(a.fish);
+      a.fishUntil = time.t + 6;
+      a.phase = 'reel';
+      a.phaseAt = time.t;
+      splash(a.target, 50, 0.9);
+      burst(a.target, 50, color, { shape: 'up', speed: 1.2, up: 5, gravity: 5, fade: 0.9 });
+      setBubble(a, label, 4000);
+    },
+    remoteEmote(id, text) { const a = remotes.get(id); if (a) setBubble(a, text); },
+    selfEmote(text) {
+      if (selfBubble) scene.remove(selfBubble);
+      selfBubble = labelSprite([{ text }], { bg: 'rgba(255,255,255,.95)', fg: '#0b2233', accent: '#ffc531', font: 36 });
+      scene.add(selfBubble);
+      selfBubbleUntil = time.t + 3;
+    },
     setZone,
     setGear({ rod, rodFx, lineColor, bait, charm = false, tea = false, net = false }) {
       Object.assign(gear, { rod, bait, charm, tea, net });

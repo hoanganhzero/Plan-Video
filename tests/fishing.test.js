@@ -652,3 +652,35 @@ test('match api sends the right keys and friendly errors are in Vietnamese', asy
   assert.notEqual(state.online.key, state.online.ownerKey, 'player and owner keys differ');
   assert.equal(friendlyError(new Error('team is full')), 'Đội này đã đủ người – chọn đội khác nhé.');
 });
+
+// ---------- Thế giới chung ----------
+import { sanitizeMeta, sanitizeEvent, assignSlots, makePublicId, colorFor, EMOTES } from '../fishing/js/world.js';
+
+test('other players data is sanitised before it reaches the screen', () => {
+  const m = sanitizeMeta({ id: 'abc123xyz', name: '<b>Bé   Na</b> có tên rất rất dài', level: 9999, rod: 'hack', color: 'red' });
+  assert.equal(m.name, 'bBé Na/b có tên', 'no tags, trimmed to 16');
+  assert.equal(m.level, 999);
+  assert.equal(m.rod, 'bamboo');
+  assert.match(m.color, /^#[0-9a-f]{6}$/i);
+  assert.equal(sanitizeMeta({ id: 'x' }), null, 'invalid id');
+  assert.equal(sanitizeEvent('act', { id: 'abc123xyz', phase: 'hack' }), null);
+  assert.deepEqual(sanitizeEvent('act', { id: 'abc123xyz', phase: 'cast', dist: 999 }), { id: 'abc123xyz', phase: 'cast', dist: 30, tension: 0 });
+  assert.equal(sanitizeEvent('catch', { id: 'abc123xyz', fishId: 'không có' }), null);
+  assert.equal(sanitizeEvent('catch', { id: 'abc123xyz', fishId: 'chep_do', kg: 2 }).fishId, 'chep_do');
+  assert.equal(sanitizeEvent('emote', { id: 'abc123xyz', e: EMOTES.length }), null);
+  assert.equal(sanitizeEvent('emote', { id: 'abc123xyz', e: 0 }).e, 0);
+  assert.equal(sanitizeEvent('chat', { id: 'abc123xyz', text: 'tự do' }), null, 'no free-text chat');
+});
+
+test('seats stay stable when players come and go', () => {
+  const a = assignSlots([{ id: 'a' }, { id: 'b' }, { id: 'c' }]);
+  assert.deepEqual([...a.entries()], [['a', 0], ['b', 1], ['c', 2]]);
+  const b = assignSlots([{ id: 'a' }, { id: 'c' }, { id: 'd' }], a);
+  assert.equal(b.get('c'), 2, 'c keeps its seat');
+  assert.equal(b.get('d'), 1, 'd takes the free seat');
+  const many = assignSlots(Array.from({ length: 12 }, (_, i) => ({ id: `p${i}` })), new Map(), 7);
+  assert.equal(many.size, 7);
+  const id = makePublicId();
+  assert.match(id, /^[a-z0-9]{10}$/);
+  assert.equal(colorFor(id), colorFor(id));
+});
