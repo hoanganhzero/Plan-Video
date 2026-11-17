@@ -129,10 +129,14 @@ Trò chơi vừa học vừa chơi trong thư mục `fishing/` – mở `http://
   - Nút 😀 gửi **biểu cảm có sẵn** (Xin chào!, Hay quá!, Cố lên!…); tin nhắn ở 💬 Hồ cũng hiện thành bong bóng trên đầu nhân vật.
   - Nút 👥 trên cùng cho biết bao nhiêu bạn đang cùng khu. Tắt/bật trong Cài đặt.
   - Chạy bằng Supabase Realtime (presence + broadcast, kênh `fishing:world:<khu>`), không ghi gì vào cơ sở dữ liệu. Thử trên một máy: mở nhiều tab với `index.html?mp=local&pk=ban00001&name=An`.
-- **🌐 Server lớp học**: thầy cô tạo server (trang thầy cô) → học sinh bấm *🌐 Server*, nhập **mã server + tên + PIN** (4–6 số).
+- **👤 Tài khoản học sinh** (🌐 Server → Tạo tài khoản): tên đăng nhập (vd `an.5a`) + tên hiển thị + PIN 4–6 số.
+  **Một tài khoản vào được mọi server**; thế giới cá nhân cũng lưu theo tài khoản → đăng nhập ở máy nào cũng chơi tiếp.
+  Đăng xuất xoá dữ liệu tài khoản khỏi máy (an toàn cho máy dùng chung). Sai PIN 5 lần → khoá 5 phút; quên PIN → thầy cô hoặc admin đặt lại.
+- **🌐 Server lớp học**: thầy cô tạo server và chọn **cách vào**: 🚪 *vào tự do* (có tài khoản là vào), 🔢 *cần mã PIN của server* (nhập một lần),
+  📋 *chỉ tài khoản thầy cô tạo* (tên + PIN in phiếu).
   - **Mỗi server có thế giới riêng** (cấp, cá, xu, cần câu…), tự lưu lên mạng: sang máy khác chỉ cần nhập lại mã server + tên + PIN là chơi tiếp.
     Thế giới cá nhân (🏠) vẫn giữ nguyên; chuyển qua lại giữa các server bất cứ lúc nào.
-  - Hai cách có tài khoản: **tự đăng ký** (nếu thầy cô bật) hoặc **thầy cô tạo sẵn** từ danh sách tên → PIN 6 số, in phiếu phát cho từng em.
+  - Thầy cô cũng có thể **tạo sẵn tài khoản riêng cho server** từ danh sách tên → PIN 6 số, in phiếu phát cho từng em.
   - An toàn: PIN lưu dạng băm; sai 5 lần → khoá 5 phút; quên PIN → thầy cô bấm *Đặt lại PIN*.
   - Trong server: bảng xếp hạng riêng của server, chỉ thấy các bạn cùng server trên hồ, chat lớp tự vào, thầy cô có thể **giao một bộ đề** cho cả server.
 - **🧠 Ôn tập nhận thưởng** (📒 Ôn tập → *Bắt đầu ôn tập*, không cần câu cá): câu trong Sổ ôn tập được hỏi trước.

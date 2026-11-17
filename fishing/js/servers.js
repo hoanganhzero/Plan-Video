@@ -48,6 +48,13 @@ export function serverSnapshot(state) {
 export const isNewer = (a, b) => !!a && (!b || new Date(a).getTime() > new Date(b).getTime() + 500);
 
 export const SERVER_ERRORS = {
+  'account not found': 'Không tìm thấy tài khoản này – kiểm tra tên đăng nhập hoặc tạo tài khoản mới.',
+  'username taken': 'Tên đăng nhập này đã có người dùng – hãy chọn tên khác.',
+  'bad username': 'Tên đăng nhập gồm 3–20 ký tự: chữ thường không dấu, số, dấu chấm hoặc gạch dưới (vd: an.5a).',
+  'wrong server pin': 'Sai mã PIN của server – hỏi lại thầy cô nhé.',
+  'name not in server': 'Không có tên này trong server. Nếu chưa có tài khoản, hãy đăng nhập tài khoản của em ở trên rồi vào server.',
+  'use account': 'Tên này dùng tài khoản chung – hãy đăng nhập tài khoản của em ở trên.',
+  'bad access': 'Cách vào server không hợp lệ.',
   'wrong pin': 'Sai mã PIN.',
   'too many tries': 'Sai PIN quá nhiều lần – hãy đợi 5 phút hoặc nhờ thầy cô đặt lại PIN.',
   'pin must be 4-6 digits': 'PIN gồm 4–6 chữ số.',
@@ -58,7 +65,45 @@ export const SERVER_ERRORS = {
   'save too large': 'Bản lưu quá lớn.',
 };
 
+// ---------------------------------------------------------------- tài khoản chung
+export const ACCOUNT_KEY = 'cauca-account';
+export const USERNAME_RE = /^[a-z0-9._]{3,20}$/;
+export const cleanUsername = (u) => String(u || '').trim().toLowerCase();
+export function getAccount(storage) {
+  const a = read(storage, ACCOUNT_KEY, null);
+  return a && a.key && a.username ? a : null;
+}
+export function setAccount(storage, a) { write(storage, ACCOUNT_KEY, { key: a.key, username: a.username, nickname: a.nickname }); }
+// Đăng xuất trên máy dùng chung: xoá tài khoản, các server đã vào và thế giới cá nhân của tài khoản (đã lưu trên mạng).
+export function logoutAccount(storage, personalKey = SAVE_KEY) {
+  const a = getAccount(storage);
+  for (const sv of knownServers(storage)) { try { storage.removeItem(slotKey(sv.code)); } catch { /* */ } }
+  write(storage, SERVERS_KEY, []);
+  setActiveWorld(storage, null);
+  try {
+    const personal = JSON.parse(storage.getItem(personalKey));
+    if (a && personal?.account === a.username) storage.removeItem(personalKey);
+  } catch { /* */ }
+  try { storage.removeItem(ACCOUNT_KEY); } catch { /* */ }
+}
+export const accountApi = {
+  register: (username, nickname, pin, f) => rpc('fishing_account_register', { p_username: cleanUsername(username), p_nickname: nickname, p_pin: String(pin || '') }, f),
+  login: (username, pin, f) => rpc('fishing_account_login', { p_username: cleanUsername(username), p_pin: String(pin || '') }, f),
+  me: (key, f) => rpc('fishing_account_me', { p_key: key }, f),
+  save: (key, save, f) => rpc('fishing_account_save', { p_key: key, p_save: save }, f),
+  changePin: (key, oldPin, newPin, f) => rpc('fishing_account_change_pin', { p_key: key, p_old: String(oldPin || ''), p_new: String(newPin || '') }, f),
+};
+// Bản lưu thế giới cá nhân gửi lên tài khoản (bỏ mã bí mật, dữ liệu chỉ thuộc máy này).
+export function accountSnapshot(state) {
+  const { cloud, server, serverSavedAt, accountSavedAt, ...rest } = state;
+  return { ...rest, online: { ...(rest.online || {}), key: null, ownerKey: null } };
+}
+export const ACCESS_LABEL = { open: '🚪 Vào tự do', pin: '🔢 Cần mã PIN của server', list: '📋 Chỉ tài khoản thầy cô tạo' };
+
 export const serverApi = {
+  join: (accountKey, code, serverPin, f) => rpc('fishing_server_join', { p_key: accountKey, p_code: cleanClassCode(code), p_server_pin: serverPin ? String(serverPin) : null }, f),
+  access: (t, code, access, pin, f) => rpc('fishing_server_access', { p_teacher: t, p_code: code, p_access: access, p_pin: pin ? String(pin) : null }, f),
+  resetAccountPin: (t, code, pid, f) => rpc('fishing_server_reset_account_pin', { p_teacher: t, p_code: code, p_pid: pid }, f),
   info: (code, f) => rpc('fishing_server_info', { p_code: cleanClassCode(code) }, f),
   enter: (code, name, pin, f) => rpc('fishing_server_enter', { p_code: cleanClassCode(code), p_name: name, p_pin: String(pin || '') }, f),
   load: (key, code, f) => rpc('fishing_server_load', { p_player: key, p_code: code }, f),

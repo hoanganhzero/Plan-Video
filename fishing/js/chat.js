@@ -60,6 +60,7 @@ const ERRORS = {
   'student not found': 'Không tìm thấy học sinh.',
   'not admin': 'Mã quản trị không đúng.',
   'player not found': 'Không tìm thấy người chơi.',
+  'account not found': 'Không tìm thấy tài khoản này.',
   'Failed to fetch': 'Không kết nối được máy chủ – kiểm tra mạng.',
 };
 export function chatError(err) {
@@ -142,6 +143,7 @@ export const adminApi = {
   scores: (a, search, f) => rpc('fishing_admin_scores', { p_admin: a, p_search: search }, f),
   removeScore: (a, handle, f) => rpc('fishing_admin_score_delete', { p_admin: a, p_handle: handle }, f),
   setting: (a, key, value, f) => rpc('fishing_admin_setting', { p_admin: a, p_key: key, p_value: value }, f),
+  resetAccount: (a, username, f) => rpc('fishing_admin_account_reset', { p_admin: a, p_username: username }, f),
 };
 
 // Tạo bảng CSV (dấu ; để Excel tiếng Việt mở đúng cột), có BOM UTF-8.

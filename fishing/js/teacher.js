@@ -2,7 +2,7 @@
 // Thầy cô được nhận diện bằng "mã giáo viên" (một mã bí mật lưu ở máy này) – dùng chung mã chủ với Bộ đề / Thi đấu trong trò chơi.
 import { teacherApi, chatError, timeLabel, agoLabel, toCSV, cleanClassCode, CLASS_CODE_RE, matchRoom, parseRoom } from './chat.js';
 import { zoneById } from './data.js';
-import { serverApi, parseNames, SERVER_ERRORS } from './servers.js';
+import { serverApi, parseNames, SERVER_ERRORS, ACCESS_LABEL } from './servers.js';
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -97,8 +97,8 @@ function render() {
       <div class="grow">
         <h2 style="margin:0">🏫 ${esc(dash.name)}</h2>
         ${dash.description ? `<div class="small">${esc(dash.description)}</div>` : ''}
-        <div class="muted small">Học sinh mở trò chơi → <b>🌐 Server</b> → nhập mã <b>${dash.code}</b>, tên và PIN.
-          ${dash.allow_join ? 'Học sinh <b>tự đăng ký</b> được.' : '<b>Chỉ tài khoản thầy cô tạo</b> mới vào được.'}${dash.set_code ? ` Bộ đề giao: <b>${esc(dash.set_code)}</b>.` : ''}</div>
+        <div class="muted small">Học sinh mở trò chơi → <b>🌐 Server</b> → đăng nhập tài khoản → nhập mã <b>${dash.code}</b>.
+          Cách vào: <b>${ACCESS_LABEL[dash.access] || ''}</b>.${dash.set_code ? ` Bộ đề giao: <b>${esc(dash.set_code)}</b>.` : ''}</div>
         <div class="row" style="margin-top:8px">
           <button class="btn small" id="copy-code">📋 Sao chép mã</button>
           <button class="btn small" id="present-btn">📺 Chiếu mã lên bảng</button>
@@ -223,25 +223,25 @@ function renderAccounts() {
       <div class="row"><h2 class="grow" style="margin:0">🖨️ Tài khoản vừa tạo – ${esc(dash.name)}</h2><button class="btn small" id="print-pins">🖨️ In phiếu</button><button class="btn small" id="hide-pins">Ẩn</button></div>
       <p class="muted small">PIN chỉ hiện <b>một lần</b>. Hãy in hoặc chép lại rồi phát cho từng em. Quên PIN thì bấm “Đặt lại PIN”.</p>
       <div class="pin-cards">${newPins.map((p) => p.pin
-        ? `<div class="pin-card"><div class="muted small">🎣 Câu Cá Học Giỏi · Server</div><div>Mã server: <b>${dash.code}</b></div><div>Tên: <b>${esc(p.name)}</b></div><div>PIN: <b class="pin">${p.pin}</b></div></div>`
+        ? `<div class="pin-card"><div class="muted small">🎣 Câu Cá Học Giỏi · ${p.username ? 'Tài khoản' : 'Server'}</div>${p.username ? `<div>Tên đăng nhập: <b>@${esc(p.username)}</b></div>` : `<div>Mã server: <b>${dash.code}</b></div><div>Tên: <b>${esc(p.name)}</b></div>`}<div>PIN: <b class="pin">${p.pin}</b></div></div>`
         : `<div class="pin-card muted">${esc(p.name)} – ${p.status === 'exists' ? 'đã có tài khoản' : 'server đã đủ 80 em'}</div>`).join('')}</div>
     </div>` : ''}
     <div class="card">
       <h2>➕ Tạo sẵn tài khoản cho học sinh</h2>
       <p class="muted small">Dán danh sách tên (mỗi dòng một em, chép từ Excel / Word đều được). Mỗi em được một PIN 6 số ngẫu nhiên.
-        Học sinh cũng có thể <b>tự đăng ký</b> (tự đặt tên + PIN) nếu thầy cô bật ở ⚙️ Cài đặt server.</p>
+        Học sinh có <b>tài khoản chung</b> cũng vào được tuỳ cách vào server (⚙️ Cài đặt server).</p>
       <form id="add-form"><textarea id="add-names" rows="5" placeholder="Nguyễn An&#10;Trần Bình&#10;Lê Chi" style="width:100%;font:inherit;color:var(--text);background:rgba(0,0,0,.3);border:2px solid var(--line);border-radius:12px;padding:8px"></textarea>
         <div class="row" style="margin-top:6px"><span class="muted small grow">Tên tối đa 16 ký tự; tên trùng trong server sẽ được bỏ qua.</span><button class="btn gold">🔑 Tạo tài khoản</button></div></form>
     </div>
     <div class="card">
       <h2>👥 Tài khoản trong server (${ms.length})</h2>
-      ${ms.length ? `<div class="table-wrap"><table><thead><tr><th>Học sinh</th><th>Đăng nhập</th><th>Tạo bởi</th><th>Lưu tiến trình</th><th>Hoạt động</th><th></th></tr></thead><tbody>
+      ${ms.length ? `<div class="table-wrap"><table><thead><tr><th>Học sinh</th><th>Đăng nhập</th><th>Tài khoản</th><th>Lưu tiến trình</th><th>Hoạt động</th><th></th></tr></thead><tbody>
         ${ms.map((m) => `<tr><td><span class="dot ${m.online ? 'on' : ''}"></span><b>${esc(m.name)}</b></td>
           <td>${m.account ? (m.locked ? '<span class="pill red">🔒 tạm khoá (sai PIN)</span>' : '<span class="pill green">có PIN</span>') : '<span class="pill orange">chưa có PIN</span>'}</td>
-          <td class="muted">${m.by_teacher ? 'thầy cô' : 'tự đăng ký'}</td>
+          <td class="muted">${m.username ? `👤 @${esc(m.username)}` : m.by_teacher ? 'thầy cô tạo cho server' : 'riêng server'}</td>
           <td class="muted">${m.saved_at ? agoLabel(m.saved_at) : 'chưa chơi'}</td>
           <td class="muted">${m.online ? '<span style="color:var(--good)">đang chơi</span>' : agoLabel(m.last_seen)}</td>
-          <td><div class="row"><button class="btn small" data-reset="${m.pid}" data-name="${esc(m.name)}">🔑 Đặt lại PIN</button>
+          <td><div class="row"><button class="btn small" data-reset="${m.pid}" data-name="${esc(m.name)}" data-account="${m.username ? 1 : ''}">🔑 Đặt lại PIN</button>
             <button class="btn small danger" data-member="kick" data-pid="${m.pid}" data-name="${esc(m.name)}" title="Xoá tài khoản khỏi server">🚪</button></div></td></tr>`).join('')}
       </tbody></table></div>` : '<div class="empty">Chưa có tài khoản nào.</div>'}
     </div>`;
@@ -256,7 +256,15 @@ function renderSettings() {
         <div class="muted small">Tạo và chia sẻ bộ đề trong trò chơi (📝 Bộ đề → Chia sẻ) để lấy mã. Học sinh vào server sẽ tự nhận bộ đề này khi câu cá và ôn tập.</div>
         <div><button class="btn">💾 Lưu</button></div>
       </form>
-      <label class="switch"><input type="checkbox" id="allow-join" ${dash.allow_join ? 'checked' : ''}><div><b>🚪 Cho học sinh tự đăng ký</b><div class="muted small">Tắt = chỉ những tài khoản thầy cô tạo sẵn (🔑 Tài khoản) mới vào được server.</div></div></label>
+      <h3>🚪 Cách vào server</h3>
+      <form id="access-form" class="access-opts">
+        <label class="switch"><input type="radio" name="access" value="open" ${dash.access === 'open' ? 'checked' : ''}><div><b>${ACCESS_LABEL.open}</b><div class="muted small">Học sinh đã có tài khoản chỉ cần nhập mã server là vào được.</div></div></label>
+        <label class="switch"><input type="radio" name="access" value="pin" ${dash.access === 'pin' ? 'checked' : ''}><div><b>${ACCESS_LABEL.pin}</b><div class="muted small">Học sinh có tài khoản nhập thêm mã PIN server (thầy cô đọc cho cả lớp) – chỉ cần một lần.
+          ${dash.has_pin ? '<span class="pill green">đã đặt PIN</span>' : ''}</div>
+          <input id="access-pin" inputmode="numeric" maxlength="6" placeholder="${dash.has_pin ? 'Đổi PIN server (để trống = giữ)' : 'PIN server 4–6 số'}" style="margin-top:6px;width:240px;display:block;padding:6px 10px"></div></label>
+        <label class="switch"><input type="radio" name="access" value="list" ${dash.access === 'list' ? 'checked' : ''}><div><b>${ACCESS_LABEL.list}</b><div class="muted small">Chỉ những tài khoản thầy cô tạo ở 🔑 Tài khoản (và học sinh đã vào trước đó).</div></div></label>
+        <div><button class="btn gold">💾 Lưu cách vào</button></div>
+      </form>
       <label class="switch"><input type="checkbox" id="chat-on" ${dash.chat_on ? 'checked' : ''}><div><b>💬 Chat cả lớp</b><div class="muted small">Học sinh nhắn tin trong phòng chung của lớp.</div></div></label>
       <label class="switch"><input type="checkbox" id="dm-on" ${dash.dm_on ? 'checked' : ''}><div><b>👤 Nhắn riêng giữa học sinh</b><div class="muted small">Chỉ giữa các bạn cùng lớp; thầy cô xem được ở mục 💬 Trò chuyện.</div></div></label>
       <p class="muted small">Mọi tin nhắn đều qua bộ lọc: che từ tục, số điện thoại, đường link, email. Học sinh dùng 3 lần từ tục trong 10 phút bị tự khoá chat 10 phút. 3 bạn báo cáo một tin thì tin tự ẩn. Tin nhắn tự xoá sau 30 ngày.</p>
@@ -311,6 +319,12 @@ document.addEventListener('click', async (e) => {
   if (e.target.id === 'key-btn') { keyDialog(); return; }
   const rp = e.target.closest('[data-reset]');
   if (rp) {
+    if (rp.dataset.account) {
+      if (!confirm(`"${rp.dataset.name}" dùng tài khoản chung (vào được nhiều server). Đặt lại PIN tài khoản? PIN cũ sẽ không dùng được nữa.`)) return;
+      const r = await act(() => serverApi.resetAccountPin(T(), current, rp.dataset.reset)).catch(() => null);
+      if (r) { newPins = [{ name: rp.dataset.name, username: r.username, pin: r.pin, status: 'created' }]; await loadDash(); toast(`🔑 PIN mới của @${esc(r.username)}: <b>${r.pin}</b>`); }
+      return;
+    }
     if (!confirm(`Đặt lại PIN cho "${rp.dataset.name}"? PIN cũ sẽ không dùng được nữa.`)) return;
     const pin = await act(() => serverApi.resetPin(T(), current, rp.dataset.reset)).catch(() => null);
     if (pin) { newPins = [{ name: rp.dataset.name, pin, status: 'created' }]; await loadDash(); toast(`🔑 PIN mới của ${esc(rp.dataset.name)}: <b>${pin}</b>`); }
@@ -331,11 +345,7 @@ document.addEventListener('click', async (e) => {
   }
 });
 document.addEventListener('change', async (e) => {
-  if (e.target.id === 'allow-join') {
-    const on = e.target.checked;
-    await act(() => serverApi.config(T(), current, { allowJoin: on }), on ? '🚪 Học sinh tự đăng ký được.' : '🔒 Chỉ tài khoản thầy cô tạo mới vào được.').catch(() => {});
-    await loadDash(); return;
-  }
+
   if (e.target.id === 'chat-on' || e.target.id === 'dm-on') {
     const on = e.target.checked;
     await act(() => teacherApi.update(T(), current, e.target.id === 'chat-on' ? { chatOn: on } : { dmOn: on }), on ? 'Đã bật.' : 'Đã tắt.').catch(() => {});
@@ -365,6 +375,13 @@ document.addEventListener('submit', async (e) => {
     const made = res.filter((r) => r.pin).length;
     toast(`🔑 Đã tạo ${made} tài khoản${res.length > made ? ` · ${res.length - made} tên bỏ qua` : ''}.`);
     await loadDash(); loadClasses();
+  } else if (e.target.id === 'access-form') {
+    const access = e.target.querySelector('input[name="access"]:checked')?.value;
+    const pin = $('#access-pin').value.trim();
+    if (access === 'pin' && pin && !/^\d{4,6}$/.test(pin)) { toast('PIN server gồm 4–6 chữ số.'); return; }
+    if (access === 'pin' && !pin && !dash.has_pin) { toast('Hãy đặt PIN server (4–6 số).'); return; }
+    await act(() => serverApi.access(T(), current, access, pin || null), `💾 Đã lưu: ${ACCESS_LABEL[access]}${pin ? ` – PIN server: <b>${pin}</b>` : ''}`).catch(() => {});
+    await loadDash();
   } else if (e.target.id === 'server-form') {
     await act(() => serverApi.config(T(), current, { description: $('#srv-desc').value, setCode: $('#srv-set').value.trim() }), '💾 Đã lưu cài đặt server.').catch(() => {});
     await loadDash();

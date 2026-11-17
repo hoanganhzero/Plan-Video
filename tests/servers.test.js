@@ -68,3 +68,57 @@ test('server API calls the right functions', async () => {
   assert.equal(calls[2][1].p_allow_join, false);
   assert.equal(calls[2][1].p_description, null);
 });
+
+import { getAccount, setAccount, logoutAccount, accountSnapshot, USERNAME_RE, cleanUsername, accountApi, ACCOUNT_KEY } from '../fishing/js/servers.js';
+
+test('account is stored, and logout wipes the account data from a shared computer', () => {
+  const s = memoryStorage();
+  assert.equal(getAccount(s), null);
+  setAccount(s, { key: 'acc-key', username: 'an.5a', nickname: 'An', servers: [1, 2] });
+  assert.deepEqual(getAccount(s), { key: 'acc-key', username: 'an.5a', nickname: 'An' });
+  rememberServer(s, { code: 'K7PQ2M', name: '5A', nick: 'An', key: 'k1', pid: 'sabc' });
+  s.setItem(slotKey('K7PQ2M'), '{"xp":5}');
+  setActiveWorld(s, 'K7PQ2M');
+  s.setItem(SAVE_KEY, JSON.stringify({ xp: 9, account: 'an.5a' }));
+  logoutAccount(s);
+  assert.equal(getAccount(s), null);
+  assert.equal(s.getItem(ACCOUNT_KEY), null);
+  assert.deepEqual(knownServers(s), []);
+  assert.equal(s.getItem(slotKey('K7PQ2M')), null);
+  assert.equal(activeWorld(s), null);
+  assert.equal(s.getItem(SAVE_KEY), null); // thế giới cá nhân của tài khoản (đã lưu trên mạng)
+});
+
+test('logout keeps a personal world that does not belong to the account', () => {
+  const s = memoryStorage();
+  setAccount(s, { key: 'k', username: 'an.5a', nickname: 'An' });
+  s.setItem(SAVE_KEY, JSON.stringify({ xp: 9 }));
+  logoutAccount(s);
+  assert.ok(s.getItem(SAVE_KEY));
+});
+
+test('usernames and account snapshots', () => {
+  assert.equal(cleanUsername('  An.5A '), 'an.5a');
+  assert.ok(USERNAME_RE.test('an.5a') && USERNAME_RE.test('binh_2015'));
+  assert.ok(!USERNAME_RE.test('ab') && !USERNAME_RE.test('an 5a') && !USERNAME_RE.test('ân'));
+  const snap = accountSnapshot({ xp: 3, accountSavedAt: 'x', cloud: { code: 'c' }, online: { key: 'secret', ownerKey: 'o', nickname: 'An' } });
+  assert.equal(snap.accountSavedAt, undefined);
+  assert.equal(snap.cloud, undefined);
+  assert.equal(snap.online.key, null);
+  assert.equal(snap.online.ownerKey, null);
+  assert.equal(snap.online.nickname, 'An');
+});
+
+test('account and join API calls', async () => {
+  const calls = [];
+  const f = async (url, opt) => { calls.push([url.split('/').pop(), JSON.parse(opt.body)]); return { ok: true, text: async () => 'null' }; };
+  await accountApi.login(' An.5A ', 1234, f);
+  await serverApi.join('acc', 'k7pq2m', null, f);
+  await serverApi.join('acc', 'K7PQ2M', 2468, f);
+  await serverApi.access('t', 'K7PQ2M', 'pin', '2468', f);
+  assert.deepEqual(calls.map((c) => c[0]), ['fishing_account_login', 'fishing_server_join', 'fishing_server_join', 'fishing_server_access']);
+  assert.deepEqual(calls[0][1], { p_username: 'an.5a', p_pin: '1234' });
+  assert.equal(calls[1][1].p_server_pin, null);
+  assert.equal(calls[2][1].p_server_pin, '2468');
+  assert.equal(calls[3][1].p_access, 'pin');
+});

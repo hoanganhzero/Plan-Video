@@ -121,6 +121,8 @@ async function renderMessages() {
 }
 async function renderUsers() {
   shell(`<form id="search-form" class="row" style="margin-bottom:10px"><input id="search" class="grow" value="${esc(search)}" placeholder="Tìm theo biệt danh hoặc mã công khai"><button class="btn small">🔎 Tìm</button></form>
+    <form id="acc-reset" class="row card" style="margin-bottom:10px"><span class="grow">🔑 Học sinh quên PIN <b>tài khoản chung</b>? Nhập tên đăng nhập để đặt PIN mới:</span>
+      <input id="acc-user" placeholder="vd: an.5a" style="width:160px"><button class="btn small gold">Đặt lại PIN</button></form>
     <div class="table-wrap" id="users"><div class="empty">Đang tải…</div></div>`);
   const list = await act(() => adminApi.users(code, search)).catch(() => []);
   $('#users').innerHTML = list.length ? `<table><thead><tr><th>Biệt danh</th><th>Mã</th><th>Lớp</th><th>Hoạt động</th><th>Tin</th><th>Bị lọc</th><th>Bị báo cáo</th><th>Trạng thái</th><th></th></tr></thead><tbody>
@@ -160,6 +162,11 @@ document.addEventListener('submit', (e) => {
   e.preventDefault();
   if (e.target.id === 'login') login($('#admin-code').value.trim());
   if (e.target.id === 'search-form') { search = $('#search').value.trim(); render(); }
+  if (e.target.id === 'acc-reset') {
+    const u = $('#acc-user').value.trim().toLowerCase();
+    if (!u || !confirm(`Đặt lại PIN tài khoản @${u}?`)) return;
+    act(() => adminApi.resetAccount(code, u)).then((pin) => { if (pin) toast(`🔑 PIN mới của @${esc(u)}: <b>${pin}</b> – hãy báo riêng cho học sinh.`); }).catch(() => {});
+  }
 });
 document.addEventListener('change', async (e) => {
   if (e.target.id === 'msg-filter') { msgFilter = e.target.value; render(); }

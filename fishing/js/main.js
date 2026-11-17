@@ -13,7 +13,7 @@ import { createWorld, assignSlots, EMOTES, makePublicId, colorFor } from './worl
 import { ONLINE } from './online.js';
 import { initChatUI } from './chat-ui.js';
 import { initServerUI } from './server-ui.js';
-import { serverApi, knownServers, activeWorld, setActiveWorld, applyServerIdentity, serverSnapshot, slotKey, isNewer } from './servers.js';
+import { serverApi, knownServers, activeWorld, setActiveWorld, applyServerIdentity, serverSnapshot, slotKey, isNewer, getAccount, accountApi, accountSnapshot, logoutAccount } from './servers.js';
 import { progressSummary, chatError } from './chat.js';
 import { fetchSet } from './online.js';
 import { newSet, addToSet } from './content.js';
@@ -59,6 +59,7 @@ function save() {
   saveLocal();
   if (typeof scheduleCloud === 'function') scheduleCloud();
   if (typeof scheduleServer === 'function') scheduleServer();
+  if (typeof scheduleAccount === 'function') scheduleAccount();
 }
 let state = load();
 
@@ -869,10 +870,91 @@ async function startServerWorld() {
   }
   if (!state.serverSavedAt) scheduleServer(1500); // tài khoản mới: lưu lần đầu
 }
+// ---------- Tài khoản chung: thế giới cá nhân lưu theo tài khoản ----------
+const account = (() => { try { return getAccount(localStorage); } catch { return null; } })();
+const accountWorld = () => !state.server && account && state.account === account.username;
+let accountTimer = null;
+let accountBusy = false;
+let accountDirty = false;
+function scheduleAccount(delay = 6000) {
+  if (!accountWorld()) return;
+  accountDirty = true;
+  clearTimeout(accountTimer);
+  accountTimer = setTimeout(pushAccount, delay);
+}
+async function pushAccount({ keepalive = false } = {}) {
+  if (!accountWorld() || accountBusy || !accountDirty) return;
+  accountBusy = true;
+  accountDirty = false;
+  const f = keepalive ? (u, o) => fetch(u, { ...o, keepalive: true }) : undefined;
+  try {
+    state.accountSavedAt = await accountApi.save(account.key, accountSnapshot(state), f);
+    saveLocal();
+    $('#server-pill')?.classList.remove('unsynced');
+  } catch (err) {
+    accountDirty = true;
+    $('#server-pill')?.classList.add('unsynced');
+    console.warn('Chưa lưu được vào tài khoản:', err);
+  }
+  accountBusy = false;
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') pushAccount({ keepalive: true }); });
+window.addEventListener('pagehide', () => pushAccount({ keepalive: true }));
+// Mở thế giới cá nhân khi đã đăng nhập: lấy bản mới hơn trên mạng (chơi ở máy khác) hoặc gửi bản đầu tiên.
+async function startAccountWorld() {
+  if (!account || state.server) return;
+  let r;
+  try { r = await accountApi.me(account.key); } catch (err) {
+    if (/account not found/.test(String(err.message))) { logoutAccount(localStorage); toast('Tài khoản không còn tồn tại – đã đăng xuất.'); }
+    return;
+  }
+  if (state.account !== account.username) return;
+  if (r.save && isNewer(r.save_at, state.accountSavedAt) && !sessionStorage.getItem(`cauca-adopt-a-${r.save_at}`)) {
+    sessionStorage.setItem(`cauca-adopt-a-${r.save_at}`, '1');
+    const fresh = normalizeState(r.save);
+    fresh.account = account.username;
+    fresh.accountSavedAt = r.save_at;
+    localStorage.setItem(SAVE_KEY, JSON.stringify(fresh));
+    sessionStorage.setItem('cauca-flash', '☁️ Đã tải thế giới của em từ tài khoản.');
+    location.reload();
+    return;
+  }
+  if (!state.accountSavedAt) scheduleAccount(1500);
+}
+// Vừa đăng nhập / tạo tài khoản: thế giới cá nhân trên máy ↔ tài khoản.
+function onAccountLogin(r, isNew) {
+  saveLocal();
+  pushServer({ keepalive: true });
+  let personal = null;
+  try { personal = JSON.parse(localStorage.getItem(SAVE_KEY)); } catch { /* */ }
+  const hasProgress = (s) => s && ((s.xp || 0) > 0 || (s.stats?.casts || 0) > 0);
+  let world;
+  if (r.save) {
+    if (hasProgress(personal) && personal.account !== r.username) {
+      try { localStorage.setItem(`${SAVE_KEY}-backup-${Date.now()}`, JSON.stringify(personal)); } catch { /* */ }
+    }
+    world = normalizeState(r.save);
+    world.accountSavedAt = r.save_at;
+  } else if (personal && (!personal.account || personal.account === r.username)) {
+    world = normalizeState(personal); // thế giới trên máy này trở thành thế giới của tài khoản
+    world.accountSavedAt = null;
+  } else world = newGame();
+  world.account = r.username;
+  world.online = { ...(world.online || {}), nickname: world.online?.nickname || r.nickname };
+  localStorage.setItem(SAVE_KEY, JSON.stringify(world));
+  setActiveWorld(localStorage, null);
+  sessionStorage.setItem('cauca-flash', isNew
+    ? `🎉 Đã tạo tài khoản <b>@${esc(r.username)}</b>! Giờ em có thể vào bất kỳ server nào của thầy cô.`
+    : `👋 Xin chào <b>${esc(r.nickname)}</b>! ${r.save ? 'Đã tải thế giới của em.' : 'Thế giới trên máy này đã được lưu vào tài khoản.'}`);
+  location.reload();
+}
+
 const serverUI = initServerUI({
   getState: () => state, toast, esc, normalizeState, newGame,
-  saveNow: () => { saveLocal(); pushServer({ keepalive: true }); },
+  saveNow: () => { saveLocal(); pushServer({ keepalive: true }); pushAccount({ keepalive: true }); },
+  onLogin: onAccountLogin,
 });
+startAccountWorld();
 RENDER.server = () => serverUI.open();
 startServerWorld();
 {

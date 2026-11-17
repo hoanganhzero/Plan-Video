@@ -113,3 +113,4 @@ tr:hover td { background: rgba(255, 255, 255, .03); }
 .pin-card { border: 2px dashed var(--line); border-radius: 12px; padding: 8px 12px; font-size: .9rem; }
 .pin-card .pin { font-size: 1.3rem; letter-spacing: 3px; color: var(--gold); }
 textarea:focus { outline: none; border-color: var(--gold) !important; }
+.access-opts .switch input[type="radio"] { width: 20px; height: 20px; accent-color: var(--gold); }
