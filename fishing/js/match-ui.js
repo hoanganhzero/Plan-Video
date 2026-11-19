@@ -336,13 +336,13 @@ export function initMatchUI({ getState, save, toast, esc, banner, beep, isIdle, 
       const qs = [...(set?.questions || [])].sort(() => Math.random() - 0.5).slice(0, d.count);
       return qs.map(({ q, a, w, e, d: diff }) => ({ q, a, w, e, d: diff }));
     }
-    const grade = GRADES.find((g) => g.id === st.settings.grade) || GRADES[0];
+    const grade = st.settings.grade;
     const subjects = st.settings.subjects.filter((s) => s !== 'custom');
     const out = [];
     const seen = new Set();
     for (let tries = 0; out.length < d.count && tries < d.count * 10; tries++) {
       const diff = 1 + (out.length % 3);
-      const q = pickQuestion(diff, { subjects: subjects.length ? subjects : ['math'], mathOffset: grade.mathOffset, recent: [...seen] });
+      const q = pickQuestion(diff, { subjects: subjects.length ? subjects : ['math'], grade, recent: [...seen] });
       if (seen.has(q.text)) continue;
       seen.add(q.text);
       seen.add(q.id);

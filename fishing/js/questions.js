@@ -2,7 +2,10 @@
 // cộng thêm câu hỏi riêng do phụ huynh / giáo viên nhập.
 // Câu hỏi chuẩn: { id, subject, difficulty, text, choices: [4 chuỗi], answer: chỉ số đúng, explain }
 
-// s: môn, d: độ khó 1–3, q: câu hỏi, a: đáp án đúng, w: đáp án sai, e: giải thích
+import { BANK2, DEFAULT_RANGE } from './bank2.js';
+import { subjectSources, mathLevel, clampGrade, subjectInfo } from './curriculum.js';
+
+// s: môn, d: độ khó 1–3, q: câu hỏi, a: đáp án đúng, w: đáp án sai, e: giải thích, g: [từ lớp, đến lớp]
 const BANK = [
   // ---------- Tiếng Việt ----------
   { s: 'vi', d: 1, q: 'Từ nào viết đúng chính tả?', a: 'trung thực', w: ['chung thực', 'trung thựt', 'chung thựt'] },
@@ -95,7 +98,12 @@ const BANK = [
   { s: 'his', d: 3, q: 'Kinh tuyến gốc (0°) đi qua đài thiên văn ở thành phố nào?', a: 'Luân Đôn (Greenwich)', w: ['Pa-ri', 'Niu Oóc', 'Bắc Kinh'] },
 ];
 
-export const BANK_SIZE = BANK.length;
+// Toàn bộ ngân hàng: câu cũ (giữ nguyên mã câu để Sổ ôn tập không bị lệch) + câu bổ sung theo khối lớp.
+const ALL = [
+  ...BANK.map((item, index) => ({ item: { ...item, g: item.g || DEFAULT_RANGE[item.s]?.[item.d] || [1, 12] }, id: `${item.s}-${index}` })),
+  ...BANK2.map((item, index) => ({ item, id: `${item.s}-x${index}` })),
+];
+export const BANK_SIZE = ALL.length;
 
 export function shuffle(list, rng = Math.random) {
   const a = [...list];
@@ -112,15 +120,18 @@ export function makeQuestion({ id, subject, difficulty, text, correct, wrong, ex
   return { id, subject, difficulty, text, choices, answer: choices.indexOf(String(correct)), explain };
 }
 
-function fromBank(item, index, rng) {
+function fromBank(item, id, rng, subject = item.s) {
   return makeQuestion({
-    id: `${item.s}-${index}`, subject: item.s, difficulty: item.d, text: item.q,
+    id, subject, difficulty: item.d, text: item.q,
     correct: item.a, wrong: item.w, explain: item.e || '',
   }, rng);
 }
 
-export function bankQuestions(subject) {
-  return BANK.map((item, index) => ({ item, index })).filter(({ item }) => item.s === subject);
+// Câu trong ngân hàng của một môn; có khối lớp thì chỉ lấy câu hợp với khối đó (kể cả từ các nguồn của môn).
+export function bankQuestions(subject, grade = null) {
+  const sources = grade == null ? [subject] : subjectSources(subject);
+  const g = grade == null ? null : clampGrade(grade);
+  return ALL.filter(({ item }) => sources.includes(item.s) && (g == null || (g >= item.g[0] && g <= item.g[1])));
 }
 
 // ---------- Toán sinh tự động ----------
@@ -142,9 +153,10 @@ function mathDistractors(ans, rng, allowNegative) {
   return [...out];
 }
 
-// level 1–5: 1 = cộng trừ trong 20 … 5 = số âm, phần trăm, tìm x.
+// level 1–8: 1 = cộng trừ trong 20 … 5 = số âm, phần trăm, tìm x; 6 = THCS cuối cấp; 7 = lớp 10; 8 = lớp 11–12.
 export function mathQuestion(level, rng = Math.random) {
-  const L = Math.min(5, Math.max(1, Math.round(level)));
+  const L = Math.min(8, Math.max(1, Math.round(level)));
+  if (L >= 6) return advancedMath(L, rng);
   let text;
   let ans;
   let explain;
@@ -214,8 +226,73 @@ export function mathQuestion(level, rng = Math.random) {
   return finishMath({ text, ans, explain, L, rng, allowNegative: false });
 }
 
+// Toán THCS cuối cấp – THPT: căn bậc hai, Pi-ta-go, hệ số góc, phương trình bậc hai, hàm số, lũy thừa, logarit, đạo hàm, tổ hợp, cấp số cộng.
+function advancedMath(L, rng) {
+  const kind = rng();
+  let text; let ans; let explain;
+  if (L === 6) {
+    if (kind < 0.25) {
+      const a = int(rng, 2, 25); ans = a; text = `√${a * a} = ?`; explain = `${a}² = ${a * a}.`;
+    } else if (kind < 0.5) {
+      const [a, b, c] = pick(rng, [[3, 4, 5], [6, 8, 10], [5, 12, 13], [8, 15, 17], [9, 12, 15], [12, 16, 20]]);
+      ans = c; text = `Tam giác vuông có hai cạnh góc vuông ${a} và ${b}. Cạnh huyền bằng?`;
+      explain = `Pi-ta-go: √(${a}² + ${b}²) = √${a * a + b * b} = ${c}.`;
+    } else if (kind < 0.75) {
+      const x = int(rng, -9, 12); const a = int(rng, 2, 7); const b = int(rng, -15, 15); const c = a * x + b;
+      ans = x; text = `Giải phương trình: ${a}x ${b < 0 ? '−' : '+'} ${Math.abs(b)} = ${c}`;
+      explain = `${a}x = ${c} ${b < 0 ? '+' : '−'} ${Math.abs(b)} = ${a * x} ⇒ x = ${x}.`;
+      return finishMath({ text, ans, explain, L, rng, allowNegative: true });
+    } else {
+      const a = int(rng, 2, 9); const b = int(rng, 2, 9);
+      ans = (a + b) * (a + b); text = `(${a} + ${b})² = ?`; explain = `(${a} + ${b})² = ${a + b}² = ${ans}.`;
+    }
+  } else if (L === 7) {
+    if (kind < 0.3) {
+      let r1 = int(rng, -6, 6); let r2 = int(rng, -6, 6); if (r1 === r2) r2 += 2;
+      const s = r1 + r2; const p = r1 * r2;
+      ans = Math.max(r1, r2);
+      text = `Nghiệm lớn hơn của x² ${s >= 0 ? '−' : '+'} ${Math.abs(s)}x ${p >= 0 ? '+' : '−'} ${Math.abs(p)} = 0 là?`;
+      explain = `Tổng hai nghiệm = ${s}, tích = ${p} ⇒ x = ${r1} và x = ${r2}.`;
+      return finishMath({ text, ans, explain, L, rng, allowNegative: true });
+    } else if (kind < 0.55) {
+      const a = int(rng, 1, 4); const b = int(rng, -5, 5); const c = int(rng, -6, 6); const x = int(rng, -3, 4);
+      ans = a * x * x + b * x + c;
+      text = `Cho f(x) = ${a === 1 ? '' : a}x² ${b < 0 ? '−' : '+'} ${Math.abs(b)}x ${c < 0 ? '−' : '+'} ${Math.abs(c)}. Tính f(${x}).`;
+      explain = `f(${x}) = ${a}·${x * x} ${b < 0 ? '−' : '+'} ${Math.abs(b * x)} ${c < 0 ? '−' : '+'} ${Math.abs(c)} = ${ans}.`;
+      return finishMath({ text, ans, explain, L, rng, allowNegative: true });
+    } else if (kind < 0.8) {
+      const x = int(rng, -5, 8); const y = int(rng, -5, 8);
+      ans = x; text = `Hệ: x + y = ${x + y} và x − y = ${x - y}. Tìm x.`; explain = `Cộng hai phương trình: 2x = ${2 * x} ⇒ x = ${x}.`;
+      return finishMath({ text, ans, explain, L, rng, allowNegative: true });
+    } else {
+      const n = int(rng, 5, 12); const k = int(rng, 1, 3);
+      ans = Math.round(fact(n) / (fact(k) * fact(n - k))); text = `Số tổ hợp chập ${k} của ${n} phần tử, C(${n},${k}) = ?`;
+      explain = `C(${n},${k}) = ${n}! / (${k}!·${n - k}!) = ${ans}.`;
+    }
+  } else {
+    if (kind < 0.25) {
+      const b = pick(rng, [2, 3, 10]); const e = b === 10 ? int(rng, 1, 5) : int(rng, 2, b === 2 ? 10 : 5);
+      ans = e; text = `log${b === 10 ? '' : `_${b}`}(${b ** e}) = ?`; explain = `${b}^${e} = ${b ** e}.`;
+    } else if (kind < 0.5) {
+      const n = int(rng, 2, 5); const x = int(rng, 1, 3); const a = int(rng, 1, 5);
+      ans = a * n * x ** (n - 1); text = `Cho f(x) = ${a === 1 ? '' : a}x^${n}. Tính f'(${x}).`;
+      explain = `f'(x) = ${a * n}x^${n - 1} ⇒ f'(${x}) = ${ans}.`;
+    } else if (kind < 0.75) {
+      const u1 = int(rng, 1, 10); const d = int(rng, 2, 6); const n = int(rng, 5, 12);
+      ans = u1 + (n - 1) * d; text = `Cấp số cộng có u₁ = ${u1}, công sai d = ${d}. Tìm u${subscript(n)}.`;
+      explain = `uₙ = u₁ + (n − 1)d = ${u1} + ${n - 1}·${d} = ${ans}.`;
+    } else {
+      const a = int(rng, 1, 4); const b = int(rng, a + 1, a + 4);
+      ans = b * b - a * a; text = `Tính tích phân ∫ từ ${a} đến ${b} của 2x dx.`; explain = `∫2x dx = x² ⇒ ${b}² − ${a}² = ${ans}.`;
+    }
+  }
+  return finishMath({ text, ans, explain, L, rng, allowNegative: false });
+}
+const fact = (n) => (n <= 1 ? 1 : n * fact(n - 1));
+const subscript = (n) => String(n).replace(/\d/g, (d) => '₀₁₂₃₄₅₆₇₈₉'[d]);
+
 function finishMath({ text, ans, explain, L, rng, allowNegative }) {
-  const difficulty = Math.min(3, L);
+  const difficulty = Math.min(3, L <= 5 ? L : L - 5);
   return makeQuestion({
     id: `math:${text}`, subject: 'math', difficulty, text,
     correct: ans, wrong: mathDistractors(ans, rng, allowNegative),
@@ -253,7 +330,7 @@ function fromCustom(item, index, rng) {
 // Chọn câu hỏi phù hợp độ khó, tránh lặp câu vừa hỏi, ưu tiên ôn lại câu từng sai.
 // opts: { subjects, grade offset, recent: [id], review: [question], custom: [item] }
 export function pickQuestion(difficulty, opts = {}, rng = Math.random) {
-  const { subjects = ['math'], mathOffset = 0, recent = [], review = [], custom = [] } = opts;
+  const { subjects = ['math'], mathOffset = 0, recent = [], review = [], custom = [], grade = null } = opts;
   if (review.length && rng() < 0.25) {
     const q = review[Math.floor(rng() * review.length)];
     const correct = q.choices[q.answer];
@@ -264,8 +341,9 @@ export function pickQuestion(difficulty, opts = {}, rng = Math.random) {
   if (!usable.length) usable = ['math'];
   const subject = usable[Math.floor(rng() * usable.length)];
   if (subject === 'math') {
-    let q = mathQuestion(difficulty + mathOffset, rng);
-    for (let tries = 0; tries < 5 && recent.includes(q.id); tries++) q = mathQuestion(difficulty + mathOffset, rng);
+    const lv = grade == null ? difficulty + mathOffset : mathLevel(grade, difficulty);
+    let q = mathQuestion(lv, rng);
+    for (let tries = 0; tries < 5 && recent.includes(q.id); tries++) q = mathQuestion(lv, rng);
     return { ...q, difficulty };
   }
   if (subject === 'custom') {
@@ -278,11 +356,14 @@ export function pickQuestion(difficulty, opts = {}, rng = Math.random) {
     const { item, index } = pool[Math.floor(rng() * pool.length)];
     return fromCustom(item, index, rng);
   }
-  const all = bankQuestions(subject);
+  let all = bankQuestions(subject, grade);
+  if (!all.length && grade != null) all = bankQuestions(subject); // môn chưa có câu cho khối này → lấy câu cùng môn
+  if (!all.length) return pickQuestion(difficulty, { ...opts, subjects: ['math'], review: [] }, rng);
   const byLevel = all.filter(({ item }) => item.d === difficulty);
   const base = byLevel.length ? byLevel : all;
-  const fresh = base.filter(({ item, index }) => !recent.includes(`${item.s}-${index}`));
+  const fresh = base.filter(({ id }) => !recent.includes(id));
   const pool = fresh.length ? fresh : base;
-  const { item, index } = pool[Math.floor(rng() * pool.length)];
-  return fromBank(item, index, rng);
+  const { item, id } = pool[Math.floor(rng() * pool.length)];
+  // Câu lấy từ nguồn phụ (vd câu "Khoa học" dùng cho "Tự nhiên và Xã hội") vẫn ghi theo môn đang học.
+  return fromBank(item, id, rng, subjectInfo(subject) ? subject : item.s);
 }

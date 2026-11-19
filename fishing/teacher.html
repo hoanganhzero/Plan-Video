@@ -7,16 +7,31 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="panel.css">
+  <link rel="stylesheet" href="sets.css">
 </head>
 <body>
   <header class="top">
     <h1>👩‍🏫 Trang thầy cô</h1>
     <span class="muted small">Câu Cá Học Giỏi</span>
     <span class="spacer"></span>
+    <nav class="tabs top-tabs"><button data-view="classes" class="on">🏫 Server lớp học</button><button data-view="sets">📝 Bộ đề</button></nav>
     <button class="btn small" id="key-btn">🔑 Mã giáo viên</button>
     <a class="btn small" href="index.html">🎣 Vào trò chơi</a>
   </header>
-  <main class="wrap layout">
+  <main class="wrap" id="sets-view" hidden>
+    <div class="card sets-area">
+      <h2>📝 Bộ đề của thầy cô</h2>
+      <p class="muted small">Soạn câu hỏi theo bài đang học: gõ tay, nhập từ Excel (CSV), tạo tự động từ PDF / Word / ảnh trang SGK (có thể dùng AI),
+        rồi bấm <b>Chia sẻ</b> để lấy mã. Giao bộ đề cho lớp ở 🏫 Server lớp học → ⚙️ Cài đặt server. Bộ đề lưu trên máy này.</p>
+      <div class="tabs-row" id="sets-tabs" role="tablist">
+        <button data-stab="mine">📚 Bộ đề của tôi</button>
+        <button data-stab="import">🪄 Tạo từ tài liệu</button>
+        <button data-stab="join">🔑 Nhập mã</button>
+      </div>
+      <div id="sets-body"></div>
+    </div>
+  </main>
+  <main class="wrap layout" id="classes-view">
     <aside>
       <div class="card">
         <h2>Server lớp học của tôi</h2>
@@ -31,7 +46,8 @@
         <b>Cách dùng</b>
         <ol style="padding-left:18px;margin:6px 0 0">
           <li>Tạo server lớp → đọc / chiếu <b>mã server</b> cho học sinh (hoặc tạo sẵn tài khoản + PIN để in phát).</li>
-          <li>Học sinh vào trò chơi → <b>🌐 Server</b> → nhập mã, tên, PIN. Mỗi server có tiến trình riêng, tự lưu trên mạng.</li>
+          <li>Học sinh vào trò chơi → <b>👤 Tài khoản</b> → đăng nhập → nhập mã lớp. Mỗi lớp có tiến trình riêng, tự lưu trên mạng.</li>
+          <li>⚙️ Cài đặt server: chọn <b>khối lớp &amp; môn học</b>, giao <b>📝 Bộ đề</b>, chọn cách vào lớp.</li>
           <li>Xem tiến độ học tập, quản lý trò chuyện của lớp ở đây.</li>
         </ol>
       </div>

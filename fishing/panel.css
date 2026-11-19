@@ -114,3 +114,11 @@ tr:hover td { background: rgba(255, 255, 255, .03); }
 .pin-card .pin { font-size: 1.3rem; letter-spacing: 3px; color: var(--gold); }
 textarea:focus { outline: none; border-color: var(--gold) !important; }
 .access-opts .switch input[type="radio"] { width: 20px; height: 20px; accent-color: var(--gold); }
+
+.top-tabs { margin: 0; }
+.top-tabs button { padding: 4px 12px; font-size: .9rem; }
+.subj-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; }
+.subj { display: flex; gap: 8px; align-items: center; padding: 6px 10px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); cursor: pointer; }
+.subj input { width: 18px; height: 18px; accent-color: var(--gold); }
+#sets-view .sets-area { max-width: 1100px; margin: 0 auto; }
+html { background: #0b2233; }

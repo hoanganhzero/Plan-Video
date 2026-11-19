@@ -187,8 +187,8 @@ export function initChatUI({ getState, save, toast, esc, beep, scene, getZone, g
     if ((tab === 'class' || tab === 'dm') && !cls) {
       head.innerHTML = '';
       list.innerHTML = `<div class="chat-empty">
-        🏫 Vào <b>server lớp học</b> của thầy cô (mã server + tên + PIN) để chat cùng lớp và nhắn riêng với bạn.
-        <button class="btn gold small" id="chat-server">🌐 Vào server lớp học</button></div>`;
+        🏫 Đăng nhập tài khoản rồi vào <b>lớp học</b> của thầy cô (nhập mã lớp) để chat cùng lớp và nhắn riêng với bạn.
+        <button class="btn gold small" id="chat-server">👤 Tài khoản &amp; lớp học</button></div>`;
       compose.hidden = true;
       $('#chat-server').onclick = () => { close(); openSheet('server'); };
       renderStatus(); badge();

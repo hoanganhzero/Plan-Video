@@ -3,6 +3,8 @@
 import { teacherApi, chatError, timeLabel, agoLabel, toCSV, cleanClassCode, CLASS_CODE_RE, matchRoom, parseRoom } from './chat.js';
 import { zoneById } from './data.js';
 import { serverApi, parseNames, SERVER_ERRORS, ACCESS_LABEL } from './servers.js';
+import { initSetsUI } from './sets-ui.js';
+import { GRADE_LIST, subjectsForGrade, subjectInfo, levelLabel, clampGrade } from './curriculum.js';
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -70,7 +72,10 @@ function renderClassList() {
     </button>`).join('') : '<div class="muted small">Chưa có lớp nào.</div>';
 }
 async function loadDash() {
-  try { dash = await teacherApi.dashboard(T(), current); } catch (err) { $('#main').innerHTML = `<div class="card empty">${esc(chatError(err))}</div>`; return; }
+  try {
+    const [d, info] = await Promise.all([teacherApi.dashboard(T(), current), serverApi.info(current).catch(() => ({}))]);
+    dash = { ...d, grade: info.grade || null, subjects: info.subjects || null };
+  } catch (err) { $('#main').innerHTML = `<div class="card empty">${esc(chatError(err))}</div>`; return; }
   store.current = current; saveStore();
   render();
 }
@@ -97,7 +102,7 @@ function render() {
       <div class="grow">
         <h2 style="margin:0">🏫 ${esc(dash.name)}</h2>
         ${dash.description ? `<div class="small">${esc(dash.description)}</div>` : ''}
-        <div class="muted small">Học sinh mở trò chơi → <b>🌐 Server</b> → đăng nhập tài khoản → nhập mã <b>${dash.code}</b>.
+        <div class="muted small">Học sinh mở trò chơi → <b>👤 Tài khoản</b> → đăng nhập → nhập mã lớp <b>${dash.code}</b>.
           Cách vào: <b>${ACCESS_LABEL[dash.access] || ''}</b>.${dash.set_code ? ` Bộ đề giao: <b>${esc(dash.set_code)}</b>.` : ''}</div>
         <div class="row" style="margin-top:8px">
           <button class="btn small" id="copy-code">📋 Sao chép mã</button>
@@ -246,14 +251,35 @@ function renderAccounts() {
       </tbody></table></div>` : '<div class="empty">Chưa có tài khoản nào.</div>'}
     </div>`;
 }
-function renderSettings() {
+// Khối lớp + môn học của lớp (học sinh trong lớp dùng đúng cài đặt này, không tự đổi được).
+let curGrade = null;
+function curriculumCard() {
+  const g = clampGrade(curGrade || dash.grade || 1);
+  const chosen = new Set(dash.grade === g && dash.subjects?.length ? dash.subjects : subjectsForGrade(g));
   return `<div class="card">
+      <h2>📚 Khối lớp &amp; môn học của lớp</h2>
+      <form id="curr-form" style="display:grid;gap:10px">
+        <label class="small">Khối lớp
+          <select id="curr-grade">${GRADE_LIST.map((n) => `<option value="${n}" ${n === g ? 'selected' : ''}>Lớp ${n} – ${levelLabel(n)}</option>`).join('')}</select></label>
+        <div class="subj-grid">${subjectsForGrade(g).map((id) => { const s = subjectInfo(id); return `<label class="subj"><input type="checkbox" name="subj" value="${id}" ${chosen.has(id) ? 'checked' : ''}> ${s.icon} ${esc(s.name)}</label>`; }).join('')}</div>
+        <div class="row"><button class="btn gold">💾 Lưu khối lớp &amp; môn</button>
+          <span class="muted small">${dash.grade ? `Đang dùng: <b>Lớp ${dash.grade}</b>, ${dash.subjects?.length || 0} môn.` : 'Chưa chọn – học sinh đang dùng khối lớp tự chọn.'}</span></div>
+      </form>
+      <p class="muted small">Câu hỏi khi câu cá, ôn tập và thi đấu sẽ lấy theo đúng chương trình các môn đã chọn (Toán tự sinh theo khối lớp; các môn khác từ ngân hàng câu hỏi có sẵn và bộ đề thầy cô giao).</p>
+    </div>`;
+}
+function renderSettings() {
+  return `${curriculumCard()}<div class="card">
       <h2>Cài đặt server</h2>
       <form id="rename-form" class="row"><input id="rename" class="grow" maxlength="60" value="${esc(dash.name)}"><button class="btn">💾 Đổi tên</button></form>
       <form id="server-form" style="margin-top:10px;display:grid;gap:8px">
         <label class="small muted">Lời nhắn hiện cho học sinh khi vào server<input id="srv-desc" maxlength="200" value="${esc(dash.description || '')}" style="width:100%" placeholder="vd: Tuần này ôn phép nhân, cố lên các em!"></label>
-        <label class="small muted">Mã bộ đề giao cho cả server (để trống = không giao)<input id="srv-set" maxlength="6" value="${esc(dash.set_code || '')}" style="width:160px;text-transform:uppercase" placeholder="vd: K7M2QX"></label>
-        <div class="muted small">Tạo và chia sẻ bộ đề trong trò chơi (📝 Bộ đề → Chia sẻ) để lấy mã. Học sinh vào server sẽ tự nhận bộ đề này khi câu cá và ôn tập.</div>
+        <label class="small muted">Bộ đề giao cho cả lớp
+          <div class="row" style="margin:4px 0 0">
+            <select id="srv-set-pick"><option value="">— Không giao bộ đề —</option>${mySharedSets().map((x) => `<option value="${x.code}" ${x.code === dash.set_code ? 'selected' : ''}>${esc(x.name)} (${x.code}, ${x.questions.length} câu)</option>`).join('')}</select>
+            <span class="muted small">hoặc mã</span>
+            <input id="srv-set" maxlength="6" value="${esc(dash.set_code || '')}" style="width:130px;text-transform:uppercase" placeholder="vd: K7M2QX"></div></label>
+        <div class="muted small">Bộ đề soạn ở mục <b>📝 Bộ đề</b> (đầu trang) – bấm <b>Chia sẻ</b> để có mã. Học sinh vào lớp sẽ tự nhận bộ đề này khi câu cá và ôn tập.</div>
         <div><button class="btn">💾 Lưu</button></div>
       </form>
       <h3>🚪 Cách vào server</h3>
@@ -303,7 +329,7 @@ document.addEventListener('click', async (e) => {
   if (d) { await act(() => teacherApi.reportDone(T(), Number(d.dataset.done)), 'Đã bỏ qua báo cáo.').catch(() => {}); await loadDash(); return; }
   if (e.target.id === 'copy-code') { navigator.clipboard?.writeText(dash.code).then(() => toast('📋 Đã sao chép mã lớp.'), () => toast(dash.code)); return; }
   if (e.target.id === 'present-btn') {
-    $('#present').innerHTML = `<div><p>🎣 Câu Cá Học Giỏi – <b>${esc(dash.name)}</b></p><p class="muted">Mở trò chơi → 🌐 Server → nhập mã server, tên và PIN:</p>
+    $('#present').innerHTML = `<div><p>🎣 Câu Cá Học Giỏi – <b>${esc(dash.name)}</b></p><p class="muted">Mở trò chơi → 👤 Tài khoản → đăng nhập → nhập mã lớp:</p>
       <div class="big-code">${dash.code}</div><p class="muted small">(bấm để đóng)</p></div>`;
     $('#present').hidden = false; return;
   }
@@ -337,7 +363,7 @@ document.addEventListener('click', async (e) => {
     w.document.write(`<!doctype html><meta charset="utf-8"><title>Phiếu tài khoản ${dash.code}</title>
       <style>body{font-family:system-ui,sans-serif;margin:16px}.g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
       .c{border:2px dashed #555;border-radius:10px;padding:10px;break-inside:avoid}.c b.p{font-size:1.4rem;letter-spacing:3px}</style>
-      <h3>🎣 Câu Cá Học Giỏi – ${esc(dash.name)}</h3><p>Mở trò chơi → 🌐 Server → nhập mã server, tên và PIN.</p>
+      <h3>🎣 Câu Cá Học Giỏi – ${esc(dash.name)}</h3><p>Mở trò chơi → 👤 Tài khoản → nhập mã server (mã lớp), tên và PIN.</p>
       <div class="g">${newPins.filter((p) => p.pin).map((p) => `<div class="c">Mã server: <b>${dash.code}</b><br>Tên: <b>${esc(p.name)}</b><br>PIN: <b class="p">${p.pin}</b></div>`).join('')}</div>
       <script>print()<\/script>`);
     w.document.close();
@@ -345,6 +371,8 @@ document.addEventListener('click', async (e) => {
   }
 });
 document.addEventListener('change', async (e) => {
+  if (e.target.id === 'curr-grade') { curGrade = Number(e.target.value); render(); return; }
+  if (e.target.id === 'srv-set-pick') { $('#srv-set').value = e.target.value; return; }
 
   if (e.target.id === 'chat-on' || e.target.id === 'dm-on') {
     const on = e.target.checked;
@@ -375,6 +403,13 @@ document.addEventListener('submit', async (e) => {
     const made = res.filter((r) => r.pin).length;
     toast(`🔑 Đã tạo ${made} tài khoản${res.length > made ? ` · ${res.length - made} tên bỏ qua` : ''}.`);
     await loadDash(); loadClasses();
+  } else if (e.target.id === 'curr-form') {
+    const grade = Number($('#curr-grade').value);
+    const subjects = [...e.target.querySelectorAll('input[name="subj"]:checked')].map((x) => x.value);
+    if (!subjects.length) { toast('Hãy chọn ít nhất một môn.'); return; }
+    await act(() => serverApi.curriculum(T(), current, grade, subjects), `💾 Đã lưu: Lớp ${grade}, ${subjects.length} môn.`).catch(() => {});
+    curGrade = null;
+    await loadDash();
   } else if (e.target.id === 'access-form') {
     const access = e.target.querySelector('input[name="access"]:checked')?.value;
     const pin = $('#access-pin').value.trim();
@@ -415,6 +450,26 @@ function keyDialog() {
   toast('Đã đổi mã giáo viên.');
   loadClasses();
 }
+
+// ---------------------------------------------------------------- Bộ đề của thầy cô (lưu trên máy này)
+const SETS_STORE = 'cauca-giaovien-sets';
+let setsState;
+try { setsState = JSON.parse(localStorage.getItem(SETS_STORE)) || {}; } catch { setsState = {}; }
+setsState.sets ||= [];
+setsState.settings ||= { subjects: ['custom'], grade: 1 };
+setsState.online = { ...(setsState.online || {}), ownerKey: T(), key: T() };
+const saveSets = () => { try { localStorage.setItem(SETS_STORE, JSON.stringify(setsState)); } catch { /* đầy */ } };
+const mySharedSets = () => setsState.sets.filter((x) => x.code);
+const setsUI = initSetsUI({ getState: () => setsState, save: saveSets, toast, esc, beep: () => {}, onChange: saveSets });
+function showView(v) {
+  for (const b of document.querySelectorAll('[data-view]')) b.classList.toggle('on', b.dataset.view === v);
+  $('#sets-view').hidden = v !== 'sets';
+  $('#classes-view').hidden = v !== 'classes';
+  if (v === 'sets') setsUI.open('mine');
+  store.view = v; saveStore();
+}
+document.addEventListener('click', (e) => { const v = e.target.closest('[data-view]'); if (v) showView(v.dataset.view); });
+showView(store.view === 'sets' ? 'sets' : 'classes');
 
 loadClasses();
 refreshTimer = setInterval(() => { if (!document.hidden && current && (tab === 'students' || tab === 'reports')) { loadClasses(); } }, 20000);

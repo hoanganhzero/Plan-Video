@@ -26,7 +26,7 @@ export function initServerUI({ getState, saveNow, toast, esc, normalizeState, ne
   function switchTo(code) {
     saveNow();
     setActiveWorld(localStorage, code);
-    sessionStorage.setItem('cauca-flash', code ? '🌐 Đã vào server!' : '🏠 Đã về thế giới của em.');
+    sessionStorage.setItem('cauca-flash', code ? '🏫 Đã vào lớp!' : '🏠 Đã về thế giới của em.');
     location.reload();
   }
   // Ghi bản lưu server vừa nhận và chuyển vào server đó.
@@ -35,12 +35,15 @@ export function initServerUI({ getState, saveNow, toast, esc, normalizeState, ne
     saveNow();
     rememberServer(localStorage, entry);
     const world = applyServerIdentity(normalizeState(r.save || newGame()), entry);
+    // Khối lớp + môn học do thầy cô chọn cho lớp
+    if (r.server?.grade) world.settings.grade = r.server.grade;
+    if (r.server?.subjects?.length) world.settings.subjects = [...r.server.subjects, ...(r.server.set_code ? ['custom'] : [])];
     world.serverSavedAt = r.save_at || null;
     localStorage.setItem(slotKey(code), JSON.stringify(world));
     setActiveWorld(localStorage, code);
     sessionStorage.setItem('cauca-flash', r.created
-      ? `🎉 Chào mừng <b>${esc(r.name)}</b> đến server <b>${esc(entry.name)}</b>!`
-      : `👋 Chào mừng trở lại server <b>${esc(entry.name)}</b>!${r.save ? ' Đã tải tiến trình của em.' : ''}`);
+      ? `🎉 Chào mừng <b>${esc(r.name)}</b> đến lớp <b>${esc(entry.name)}</b>!`
+      : `👋 Chào mừng trở lại lớp <b>${esc(entry.name)}</b>!${r.save ? ' Đã tải tiến trình của em.' : ''}`);
     location.reload();
   }
 
@@ -52,13 +55,13 @@ export function initServerUI({ getState, saveNow, toast, esc, normalizeState, ne
         <div class="row"><div class="grow"><div class="muted small">Tài khoản của em</div>
           <h3 style="margin:2px 0">👤 ${esc(acc.nickname)} <span class="muted small">@${esc(acc.username)}</span></h3></div>
           <button class="btn small" id="acc-pin">🔑 Đổi PIN</button><button class="btn small" id="acc-logout">🚪 Đăng xuất</button></div>
-        <p class="muted small" style="margin:4px 0 0">Một tài khoản dùng cho <b>mọi server</b>. Tiến trình thế giới cá nhân và từng server đều lưu trên mạng –
+        <p class="muted small" style="margin:4px 0 0">Một tài khoản dùng cho <b>mọi lớp</b>. Tiến trình thế giới cá nhân và từng lớp đều lưu trên mạng –
           máy khác chỉ cần đăng nhập <b>@${esc(acc.username)}</b> + PIN. Dùng máy chung ở trường? Nhớ <b>Đăng xuất</b> khi chơi xong.</p>
       </div>`;
     }
     return `<div class="card account-card">
       <h3 style="margin-top:0">👤 Tài khoản học sinh</h3>
-      <p class="muted small" style="margin:0 0 8px">Một tài khoản để vào <b>bất kỳ server nào</b> của thầy cô và chơi tiếp ở mọi máy.</p>
+      <p class="muted small" style="margin:0 0 8px">Một tài khoản để vào <b>bất kỳ lớp nào</b> của thầy cô và chơi tiếp ở mọi máy.</p>
       <nav class="auth-tabs"><button data-auth="login" class="${authTab === 'login' ? 'on' : ''}">Đăng nhập</button><button data-auth="register" class="${authTab === 'register' ? 'on' : ''}">Tạo tài khoản</button></nav>
       ${authTab === 'login' ? `<form id="acc-login" class="enter-grid">
           <label>Tên đăng nhập<input id="acc-user" autocomplete="username" autocapitalize="none" placeholder="vd: an.5a" required></label>
@@ -83,14 +86,14 @@ export function initServerUI({ getState, saveNow, toast, esc, normalizeState, ne
     for (const x of local) rows.set(x.code, { ...(rows.get(x.code) || {}), code: x.code, name: x.name, nick: x.nick, at: x.at, local: true });
     const list = [...rows.values()];
     return `<div class="card" id="srv-list">
-      <h3 style="margin-top:0">🌐 Server của em</h3>
+      <h3 style="margin-top:0">🏫 Lớp học của em</h3>
       <div class="server-list">
         ${cur ? '<button class="server-item" data-go=""><b>🏠 Thế giới của em</b><small>Cá nhân</small></button>' : ''}
         ${list.map((x) => `<div class="server-item ${cur?.code === x.code ? 'on' : ''}">
           <div><b>🏫 ${esc(x.name)}</b><small>Mã ${x.code} · tên ${esc(x.nick || '')}${x.at ? ` · ${agoLabel(x.at)}` : ''}</small></div>
           ${cur?.code === x.code ? '<span class="pill">đang chơi</span>' : `<button class="btn small gold" data-enter="${x.code}" data-name="${esc(x.name)}">Vào</button>`}
-          ${x.local && !x.account ? `<button class="btn small" data-forget="${x.code}" title="Quên server này trên máy (tiến trình vẫn còn trên mạng)">✕</button>` : ''}
-        </div>`).join('') || `<p class="muted small">${acc ? 'Tài khoản chưa vào server nào – nhập mã server bên dưới.' : 'Chưa vào server nào trên máy này.'}</p>`}
+          ${x.local && !x.account ? `<button class="btn small" data-forget="${x.code}" title="Quên lớp này trên máy (tiến trình vẫn còn trên mạng)">✕</button>` : ''}
+        </div>`).join('') || `<p class="muted small">${acc ? 'Tài khoản chưa vào lớp nào – nhập mã lớp bên dưới.' : 'Chưa vào lớp nào trên máy này.'}</p>`}
       </div></div>`;
   }
   function joinCard() {
@@ -103,26 +106,26 @@ export function initServerUI({ getState, saveNow, toast, esc, normalizeState, ne
           <label>PIN của em<input id="srv-pin" inputmode="numeric" maxlength="6" required type="password" autocomplete="off"></label>
           <button class="btn sea">🚪 Vào bằng tên + PIN</button></form>`;
       if (access === 'list') {
-        action = `<p class="small">📋 Server này <b>chỉ dành cho tài khoản thầy cô đã tạo</b>. Nhập đúng tên và PIN trên phiếu thầy cô phát:</p>${legacy}`;
+        action = `<p class="small">📋 Lớp này <b>chỉ dành cho tài khoản thầy cô đã tạo</b>. Nhập đúng tên và PIN trên phiếu thầy cô phát:</p>${legacy}`;
       } else if (!acc) {
-        action = `<p class="small">${access === 'open' ? '🚪 Server này cho <b>vào tự do</b>.' : '🔢 Server này <b>cần mã PIN của server</b> (hỏi thầy cô).'}
+        action = `<p class="small">${access === 'open' ? '🚪 Lớp này cho <b>vào tự do</b>.' : '🔢 Lớp này <b>cần mã PIN của lớp</b> (hỏi thầy cô).'}
           Hãy <b>đăng nhập hoặc tạo tài khoản</b> ở trên để vào.</p>`;
       } else if (access === 'open') {
-        action = `<p class="small">🚪 Server này cho <b>vào tự do</b> – em vào với tên <b>${esc(acc.nickname)}</b>.</p>
-          <button class="btn gold" id="srv-join">🚪 Vào server</button>`;
+        action = `<p class="small">🚪 Lớp này cho <b>vào tự do</b> – em vào với tên <b>${esc(acc.nickname)}</b>.</p>
+          <button class="btn gold" id="srv-join">🚪 Vào lớp</button>`;
       } else {
-        action = `<p class="small">🔢 Server này <b>cần mã PIN của server</b> (thầy cô cho cả lớp). Chỉ cần nhập một lần.</p>
-          <form id="srv-join-pin" class="row"><input id="srv-spin" inputmode="numeric" maxlength="6" type="password" placeholder="PIN server" required style="width:140px">
-          <button class="btn gold">🚪 Vào server</button></form>`;
+        action = `<p class="small">🔢 Lớp này <b>cần mã PIN của lớp</b> (thầy cô cho cả lớp). Chỉ cần nhập một lần.</p>
+          <form id="srv-join-pin" class="row"><input id="srv-spin" inputmode="numeric" maxlength="6" type="password" placeholder="PIN của lớp" required style="width:140px">
+          <button class="btn gold">🚪 Vào lớp</button></form>`;
       }
       if (access !== 'list') {
-        action += showLegacy ? `<p class="muted small">Tài khoản thầy cô phát riêng cho server này:</p>${legacy}`
-          : '<p><button class="link small" id="srv-legacy">Em có tên + PIN thầy cô phát riêng cho server này?</button></p>';
+        action += showLegacy ? `<p class="muted small">Tài khoản thầy cô phát riêng cho lớp này:</p>${legacy}`
+          : '<p><button class="link small" id="srv-legacy">Em có tên + PIN thầy cô phát riêng cho lớp này?</button></p>';
       }
     }
     return `<div class="card">
-      <h3 style="margin-top:0">➕ Vào server mới</h3>
-      <form id="srv-find" class="row"><input id="srv-code" maxlength="6" placeholder="Mã server (6 ký tự)" autocomplete="off" style="text-transform:uppercase;letter-spacing:2px;width:170px">
+      <h3 style="margin-top:0">➕ Vào lớp mới</h3>
+      <form id="srv-find" class="row"><input id="srv-code" maxlength="6" placeholder="Mã lớp (6 ký tự)" autocomplete="off" style="text-transform:uppercase;letter-spacing:2px;width:170px">
         <button class="btn sea">🔎 Tìm</button></form>
       ${found ? `<div class="server-found">
         <h3 style="margin:8px 0 2px">🏫 ${esc(found.name)} <span class="pill">${ACCESS_LABEL[found.access] || ''}</span></h3>
@@ -138,11 +141,11 @@ export function initServerUI({ getState, saveNow, toast, esc, normalizeState, ne
       <div class="card world-now">
         <div class="muted small">Em đang chơi ở</div>
         <h3 style="margin:2px 0">${cur ? `🏫 ${esc(cur.name)} <span class="muted small">· mã ${cur.code}</span>` : '🏠 Thế giới của em (cá nhân)'}</h3>
-        <p class="muted small" style="margin:0">${cur ? `Tên trong server: <b>${esc(s.online.nickname)}</b>. Tiến trình ở server này tự lưu lên mạng.`
-          : 'Mỗi server của thầy cô có tiến trình riêng; thế giới cá nhân vẫn giữ nguyên khi em vào server.'}</p>
+        <p class="muted small" style="margin:0">${cur ? `Tên trong lớp: <b>${esc(s.online.nickname)}</b>. Tiến trình ở lớp này tự lưu lên mạng.`
+          : 'Mỗi lớp của thầy cô có tiến trình riêng; thế giới cá nhân vẫn giữ nguyên khi em vào lớp.'}</p>
         ${cur ? '<div class="row" style="margin-top:8px"><button class="btn" data-go="">🏠 Về thế giới của em</button></div>' : ''}
       </div>
-      ${cur ? `<div class="card"><h3 style="margin-top:0">🏆 Bảng xếp hạng server</h3><div id="server-top">${top ? renderTop() : '<span class="muted small">Đang tải…</span>'}</div></div>` : ''}
+      ${cur ? `<div class="card"><h3 style="margin-top:0">🏆 Bảng xếp hạng lớp</h3><div id="server-top">${top ? renderTop() : '<span class="muted small">Đang tải…</span>'}</div></div>` : ''}
       ${serverList()}
       ${joinCard()}`;
     const code = found?.code;
@@ -181,7 +184,7 @@ export function initServerUI({ getState, saveNow, toast, esc, normalizeState, ne
   const actions = {
     async find() {
       const code = cleanClassCode($('#srv-code').value);
-      if (!CLASS_CODE_RE.test(code)) { toast('Mã server gồm 6 ký tự (chữ in hoa và số).'); return; }
+      if (!CLASS_CODE_RE.test(code)) { toast('Mã lớp gồm 6 ký tự (chữ in hoa và số).'); return; }
       found = null; showLegacy = false;
       found = await serverApi.info(code);
       render();
@@ -277,7 +280,7 @@ export function initServerUI({ getState, saveNow, toast, esc, normalizeState, ne
     const f = t.closest('[data-forget]');
     if (f) {
       const code = f.dataset.forget;
-      if (!confirm(`Quên server ${code} trên máy này? Tiến trình vẫn lưu trên mạng.`)) return;
+      if (!confirm(`Quên lớp ${code} trên máy này? Tiến trình vẫn lưu trên mạng.`)) return;
       const leaving = st().server?.code === code;
       forgetServer(localStorage, code);
       if (leaving) { sessionStorage.setItem('cauca-flash', '🏠 Đã về thế giới của em.'); location.reload(); } else render();

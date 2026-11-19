@@ -51,15 +51,15 @@ export const SERVER_ERRORS = {
   'account not found': 'Không tìm thấy tài khoản này – kiểm tra tên đăng nhập hoặc tạo tài khoản mới.',
   'username taken': 'Tên đăng nhập này đã có người dùng – hãy chọn tên khác.',
   'bad username': 'Tên đăng nhập gồm 3–20 ký tự: chữ thường không dấu, số, dấu chấm hoặc gạch dưới (vd: an.5a).',
-  'wrong server pin': 'Sai mã PIN của server – hỏi lại thầy cô nhé.',
-  'name not in server': 'Không có tên này trong server. Nếu chưa có tài khoản, hãy đăng nhập tài khoản của em ở trên rồi vào server.',
+  'wrong server pin': 'Sai mã PIN của lớp – hỏi lại thầy cô nhé.',
+  'name not in server': 'Không có tên này trong lớp. Nếu chưa có tài khoản, hãy đăng nhập tài khoản của em ở trên rồi vào lớp.',
   'use account': 'Tên này dùng tài khoản chung – hãy đăng nhập tài khoản của em ở trên.',
-  'bad access': 'Cách vào server không hợp lệ.',
+  'bad access': 'Cách vào lớp không hợp lệ.',
   'wrong pin': 'Sai mã PIN.',
   'too many tries': 'Sai PIN quá nhiều lần – hãy đợi 5 phút hoặc nhờ thầy cô đặt lại PIN.',
   'pin must be 4-6 digits': 'PIN gồm 4–6 chữ số.',
   'ask teacher for pin': 'Tài khoản này chưa có PIN – nhờ thầy cô bấm “Đặt lại PIN”.',
-  'server is invite only': 'Server này chỉ dành cho học sinh thầy cô đã tạo tài khoản – hãy nhập đúng tên và PIN thầy cô phát.',
+  'server is invite only': 'Lớp này chỉ dành cho học sinh thầy cô đã tạo tài khoản – hãy nhập đúng tên và PIN thầy cô phát.',
   'set not found': 'Không tìm thấy bộ đề với mã này.',
   'too many names': 'Mỗi lần thêm tối đa 80 tên.',
   'save too large': 'Bản lưu quá lớn.',
@@ -101,6 +101,7 @@ export function accountSnapshot(state) {
 export const ACCESS_LABEL = { open: '🚪 Vào tự do', pin: '🔢 Cần mã PIN của server', list: '📋 Chỉ tài khoản thầy cô tạo' };
 
 export const serverApi = {
+  curriculum: (t, code, grade, subjects, f) => rpc('fishing_server_curriculum', { p_teacher: t, p_code: code, p_grade: grade, p_subjects: subjects }, f),
   join: (accountKey, code, serverPin, f) => rpc('fishing_server_join', { p_key: accountKey, p_code: cleanClassCode(code), p_server_pin: serverPin ? String(serverPin) : null }, f),
   access: (t, code, access, pin, f) => rpc('fishing_server_access', { p_teacher: t, p_code: code, p_access: access, p_pin: pin ? String(pin) : null }, f),
   resetAccountPin: (t, code, pid, f) => rpc('fishing_server_reset_account_pin', { p_teacher: t, p_code: code, p_pid: pid }, f),

@@ -145,6 +145,7 @@ test('harder fish ask harder questions with more time', () => {
   state.zones.push('abyss');
   state.zone = 'abyss';
   state.settings.subjects = ['sci'];
+  state.settings.grade = 5; // lớp 5 có đủ câu Khoa học cả 3 mức độ
   const rng = seeded(9);
   for (let i = 0; i < 40; i++) {
     const a = startCast(state, rng);
@@ -217,8 +218,8 @@ test('old saves are upgraded with new defaults', () => {
   assert.equal(s.coins, 99);
   assert.equal(s.items.shrimp, 9);
   assert.equal(s.items.hint, 1);
-  assert.equal(s.settings.grade, 'g6');
-  assert.deepEqual(s.settings.subjects, ['math', 'vi', 'en', 'sci', 'his']);
+  assert.equal(s.settings.grade, 7); // 'g6' (lớp 6–9) → lớp 7
+  assert.deepEqual(s.settings.subjects, ['math', 'lit', 'en', 'khtn', 'his', 'civic', 'it', 'tech']);
 });
 
 // ---------- Pha kéo cá ----------

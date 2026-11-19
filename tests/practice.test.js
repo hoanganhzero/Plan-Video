@@ -95,3 +95,54 @@ test('rescue outcomes and bait refund', () => {
   assert.equal(s.items.shrimp, before + 1);
   assert.equal(refundBait(s, 'worm'), false);
 });
+
+import { subjectsForGrade, normalizeGrade, cleanSubjects, mathLevel, GRADE_LIST } from '../fishing/js/curriculum.js';
+import { pickQuestion, bankQuestions, mathQuestion } from '../fishing/js/questions.js';
+import { normalizeState } from '../fishing/js/engine.js';
+
+test('curriculum covers grades 1–12 with enough questions for every subject', () => {
+  assert.deepEqual(GRADE_LIST, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  assert.ok(subjectsForGrade(1).includes('nature') && !subjectsForGrade(1).includes('phy'));
+  assert.ok(subjectsForGrade(11).includes('chem') && subjectsForGrade(11).includes('ktpl'));
+  for (const g of GRADE_LIST) {
+    for (const s of subjectsForGrade(g)) {
+      if (s !== 'math') assert.ok(bankQuestions(s, g).length >= 5, `lớp ${g} môn ${s}`);
+    }
+  }
+});
+
+test('questions follow the grade', () => {
+  const rng = seeded(4);
+  for (let i = 0; i < 60; i++) {
+    const q = pickQuestion(1 + (i % 3), { subjects: ['phy'], grade: 11 }, rng);
+    assert.equal(q.subject, 'phy');
+    assert.equal(q.choices.length, 4);
+    assert.equal(typeof q.choices[q.answer], 'string');
+  }
+  // Lớp 1 không gặp câu Vật lí lớp 10–12 dù môn được chọn sai
+  assert.equal(bankQuestions('phy', 1).length, 0);
+  const q1 = pickQuestion(2, { subjects: ['nature'], grade: 2 }, rng);
+  assert.equal(q1.subject, 'nature');
+});
+
+test('math difficulty grows with the grade, and generated answers are right', () => {
+  assert.ok(mathLevel(1, 3) < mathLevel(6, 1) && mathLevel(6, 3) < mathLevel(12, 2));
+  const rng = seeded(11);
+  for (let L = 1; L <= 8; L++) {
+    for (let i = 0; i < 30; i++) {
+      const q = mathQuestion(L, rng);
+      assert.equal(new Set(q.choices).size, 4, `${L}: ${q.text}`);
+      assert.ok(q.answer >= 0);
+    }
+  }
+});
+
+test('old grade groups and subject lists are migrated', () => {
+  assert.equal(normalizeGrade('g3'), 4);
+  assert.equal(normalizeGrade(15), 12);
+  assert.deepEqual(cleanSubjects(['math', 'phy', 'custom'], 3), ['math', 'custom']);
+  assert.deepEqual(cleanSubjects(['phy'], 3), subjectsForGrade(3));
+  const s = normalizeState({ settings: { grade: 'g1', subjects: ['math', 'custom'] } });
+  assert.equal(s.settings.grade, 2);
+  assert.ok(s.settings.subjects.includes('nature') && s.settings.subjects.includes('custom'));
+});

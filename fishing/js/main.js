@@ -7,11 +7,11 @@ import {
   RARITIES, ZONES, RODS, ITEMS, SHOP, QUESTS, fishById, zoneById, rodById,
 } from './engine.js';
 import { SUBJECTS, GRADES, SKILLS, rarityOf, rarityIndex, subjectById } from './data.js';
-import { initSetsUI } from './sets-ui.js';
 import { initMatchUI } from './match-ui.js';
 import { createWorld, assignSlots, EMOTES, makePublicId, colorFor } from './world.js';
 import { ONLINE } from './online.js';
 import { initChatUI } from './chat-ui.js';
+import { GRADE_LIST, levelLabel, gradeLabel, subjectsForGrade, cleanSubjects, normalizeGrade } from './curriculum.js';
 import { initServerUI } from './server-ui.js';
 import { serverApi, knownServers, activeWorld, setActiveWorld, applyServerIdentity, serverSnapshot, slotKey, isNewer, getAccount, accountApi, accountSnapshot, logoutAccount } from './servers.js';
 import { progressSummary, chatError } from './chat.js';
@@ -166,9 +166,6 @@ function renderHud() {
   $('#bucket-badge').textContent = state.bucket.length;
   const on = state.online || {};
   $('#hud-rank-text').textContent = on.nickname && on.rank ? `#${on.rank}` : 'Đua top';
-  const activeSets = (state.sets || []).filter((s) => s.enabled !== false && s.questions.length).length;
-  $('#sets-badge').hidden = !activeSets;
-  $('#sets-badge').textContent = activeSets;
   $('#review-badge').hidden = !state.review.length;
   $('#review-badge').textContent = state.review.length;
   renderGear();
@@ -670,26 +667,38 @@ $('#review-clear').addEventListener('click', () => {
 });
 
 // ---------- Cài đặt ----------
+// Cài đặt của học sinh: tài khoản, khối lớp (chơi cá nhân), âm thanh… Môn học do khối lớp hoặc thầy cô (trong lớp) quyết định.
+const subjectChips = (ids) => ids.map((id) => { const s = subjectById(id); return s ? `<span class="pill on">${s.icon} ${esc(s.name)}</span>` : ''; }).join('');
 RENDER.settings = () => {
-  $('#subject-list').innerHTML = SUBJECTS.map((s) => `<label class="pill"><input type="checkbox" data-subject="${s.id}" ${state.settings.subjects.includes(s.id) ? 'checked' : ''}> ${s.icon} ${esc(s.name)}</label>`).join('');
-  $('#grade-list').innerHTML = GRADES.map((g) => `<label class="pill"><input type="radio" name="grade" data-grade="${g.id}" ${state.settings.grade === g.id ? 'checked' : ''}> ${esc(g.name)}</label>`).join('');
+  const acc = getAccount(localStorage);
+  $('#me-card').innerHTML = `<div class="row">
+      <span class="grow">${acc ? `👤 <b>${esc(acc.nickname)}</b> <span class="muted">@${esc(acc.username)}</span>` : '<span class="muted">Chưa đăng nhập – tạo tài khoản để lưu tiến trình và vào lớp của thầy cô.</span>'}</span>
+      <button class="btn small ${acc ? '' : 'gold'}" id="open-account">${acc ? '👤 Tài khoản & lớp học' : '👤 Đăng nhập / Tạo tài khoản'}</button></div>`;
+  const g = state.settings.grade;
+  const ids = state.settings.subjects.filter((x) => x !== 'custom');
+  const hasSets = setQuestions(state).length > 0;
+  $('#grade-card').innerHTML = state.server
+    ? `<p class="small" style="margin:0 0 6px">🏫 Em đang ở lớp <b>${esc(state.server.name)}</b> – thầy cô đã chọn <b>${gradeLabel(g)}</b>:</p>
+       <div class="subject-list">${subjectChips(ids)}${hasSets ? '<span class="pill on">📝 Bộ đề của thầy cô</span>' : ''}</div>`
+    : `<label class="small">Em học lớp mấy? <select id="grade-select">${GRADE_LIST.map((n) => `<option value="${n}" ${n === g ? 'selected' : ''}>Lớp ${n} (${levelLabel(n)})</option>`).join('')}</select></label>
+       <div class="subject-list" style="margin-top:8px">${subjectChips(ids)}</div>
+       <p class="muted small">Câu hỏi lấy theo đúng các môn của khối lớp. Khi vào lớp của thầy cô, thầy cô sẽ chọn môn cho cả lớp.</p>`;
   $('#sound-toggle').checked = state.settings.sound;
   $('#world-toggle').checked = state.settings.showWorld !== false;
   renderCloud();
-  const n = setQuestions(state).length;
-  $('#custom-status').textContent = n ? `Đang dùng ${n} câu từ ${state.sets.filter((s) => s.enabled !== false).length} bộ đề.` : 'Chưa có bộ đề nào.';
 };
-$('#subject-list').addEventListener('change', (e) => {
-  const id = e.target.dataset.subject;
-  if (!id) return;
-  const set = new Set(state.settings.subjects);
-  if (e.target.checked) set.add(id); else set.delete(id);
-  if (!set.size) { e.target.checked = true; toast('Cần chọn ít nhất một môn.'); return; }
-  state.settings.subjects = SUBJECTS.map((s) => s.id).filter((s) => set.has(s));
-  if (id === 'custom' && e.target.checked && !setQuestions(state).length) toast('Chưa có bộ đề nào – bấm "Mở Bộ đề" để soạn câu hỏi.');
+$('#sheet-settings').addEventListener('change', (e) => {
+  if (e.target.id !== 'grade-select' || state.server) return;
+  const g = Number(e.target.value);
+  state.settings.grade = g;
+  state.settings.subjects = [...subjectsForGrade(g), ...(state.settings.subjects.includes('custom') ? ['custom'] : [])];
   save();
+  RENDER.settings();
+  toast(`📚 Đã chọn <b>Lớp ${g}</b> – câu hỏi sẽ theo chương trình lớp ${g}.`);
 });
-$('#grade-list').addEventListener('change', (e) => { if (e.target.dataset.grade) { state.settings.grade = e.target.dataset.grade; save(); } });
+$('#sheet-settings').addEventListener('click', (e) => {
+  if (e.target.id === 'open-account') { $('#sheet-settings').close(); openSheet('server'); }
+});
 $('#sound-toggle').addEventListener('change', (e) => { state.settings.sound = e.target.checked; save(); });
 // ---------- Thế giới chung: thấy các bạn cùng câu ----------
 // Khoá "anon" công khai (dành cho trình duyệt) – Realtime dùng khoá dạng JWT này.
@@ -836,6 +845,18 @@ function leaveRemovedServer() {
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') pushServer({ keepalive: true }); });
 window.addEventListener('pagehide', () => pushServer({ keepalive: true }));
+// Khối lớp + môn học do thầy cô chọn cho lớp (server). Bộ đề giao cho lớp được thêm ở dưới.
+function applyServerCurriculum(sv) {
+  if (!state.server || !sv) return;
+  const grade = sv.grade ? normalizeGrade(sv.grade) : state.settings.grade;
+  const custom = sv.set_code || state.sets.some((s) => s.fromServer) ? ['custom'] : [];
+  const subjects = [...cleanSubjects(sv.subjects?.length ? sv.subjects : subjectsForGrade(grade), grade).filter((x) => x !== 'custom'), ...custom];
+  if (grade === state.settings.grade && subjects.join() === state.settings.subjects.join()) return;
+  state.settings.grade = grade;
+  state.settings.subjects = subjects;
+  saveLocal();
+  if ($('#sheet-settings').open) RENDER.settings();
+}
 // Mở trò chơi trong server: lấy bản lưu mới hơn trên mạng (chơi ở máy khác), nạp bộ đề thầy cô giao.
 async function startServerWorld() {
   if (!state.server) return;
@@ -855,6 +876,7 @@ async function startServerWorld() {
     return;
   }
   if (r.server?.name && r.server.name !== state.server.name) { state.server.name = r.server.name; saveLocal(); renderHud(); }
+  applyServerCurriculum(r.server);
   // Bộ đề thầy cô giao cho server
   const code = r.server?.set_code;
   if (code && !state.sets.some((s) => s.fromCode === code)) {
@@ -1021,17 +1043,6 @@ $('#cloud-body').addEventListener('click', async (e) => {
 });
 
 // ---------- Bộ đề (giáo viên / phụ huynh) ----------
-const setsUI = initSetsUI({
-  getState: () => state, save, toast, esc,
-  beep: (notes) => beep(notes),
-  onChange: () => { renderHud(); if ($('#sheet-settings').open) RENDER.settings(); },
-});
-RENDER.sets = () => setsUI.render();
-$$('[data-open-sets]').forEach((b) => b.addEventListener('click', () => {
-  $('#sheet-settings').close();
-  setsUI.open(b.dataset.openSets);
-  $('#sheet-sets').showModal();
-}));
 $('#export-btn').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');

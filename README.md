@@ -129,6 +129,12 @@ Trò chơi vừa học vừa chơi trong thư mục `fishing/` – mở `http://
   - Nút 😀 gửi **biểu cảm có sẵn** (Xin chào!, Hay quá!, Cố lên!…); tin nhắn ở 💬 Hồ cũng hiện thành bong bóng trên đầu nhân vật.
   - Nút 👥 trên cùng cho biết bao nhiêu bạn đang cùng khu. Tắt/bật trong Cài đặt.
   - Chạy bằng Supabase Realtime (presence + broadcast, kênh `fishing:world:<khu>`), không ghi gì vào cơ sở dữ liệu. Thử trên một máy: mở nhiều tab với `index.html?mp=local&pk=ban00001&name=An`.
+- **📚 Chương trình lớp 1–12**: mỗi khối lớp có đúng các môn theo Chương trình GDPT 2018 (Toán, Tiếng Việt/Ngữ văn, Tiếng Anh,
+  Tự nhiên và Xã hội, Khoa học, Khoa học tự nhiên, Lịch sử và Địa lí, Đạo đức, GDCD, Vật lí, Hoá học, Sinh học, Lịch sử, Địa lí,
+  GD Kinh tế và Pháp luật, Tin học, Công nghệ). Toán tự sinh theo khối (đến logarit, đạo hàm, tổ hợp…); các môn khác có ngân hàng câu hỏi theo khối.
+  - **Học sinh** chỉ chọn *khối lớp* trong ⚙️ Cài đặt khi chơi cá nhân; khi vào lớp của thầy cô thì dùng đúng khối lớp và môn thầy cô chọn.
+  - **Thầy cô** chọn khối lớp + môn cho từng lớp (trang thầy cô → ⚙️ Cài đặt server) và soạn / giao **📝 Bộ đề** (trang thầy cô → 📝 Bộ đề).
+    Học sinh không còn thấy Bộ đề hay phần quản lý server trong trò chơi – chỉ có *👤 Tài khoản* (đăng nhập, vào lớp bằng mã).
 - **👤 Tài khoản học sinh** (🌐 Server → Tạo tài khoản): tên đăng nhập (vd `an.5a`) + tên hiển thị + PIN 4–6 số.
   **Một tài khoản vào được mọi server**; thế giới cá nhân cũng lưu theo tài khoản → đăng nhập ở máy nào cũng chơi tiếp.
   Đăng xuất xoá dữ liệu tài khoản khỏi máy (an toàn cho máy dùng chung). Sai PIN 5 lần → khoá 5 phút; quên PIN → thầy cô hoặc admin đặt lại.
@@ -217,6 +223,9 @@ fishing/                Trò chơi Câu Cá Học Giỏi
   js/servers.js         Server lớp học: thế giới riêng từng server, lưu / tải tiến trình, tài khoản
   js/server-ui.js       Bảng 🌐 Server (vào server bằng mã + tên + PIN, chuyển server, xếp hạng server)
   js/practice.js        Ôn tập nhận thưởng, năng lượng kỹ năng, thẻ ghi nhớ, cứu cá
+  js/curriculum.js      Khối lớp 1–12 và các môn của từng khối
+  js/bank2.js           Ngân hàng câu hỏi theo môn và khối lớp
+  sets.css              Giao diện Bộ đề trong trang thầy cô
   teacher.html, js/teacher.js   Trang thầy cô
   admin.html, js/admin.js       Trang quản trị
   panel.css             Giao diện chung của trang thầy cô & quản trị

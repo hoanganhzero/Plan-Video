@@ -5,6 +5,7 @@ import {
   rarityIndex, zoneById, fishById, rodById, LINES, lineById,
 } from './data.js';
 import { pickQuestion } from './questions.js';
+import { subjectsForGrade, normalizeGrade, cleanSubjects } from './curriculum.js';
 
 export const SAVE_KEY = 'cauca-hocgioi-v1';
 export const ACTIVE_QUESTS = 3;
@@ -41,10 +42,19 @@ export function newGame() {
       streak: 0, bestStreak: 0, catches: 0, catchesByRarity: {},
       escaped: 0, fishSold: 0, coinsEarned: 0, reviewedOk: 0,
     },
-    settings: { subjects: ['math', 'vi', 'en', 'sci', 'his'], grade: 'g1', sound: true },
+    settings: { subjects: subjectsForGrade(1), grade: 1, sound: true },
     nextUid: 1,
     online: { key: null, nickname: '', rank: null, total: null },
   };
+}
+
+// Khối lớp 1–12 (bản lưu cũ 'g1'/'g3'/'g6' được đổi), môn học hợp với khối lớp.
+export function normalizeSettings(st) {
+  const grade = normalizeGrade(st.grade);
+  // Bản lưu cũ (nhóm lớp 'g1'/'g3'/'g6'): dùng đủ các môn của khối lớp mới.
+  const legacy = typeof st.grade === 'string' && !/^\d+$/.test(st.grade);
+  const subjects = legacy ? [...subjectsForGrade(grade), ...((st.subjects || []).includes('custom') ? ['custom'] : [])] : cleanSubjects(st.subjects, grade);
+  return { ...st, grade, subjects };
 }
 
 // Ghép dữ liệu đã lưu với mặc định (an toàn khi thêm tính năng mới).
@@ -73,7 +83,7 @@ export function normalizeState(raw) {
     ...raw,
     items: { ...base.items, ...(raw.items || {}) },
     stats: { ...base.stats, ...(raw.stats || {}) },
-    settings: { ...base.settings, ...(raw.settings || {}) },
+    settings: normalizeSettings({ ...base.settings, ...(raw.settings || {}) }),
     online: { ...base.online, ...(raw.online || {}) },
     practice: { ...base.practice, ...(raw.practice || {}) },
   };
@@ -150,9 +160,8 @@ export function rollFish(zoneId, luck, rng = Math.random, { charm = false } = {}
 
 // ---------- Thả câu ----------
 export function questionOpts(state) {
-  const grade = GRADES.find((g) => g.id === state.settings.grade) || GRADES[0];
   return {
-    subjects: state.settings.subjects, mathOffset: grade.mathOffset,
+    subjects: state.settings.subjects, grade: normalizeGrade(state.settings.grade),
     recent: state.recent, review: state.review, custom: setQuestions(state),
   };
 }

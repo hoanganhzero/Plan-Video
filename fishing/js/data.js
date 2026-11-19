@@ -1,3 +1,4 @@
+import { ALL_SUBJECTS } from './curriculum.js';
 // Dữ liệu trò chơi "Câu Cá Học Giỏi": độ hiếm, khu câu, cá, cần câu, mồi, vật phẩm, nhiệm vụ.
 
 // Độ hiếm tăng dần. Cá càng hiếm thì câu hỏi càng khó và giá càng cao.
@@ -145,17 +146,12 @@ export const SHOP = [
   { id: 'net1', item: 'net', qty: 1, price: 150, level: 3 },
 ];
 
-export const SUBJECTS = [
-  { id: 'math', name: 'Toán', icon: '🔢' },
-  { id: 'vi', name: 'Tiếng Việt', icon: '📖' },
-  { id: 'en', name: 'Tiếng Anh', icon: '🔤' },
-  { id: 'sci', name: 'Khoa học', icon: '🔬' },
-  { id: 'his', name: 'Lịch sử & Địa lý', icon: '🌏' },
-  { id: 'custom', name: 'Bộ đề của thầy cô', icon: '📝' },
-];
+// Tất cả môn lớp 1–12 (xem curriculum.js) + bộ đề của thầy cô.
+export const SUBJECTS = [...ALL_SUBJECTS, { id: 'custom', name: 'Bộ đề của thầy cô', icon: '📝' }];
 
 export const subjectById = (id) => SUBJECTS.find((s) => s.id === id);
 
+// (cũ) nhóm lớp – vẫn giữ để đọc bản lưu cũ; nay dùng số lớp 1–12.
 export const GRADES = [
   { id: 'g1', name: 'Lớp 1–2', mathOffset: 0 },
   { id: 'g3', name: 'Lớp 3–5', mathOffset: 1 },
