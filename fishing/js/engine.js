@@ -4,6 +4,7 @@ import { activeQuestions } from './textbook.js';
 import {
   RARITIES, ZONES, FISH, RODS, ITEMS, SHOP, QUESTS, GRADES, BUCKETS, bucketById,
   rarityIndex, zoneById, fishById, rodById, LINES, lineById,
+  GENDERS, SKINS, HAIRS, HAIR_COLORS, OUTFITS, HATS, DEFAULT_LOOK, wearById,
 } from './data.js';
 import { pickQuestion } from './questions.js';
 import { subjectsForGrade, normalizeGrade, cleanSubjects } from './curriculum.js';
@@ -26,6 +27,8 @@ export function newGame() {
     ownedLines: ['nylon'],
     bucketId: 'bag',
     ownedBuckets: ['bag'],
+    look: { ...DEFAULT_LOOK },
+    wardrobe: [],
     bait: 'worm',
     items: { shrimp: 3, golden: 0, hint: 1, time: 1, charm: 0, tea: 1, net: 0 },
     zones: ['pond'],
@@ -81,7 +84,7 @@ export function normalizeState(raw) {
       custom: [],
     };
   }
-  return {
+  const st = {
     ...base,
     ...raw,
     items: { ...base.items, ...(raw.items || {}) },
@@ -91,11 +94,60 @@ export function normalizeState(raw) {
     practice: { ...base.practice, ...(raw.practice || {}) },
     ownedBuckets: Array.isArray(raw.ownedBuckets) && raw.ownedBuckets.length ? raw.ownedBuckets : ['bag'],
     bucketId: raw.bucketId && (raw.ownedBuckets || []).includes(raw.bucketId) ? raw.bucketId : 'bag',
+    wardrobe: Array.isArray(raw.wardrobe) ? raw.wardrobe.filter((id) => wearById(id)) : [],
   };
+  st.look = normalizeLook(raw.look, st);
+  return st;
 }
 
 // ---------- Cấp độ ----------
 export const xpForLevel = (level) => 50 * (level - 1) * level;
+// ---------- Diện mạo nhân vật ----------
+export const ownsWear = (state, id) => {
+  const w = wearById(id);
+  return !!w && (w.price === 0 || (state.wardrobe || []).includes(id));
+};
+// Lọc diện mạo (cũng dùng cho dữ liệu nhận từ người chơi khác).
+export function normalizeLook(raw, state = null) {
+  const r = raw && typeof raw === 'object' ? raw : {};
+  const l = { ...DEFAULT_LOOK, ...r, hair: r.hair };
+  const out = {
+    gender: GENDERS.some((g) => g.id === l.gender) ? l.gender : DEFAULT_LOOK.gender,
+    skin: Number.isInteger(l.skin) && l.skin >= 0 && l.skin < SKINS.length ? l.skin : 0,
+    hair: HAIRS.some((h) => h.id === l.hair) ? l.hair : null,
+    hairColor: Number.isInteger(l.hairColor) && l.hairColor >= 0 && l.hairColor < HAIR_COLORS.length ? l.hairColor : 0,
+    outfit: OUTFITS.some((o) => o.id === l.outfit) ? l.outfit : DEFAULT_LOOK.outfit,
+    hat: HATS.some((h) => h.id === l.hat) ? l.hat : DEFAULT_LOOK.hat,
+  };
+  if (!out.hair) out.hair = out.gender === 'nu' ? 'ponytail' : 'short';
+  if (state) {
+    if (!ownsWear(state, out.outfit)) out.outfit = DEFAULT_LOOK.outfit;
+    if (!ownsWear(state, out.hat)) out.hat = DEFAULT_LOOK.hat;
+  }
+  return out;
+}
+export function setLook(state, patch) {
+  const next = { ...state.look, ...patch };
+  if (patch.gender && !patch.hair && HAIRS.find((h) => h.id === state.look.hair)?.gender !== patch.gender) {
+    next.hair = patch.gender === 'nu' ? 'ponytail' : 'short';
+  }
+  if (patch.outfit && !ownsWear(state, patch.outfit)) return { ok: false, reason: 'Bạn chưa có trang phục này.' };
+  if (patch.hat && !ownsWear(state, patch.hat)) return { ok: false, reason: 'Bạn chưa có mũ này.' };
+  state.look = normalizeLook(next, state);
+  return { ok: true };
+}
+export function buyWear(state, id) {
+  const w = wearById(id);
+  if (!w) return { ok: false, reason: 'Không có món này.' };
+  if (ownsWear(state, id)) return { ok: false, reason: 'Bạn đã có món này.' };
+  if (levelFromXp(state.xp) < w.level) return { ok: false, reason: `Cần đạt cấp ${w.level}.` };
+  if (state.coins < w.price) return { ok: false, reason: 'Chưa đủ xu.' };
+  state.coins -= w.price;
+  state.wardrobe.push(id);
+  state.look = normalizeLook({ ...state.look, [OUTFITS.some((o) => o.id === id) ? 'outfit' : 'hat']: id }, state);
+  return { ok: true };
+}
+
 export function levelFromXp(xp) {
   let level = 1;
   while (xpForLevel(level + 1) <= xp) level++;

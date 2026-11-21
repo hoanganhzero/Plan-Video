@@ -965,3 +965,36 @@ button.server-item { cursor: pointer; }
 /* Ảnh cá 3D ("4D") */
 img.fish-art.fish-3d { height: auto; max-width: 100%; filter: drop-shadow(0 6px 6px rgba(0, 0, 0, .35)); animation: fade3d .35s ease-out; }
 @keyframes fade3d { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
+
+/* ---------- Tủ đồ ---------- */
+.wardrobe { display: grid; grid-template-columns: minmax(220px, 300px) 1fr; gap: 16px; align-items: start; }
+.wd-preview { position: sticky; top: 0; text-align: center; }
+.wd-stage { position: relative; height: 340px; border-radius: 20px; overflow: hidden;
+  background: radial-gradient(circle at 50% 35%, #2b6f96, #0c2a40 70%); border: 2px solid var(--line); }
+.wd-stage canvas { width: 100%; height: 100%; display: block; cursor: grab; }
+.wd-fallback { font-size: 8rem; line-height: 340px; }
+.wd-controls h3 { margin: 12px 0 6px; font-size: 1rem; }
+.wd-controls h3:first-child { margin-top: 0; }
+.wd-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.wd-gender, .wd-chip { font: inherit; font-weight: 800; color: var(--text); cursor: pointer; padding: 6px 14px; border-radius: 12px;
+  background: var(--panel-2, rgba(255,255,255,.08)); border: 2px solid var(--line); }
+.wd-gender { font-size: 1.05rem; padding: 8px 20px; }
+.wd-gender.on, .wd-chip.on { border-color: var(--gold); background: rgba(255, 197, 49, .18); }
+.wd-dot { width: 34px; height: 34px; border-radius: 50%; cursor: pointer; border: 3px solid rgba(255, 255, 255, .35); }
+.wd-dot.on { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(255, 197, 49, .35); }
+.wd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 8px; }
+.wd-card { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 6px; border-radius: 14px; text-align: center;
+  background: rgba(255, 255, 255, .06); border: 2px solid var(--line); font-size: .85rem; }
+.wd-card.on { border-color: var(--good); background: rgba(61, 220, 132, .12); }
+.wd-card.locked { opacity: .6; }
+.wd-ico { font-size: 1.7rem; line-height: 1.1; }
+.wd-sw { display: flex; gap: 3px; }
+.wd-sw i { width: 16px; height: 10px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, .4); }
+.badge-on { font-size: .75rem; font-weight: 800; padding: 1px 8px; border-radius: 99px; background: var(--good); color: #05371d; }
+@media (max-width: 700px) {
+  .wardrobe { grid-template-columns: 1fr; }
+  .wd-preview { position: static; }
+  .wd-stage { height: 240px; }
+  .wd-fallback { line-height: 240px; font-size: 6rem; }
+  .wd-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+}

@@ -1,10 +1,11 @@
 // Thế giới chung: thấy các bạn đang câu cùng khu, theo thời gian thực.
 // - Mỗi khu câu là một "kênh": người cùng khu thấy nhau (tối đa MAX_VISIBLE người hiện trên hồ).
-// - Chia sẻ: biệt danh, cấp, cần câu, màu áo, hành động (ném / chờ / cá cắn / kéo / câu được), biểu cảm.
+// - Chia sẻ: biệt danh, cấp, cần câu, màu áo, diện mạo (giới tính, tóc, trang phục, mũ), hành động (ném / chờ / cá cắn / kéo / câu được), biểu cảm.
 // - Biểu cảm có sẵn đi qua kênh này; tin nhắn gõ chữ đi qua máy chủ (chat-ui.js) để được lọc và kiểm duyệt.
 // - Không gửi mã bí mật của người chơi: chỉ một mã công khai ngẫu nhiên (publicId).
 // Chạy bằng Supabase Realtime (presence + broadcast); để thử nghiệm có thể dùng BroadcastChannel giữa các tab.
 import { FISH, RODS } from './data.js';
+import { normalizeLook } from './engine.js';
 
 export const MAX_VISIBLE = 7;
 export const PHASES = ['idle', 'charge', 'cast', 'wait', 'bite', 'fight', 'question', 'result'];
@@ -36,6 +37,8 @@ export function sanitizeMeta(m) {
     rod: RODS.some((r) => r.id === m.rod) ? m.rod : 'bamboo',
     color: /^#[0-9a-f]{6}$/i.test(m.color || '') ? m.color : colorFor(id),
     title: clean(m.title, 24), joined: Number(m.joined) || 0,
+    // Diện mạo (nam/nữ, tóc, trang phục, mũ) – chỉ nhận giá trị trong danh sách có sẵn.
+    look: m.look && typeof m.look === 'object' ? normalizeLook(m.look) : null,
   };
 }
 export function sanitizeEvent(type, p) {

@@ -1,8 +1,9 @@
-// Bản đồ thế giới minh hoạ (SVG): làng – sông – núi – biển – vực sâu, nối bằng đường đi.
+// Bản đồ thế giới minh hoạ (SVG): làng – sông – rừng đước – núi – biển – san hô – vực sâu – biển băng – núi lửa, nối bằng đường đi.
 import { ZONES, FISH } from './data.js';
 
 export const MAP_POS = {
-  pond: [150, 455], river: [335, 360], lake: [420, 145], sea: [705, 300], abyss: [878, 470],
+  pond: [120, 470], river: [290, 370], mangrove: [470, 530], lake: [410, 150], sea: [660, 300],
+  coral: [770, 150], abyss: [850, 360], ice: [920, 95], volcano: [900, 530],
 };
 
 const O = '#1b2433';
@@ -17,6 +18,29 @@ function mountain(x, y, w, h) {
   return `<g><path d="M${x - w} ${y} L${x} ${y - h} L${x + w} ${y} Z" fill="#7b8aa0" stroke="${O}" stroke-width="2.5" stroke-linejoin="round"/>
     <path d="M${x - w * 0.33} ${y - h * 0.66} L${x} ${y - h} L${x + w * 0.33} ${y - h * 0.66} L${x + w * 0.12} ${y - h * 0.6} L${x} ${y - h * 0.7} L${x - w * 0.14} ${y - h * 0.58} Z" fill="#fff"/>
     <path d="M${x} ${y - h} L${x + w} ${y} L${x + w * 0.35} ${y} Z" fill="#000" opacity=".12"/></g>`;
+}
+
+function mangroveArt() {
+  const t = (x, y) => `<g transform="translate(${x} ${y})"><path d="M-6 8 L-2 -2 M6 8 L2 -2 M0 8 L0 -4" stroke="#6b4423" stroke-width="2.5"/><circle cx="0" cy="-9" r="9" fill="#3f6212" stroke="${O}" stroke-width="1.5"/></g>`;
+  return `<path d="M410 500 C450 480 520 490 560 520 C570 560 520 590 450 590 C410 580 395 530 410 500 Z" fill="#7a6a4a" stroke="${O}" stroke-width="2" opacity=".85"/>
+    ${[[425, 515], [450, 500], [520, 505], [545, 540], [430, 570], [505, 575]].map(([x, y]) => t(x, y)).join('')}`;
+}
+function coralArt() {
+  const c = ['#f472b6', '#fb923c', '#a855f7', '#facc15'];
+  return `<ellipse cx="770" cy="150" rx="95" ry="58" fill="#2dd4bf" opacity=".55"/>
+    ${[[715, 115], [735, 195], [820, 120], [830, 185], [700, 160], [800, 210]].map(([x, y], i) => `<g transform="translate(${x} ${y})"><path d="M0 8 C-2 0 -8 -4 -6 -10 M0 8 C0 -2 0 -8 2 -14 M0 8 C3 0 8 -4 8 -10" stroke="${c[i % 4]}" stroke-width="4" fill="none" stroke-linecap="round"/></g>`).join('')}`;
+}
+function iceArt() {
+  return `<ellipse cx="920" cy="90" rx="80" ry="60" fill="#e0f2fe" opacity=".55"/>
+    ${[[870, 60, 22], [960, 50, 16], [975, 130, 18], [880, 135, 14]].map(([x, y, r]) => `<path d="M${x - r} ${y + r * 0.5} L${x - r * 0.4} ${y - r} L${x + r * 0.3} ${y - r * 0.6} L${x + r} ${y + r * 0.5} Z" fill="#f8fafc" stroke="${O}" stroke-width="2"/><path d="M${x - r * 0.4} ${y - r} L${x} ${y + r * 0.5}" stroke="#7dd3fc" stroke-width="2"/>`).join('')}
+    <path d="M840 22 C880 8 940 30 990 12" stroke="#34d399" stroke-width="6" fill="none" opacity=".55"/><path d="M845 34 C890 20 945 42 990 26" stroke="#a78bfa" stroke-width="5" fill="none" opacity=".45"/>`;
+}
+function volcanoArt() {
+  return `<path d="M820 600 L880 470 L920 470 L985 600 Z" fill="#3a2418" stroke="${O}" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M880 470 L920 470 L912 480 L888 480 Z" fill="#ff6a00"/>
+    <path d="M900 480 C896 510 906 530 896 560 C892 580 900 590 896 600" stroke="#ff6a00" stroke-width="5" fill="none"/>
+    <circle cx="900" cy="462" r="20" fill="#ff8a3a" opacity=".35"/>
+    ${[[890, 440], [906, 428], [898, 412]].map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="${6 + i * 2}" fill="#78716c" opacity=".55"/>`).join('')}`;
 }
 
 export function worldMapSVG(state, selected) {
@@ -68,9 +92,9 @@ export function worldMapSVG(state, selected) {
   </defs>
   <rect width="1000" height="600" fill="url(#m-sea)"/>
   <rect width="1000" height="600" fill="url(#m-wave)"/>
-  <ellipse cx="880" cy="470" rx="170" ry="150" fill="url(#m-abyss)"/>
-  <g class="swirl" transform="translate(880 470)">${[0, 1, 2].map((i) => `<path d="M0 0 C${30 + i * 25} -${20 + i * 20} ${60 + i * 30} ${20 + i * 15} 0 ${70 + i * 25}" stroke="#818cf8" stroke-width="2" fill="none" opacity=".45" transform="rotate(${i * 120})"/>`).join('')}</g>
-  ${[[820, 400], [940, 420], [900, 560], [800, 540], [960, 500]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2" fill="#a5f3fc"/>`).join('')}
+  <ellipse cx="850" cy="360" rx="150" ry="120" fill="url(#m-abyss)"/>
+  <g class="swirl" transform="translate(850 360)">${[0, 1, 2].map((i) => `<path d="M0 0 C${30 + i * 25} -${20 + i * 20} ${60 + i * 30} ${20 + i * 15} 0 ${70 + i * 25}" stroke="#818cf8" stroke-width="2" fill="none" opacity=".45" transform="rotate(${i * 120})"/>`).join('')}</g>
+  ${[[790, 300], [910, 320], [880, 430], [800, 420], [940, 380]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2" fill="#a5f3fc"/>`).join('')}
   <path d="M0 0 H560 C600 80 540 150 600 230 C650 300 560 360 590 440 C610 500 540 560 520 600 H0 Z" fill="url(#m-land)" stroke="${O}" stroke-width="3"/>
   <path d="M560 0 C600 80 540 150 600 230 C650 300 560 360 590 440 C610 500 540 560 520 600" stroke="#fde68a" stroke-width="10" fill="none" opacity=".8"/>
   ${mountain(330, 150, 90, 120)}${mountain(470, 120, 80, 110)}${mountain(560, 170, 60, 80)}${mountain(220, 120, 70, 90)}
@@ -83,6 +107,7 @@ export function worldMapSVG(state, selected) {
   <g transform="translate(240 520)"><path d="M-16 0 L16 0 L12 -14 L-12 -14 Z" fill="#b45309" stroke="${O}" stroke-width="2"/><path d="M-18 -14 L0 -28 L18 -14 Z" fill="#7c2d12" stroke="${O}" stroke-width="2"/></g>
   ${[[660, 120, 26], [820, 160, 18], [760, 230, 12]].map(([x, y, r]) => `<g><ellipse cx="${x}" cy="${y}" rx="${r}" ry="${r * 0.55}" fill="#fde68a" stroke="${O}" stroke-width="2"/><path d="M${x} ${y - 4} C${x + 2} ${y - 20} ${x + 8} ${y - 26} ${x + 14} ${y - 28} M${x + 2} ${y - 22} c-8 -6 -14 -2 -16 2 M${x + 4} ${y - 24} c6 -8 14 -6 16 -2" stroke="#166534" stroke-width="3" fill="none"/></g>`).join('')}
   <g transform="translate(640 380)"><rect x="-6" y="-34" width="12" height="34" fill="#fff" stroke="${O}" stroke-width="2"/><rect x="-6" y="-24" width="12" height="7" fill="#ef4444"/><rect x="-6" y="-10" width="12" height="7" fill="#ef4444"/><path d="M-8 -34 L0 -44 L8 -34 Z" fill="#334155"/><circle cx="0" cy="-38" r="12" fill="#fde047" opacity=".35"/></g>
+  ${mangroveArt()}${coralArt()}${iceArt()}${volcanoArt()}
   <path d="${d}" stroke="#1b2433" stroke-width="9" fill="none" stroke-linecap="round" opacity=".55"/>
   <path d="${d}" stroke="#fff" stroke-width="5" fill="none" stroke-dasharray="2 14" stroke-linecap="round" opacity=".85"/>
   ${openD ? `<path d="${openD}" stroke="#ffc531" stroke-width="6" fill="none" stroke-dasharray="2 14" stroke-linecap="round"/>` : ''}

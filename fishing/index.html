@@ -48,6 +48,7 @@
     <button data-open="bucket"><span class="ico">📦</span><span class="lbl">Thùng cá</span><i class="badge blue" id="bucket-badge" hidden></i></button>
     <button data-open="dex"><span class="ico">📚</span><span class="lbl">Sưu tập</span></button>
     <button data-open="shop"><span class="ico">🏪</span><span class="lbl">Cửa hàng</span></button>
+    <button data-open="wardrobe" class="wardrobe-btn"><span class="ico">👕</span><span class="lbl">Tủ đồ</span></button>
     <button data-open="review"><span class="ico">📒</span><span class="lbl">Ôn tập</span><i class="badge gray" id="review-badge" hidden></i></button>
     <button data-open="server" class="server-btn"><span class="ico">👤</span><span class="lbl">Tài khoản</span></button>
     <button id="chat-open" class="chat-btn"><span class="ico">💬</span><span class="lbl">Trò chuyện</span><i class="badge" id="chat-badge" hidden></i></button>
@@ -203,6 +204,17 @@
     <div class="sheet-body">
       <p class="muted" id="dex-summary"></p>
       <div id="dex-list"></div>
+    </div>
+  </dialog>
+
+  <dialog class="sheet" id="sheet-wardrobe">
+    <header><h2>👕 Tủ đồ</h2><button class="close" data-close aria-label="Đóng">✕</button></header>
+    <div class="sheet-body wardrobe">
+      <div class="wd-preview">
+        <div class="wd-stage" id="wd-stage"></div>
+        <p class="muted small">✋ Kéo để xoay nhân vật · Các bạn cùng hồ cũng thấy diện mạo này</p>
+      </div>
+      <div class="wd-controls" id="wd-controls"></div>
     </div>
   </dialog>
 

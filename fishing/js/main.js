@@ -5,7 +5,7 @@ import {
   startCast, nextQuestion, currentLine, buyLine, LINES, lineById, answerQuestion, landFish, loseFish, useHelper, fiftyFifty, sellFish, bucketValue,
   activeQuests, questProgress, claimQuest, describeReward, buyShopItem, buyRod, unlockZone, zoneFish, speciesTotal,
   RARITIES, ZONES, RODS, ITEMS, SHOP, QUESTS, fishById, zoneById, rodById,
-  buyBucket, bucketCap, currentBucket,
+  buyBucket, bucketCap, currentBucket, setLook, buyWear, ownsWear,
 } from './engine.js';
 import { BAITS, BUCKETS } from './data.js';
 import { SUBJECTS, GRADES, SKILLS, rarityOf, rarityIndex, subjectById } from './data.js';
@@ -27,6 +27,8 @@ import { setQuestions } from './engine.js';
 import { createFight, stepFight, answerInFight, surging, useSkill } from './fight.js';
 import { createScene } from './scene.js';
 import { fishSVG } from './art.js';
+import { getAvatarViewer } from './avatar3d.js';
+import { GENDERS, SKINS, HAIRS, HAIR_COLORS, OUTFITS, HATS } from './data.js';
 import { fishArt, autoUpgradeFishArt } from './fishthumb.js';
 import { itemIcon, rodIcon, lineIcon, bucketIcon } from './icons.js';
 import { worldMapSVG } from './map.js';
@@ -78,6 +80,7 @@ function makeScene() {
   return createScene($('#scene'));
 }
 const scene = makeScene();
+scene.setLook?.(state.look);
 let doneQuestIds = new Set(activeQuests(state).filter((q) => questProgress(state, q).done).map((q) => q.id));
 
 // ---------- Âm thanh ----------
@@ -494,6 +497,71 @@ function shopCard({ icon, title, desc = '', stats = '', action, owned = false, u
     <div class="shop-act">${action}</div>
   </div>`;
 }
+// ---------- Tủ đồ: giới tính, da, tóc, trang phục, mũ ----------
+let wdViewer = null;
+function lookChanged() {
+  save();
+  wdViewer?.update(state.look);
+  scene.setLook?.(state.look);
+  world.refreshMeta?.();
+  RENDER.wardrobe();
+}
+function wearCard(w, kind) {
+  const wearing = state.look[kind] === w.id;
+  const owned = ownsWear(state, w.id);
+  const lv = levelFromXp(state.xp);
+  const sw = kind === 'outfit'
+    ? `<span class="wd-sw"><i style="background:${w.top}"></i><i style="background:${w.bottom}"></i></span>`
+    : w.color ? `<span class="wd-sw"><i style="background:${w.color}"></i></span>` : '';
+  const act = wearing ? '<span class="badge-on">Đang dùng</span>'
+    : owned ? `<button class="btn small sea" data-wd-wear="${kind}" data-id="${w.id}">Dùng</button>`
+      : lv < w.level ? `<span class="muted small">🔒 Cấp ${w.level}</span>`
+        : `<button class="btn small gold" data-wd-buy="${w.id}" ${state.coins < w.price ? 'disabled' : ''}>💰 ${fmt(w.price)}</button>`;
+  return `<div class="wd-card ${wearing ? 'on' : ''} ${!owned && lv < w.level ? 'locked' : ''}"><span class="wd-ico">${w.icon}</span>${sw}<b>${esc(w.name)}</b>${act}</div>`;
+}
+RENDER.wardrobe = () => {
+  const l = state.look;
+  const hairs = [...HAIRS].sort((a, b) => (a.gender === l.gender ? 0 : 1) - (b.gender === l.gender ? 0 : 1));
+  $('#wd-controls').innerHTML = `
+    <h3>Giới tính</h3>
+    <div class="wd-row">${GENDERS.map((g) => `<button class="wd-gender ${l.gender === g.id ? 'on' : ''}" data-wd="gender" data-v="${g.id}">${g.icon} ${g.name}</button>`).join('')}</div>
+    <h3>Màu da</h3>
+    <div class="wd-row">${SKINS.map((c, i) => `<button class="wd-dot ${l.skin === i ? 'on' : ''}" style="background:${c}" data-wd="skin" data-v="${i}" aria-label="Màu da ${i + 1}"></button>`).join('')}</div>
+    <h3>Kiểu tóc</h3>
+    <div class="wd-row">${hairs.map((h) => `<button class="wd-chip ${l.hair === h.id ? 'on' : ''}" data-wd="hair" data-v="${h.id}">${esc(h.name)}</button>`).join('')}</div>
+    <h3>Màu tóc</h3>
+    <div class="wd-row">${HAIR_COLORS.map((c, i) => `<button class="wd-dot ${l.hairColor === i ? 'on' : ''}" style="background:${c}" data-wd="hairColor" data-v="${i}" aria-label="Màu tóc ${i + 1}"></button>`).join('')}</div>
+    <h3>Trang phục <span class="muted small">· bạn có 💰 ${fmt(state.coins)} xu</span></h3>
+    <div class="wd-grid">${OUTFITS.map((o) => wearCard(o, 'outfit')).join('')}</div>
+    <h3>Mũ &amp; phụ kiện</h3>
+    <div class="wd-grid">${HATS.map((h) => wearCard(h, 'hat')).join('')}</div>`;
+  const stage = $('#wd-stage');
+  if (!stage.querySelector('canvas')) {
+    try {
+      if (!webglAvailable()) throw new Error('no webgl');
+      wdViewer = getAvatarViewer();
+      wdViewer.show(stage, state.look);
+    } catch { stage.innerHTML = `<div class="wd-fallback">${l.gender === 'nu' ? '👧' : '👦'}</div>`; }
+  }
+};
+$('#wd-controls').addEventListener('click', (e) => {
+  const t = e.target.closest('[data-wd], [data-wd-wear], [data-wd-buy]');
+  if (!t) return;
+  let r;
+  if (t.dataset.wd) {
+    const k = t.dataset.wd;
+    r = setLook(state, { [k]: k === 'skin' || k === 'hairColor' ? Number(t.dataset.v) : t.dataset.v });
+  } else if (t.dataset.wdWear) r = setLook(state, { [t.dataset.wdWear]: t.dataset.id });
+  else {
+    r = buyWear(state, t.dataset.wdBuy);
+    if (r.ok) { beep(SOUND.catch); toast('🛍️ Đã mua và mặc thử!'); renderHud(); }
+  }
+  if (!r.ok) { toast(`⚠️ ${r.reason}`); return; }
+  beep(SOUND.click);
+  lookChanged();
+});
+$('#sheet-wardrobe').addEventListener('close', () => wdViewer?.hide());
+
 RENDER.shop = () => {
   const level = levelFromXp(state.xp);
   $('#shop-coins').textContent = fmt(state.coins);
@@ -827,7 +895,7 @@ let worldStatus = 'idle';
 function identity() {
   const id = testId || state.online.publicId;
   const name = (testId && qs.get('name')) || cleanNickname(state.online.nickname) || `Ngư dân ${id.slice(0, 3).toUpperCase()}`;
-  return { id, name, level: levelFromXp(state.xp), rod: state.rod, color: colorFor(id), title: state.titles.at(-1) || '' };
+  return { id, name, level: levelFromXp(state.xp), rod: state.rod, color: colorFor(id), title: state.titles.at(-1) || '', look: state.look };
 }
 function feed(html) {
   const el = document.createElement('div');

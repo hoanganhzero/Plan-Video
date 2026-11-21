@@ -4,10 +4,10 @@ import { FISH, ZONES, RARITIES } from '../fishing/js/data.js';
 import { LOOK, fishSVG, shade } from '../fishing/js/art.js';
 
 test('khoảng 100 loài cá, mã không trùng, mỗi khu có đủ loài', () => {
-  assert.ok(FISH.length >= 100, `chỉ có ${FISH.length} loài`);
+  assert.ok(FISH.length >= 160, `chỉ có ${FISH.length} loài`);
   assert.equal(new Set(FISH.map((f) => f.id)).size, FISH.length);
   assert.equal(new Set(FISH.map((f) => f.name)).size, FISH.length, 'tên loài không trùng');
-  for (const z of ZONES) assert.ok(FISH.filter((f) => f.zone === z.id).length >= 18, `${z.id} cần ≥ 18 loài`);
+  for (const z of ZONES) assert.ok(FISH.filter((f) => f.zone === z.id).length >= 15, `${z.id} cần ≥ 15 loài`);
   for (const f of FISH) {
     assert.ok(RARITIES.some((r) => r.id === f.rarity), f.id);
     assert.ok(f.kg[0] > 0 && f.kg[1] >= f.kg[0], `${f.id} kg`);

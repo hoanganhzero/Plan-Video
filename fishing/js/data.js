@@ -29,6 +29,12 @@ export const ZONES = [
     desc: 'Dòng sông hiền hoà, có cá lăng, cá chiên và cá anh vũ quý hiếm.',
   },
   {
+    id: 'mangrove', name: 'Rừng ngập mặn', icon: '🌿', level: 4, price: 700,
+    weights: [35, 30, 22, 10, 3, 0],
+    sky: ['#cfe8c4', '#f1f7e6'], water: ['#6f8f5a', '#2f4a2a'],
+    desc: 'Rừng đước ven biển miền Tây – nước lợ, cá thòi lòi nhảy trên bùn, cá cung thủ bắn nước.',
+  },
+  {
     id: 'lake', name: 'Hồ trên núi', icon: '⛰️', level: 6, price: 1200,
     weights: [25, 30, 25, 14, 5, 1],
     sky: ['#c7d2fe', '#eef2ff'], water: ['#3b82a6', '#16324f'],
@@ -41,10 +47,28 @@ export const ZONES = [
     desc: 'Biển khơi rộng lớn với cá ngừ đại dương và cá cờ xanh.',
   },
   {
+    id: 'coral', name: 'Rạn san hô', icon: '🪸', level: 12, price: 7000,
+    weights: [10, 22, 28, 24, 13, 3],
+    sky: ['#67e8f9', '#ecfeff'], water: ['#2dd4bf', '#0e7490'],
+    desc: 'Rạn san hô biển đảo – nước trong vắt, cá mó, cá mao tiên, cá Napoleon rực rỡ sắc màu.',
+  },
+  {
     id: 'abyss', name: 'Vực sâu huyền bí', icon: '🌌', level: 15, price: 12000,
     weights: [5, 15, 25, 28, 20, 7],
     sky: ['#312e81', '#1e1b4b'], water: ['#1e3a8a', '#020617'],
     desc: 'Đáy biển tối đen – nơi Cá Rồng Thiêng ẩn mình.',
+  },
+  {
+    id: 'ice', name: 'Biển băng', icon: '🧊', level: 18, price: 20000,
+    weights: [4, 12, 24, 30, 22, 8],
+    sky: ['#dbeafe', '#f8fafc'], water: ['#7dd3fc', '#0c4a6e'],
+    desc: 'Biển băng phương Bắc – tảng băng trôi, cực quang, và Băng Long Vương ngủ dưới lớp băng.',
+  },
+  {
+    id: 'volcano', name: 'Hồ dung nham', icon: '🌋', level: 22, price: 35000,
+    weights: [2, 10, 22, 32, 24, 10],
+    sky: ['#7c2d12', '#fdba74'], water: ['#ea580c', '#450a0a'],
+    desc: 'Hồ nước nóng dưới chân núi lửa – chỉ cần thủ giỏi nhất mới câu được Thần Hoả Long Vương.',
   },
 ];
 
@@ -94,6 +118,22 @@ export const FISH = [
   { id: 'su_vang', name: 'Cá sủ vàng', emoji: '🐠', zone: 'river', rarity: 'epic', value: 480, kg: [5, 40] },
   { id: 'kim_long', name: 'Cá kim long', emoji: '🐉', zone: 'river', rarity: 'legendary', value: 950, kg: [1, 5] },
   { id: 'anh_vu', name: 'Cá anh vũ', emoji: '🐠', zone: 'river', rarity: 'legendary', value: 1000, kg: [1, 5] },
+  // Rừng ngập mặn (15 loài)
+  { id: 'doi_muc', name: 'Cá đối mục', emoji: '🐟', zone: 'mangrove', rarity: 'common', value: 26, kg: [0.2, 1.5] },
+  { id: 'thoi_loi', name: 'Cá thòi lòi', emoji: '🐸', zone: 'mangrove', rarity: 'common', value: 28, kg: [0.02, 0.1] },
+  { id: 'bong_sao', name: 'Cá bống sao', emoji: '🐟', zone: 'mangrove', rarity: 'common', value: 30, kg: [0.05, 0.3] },
+  { id: 'cang', name: 'Cá căng', emoji: '🐟', zone: 'mangrove', rarity: 'common', value: 30, kg: [0.05, 0.3] },
+  { id: 'dia', name: 'Cá dìa', emoji: '🐟', zone: 'mangrove', rarity: 'common', value: 32, kg: [0.1, 0.6] },
+  { id: 'kim', name: 'Cá kìm', emoji: '🐟', zone: 'mangrove', rarity: 'uncommon', value: 60, kg: [0.05, 0.2] },
+  { id: 'nau', name: 'Cá nâu', emoji: '🐠', zone: 'mangrove', rarity: 'uncommon', value: 65, kg: [0.1, 0.5] },
+  { id: 'chem', name: 'Cá chẽm', emoji: '🐟', zone: 'mangrove', rarity: 'uncommon', value: 70, kg: [1, 8] },
+  { id: 'ngat', name: 'Cá ngát', emoji: '🐟', zone: 'mangrove', rarity: 'uncommon', value: 75, kg: [0.3, 2] },
+  { id: 'cung_thu', name: 'Cá cung thủ', emoji: '🏹', zone: 'mangrove', rarity: 'uncommon', value: 80, kg: [0.05, 0.3] },
+  { id: 'mu_bun', name: 'Cá mú bùn', emoji: '🐡', zone: 'mangrove', rarity: 'rare', value: 190, kg: [0.5, 4] },
+  { id: 'chinh_bong', name: 'Cá chình bông', emoji: '🐍', zone: 'mangrove', rarity: 'rare', value: 220, kg: [0.5, 5] },
+  { id: 'bon_cat', name: 'Cá bơn cát', emoji: '🐟', zone: 'mangrove', rarity: 'epic', value: 450, kg: [0.3, 3] },
+  { id: 'rong_duoc', name: 'Cá rồng đước', emoji: '🐉', zone: 'mangrove', rarity: 'epic', value: 520, kg: [1, 5] },
+  { id: 'than_duoc', name: 'Cá Thần Rừng Đước', emoji: '🌳', zone: 'mangrove', rarity: 'legendary', value: 1900, kg: [3, 12] },
   // Hồ trên núi (21 loài)
   { id: 'chach_suoi', name: 'Cá chạch suối', emoji: '🐍', zone: 'lake', rarity: 'common', value: 36, kg: [0.05, 0.3] },
   { id: 'chat', name: 'Cá chát', emoji: '🐟', zone: 'lake', rarity: 'common', value: 38, kg: [0.1, 0.6] },
@@ -140,6 +180,22 @@ export const FISH = [
   { id: 'map_voi', name: 'Cá mập voi', emoji: '🦈', zone: 'sea', rarity: 'legendary', value: 3200, kg: [500, 9000] },
   { id: 'phuong_bien', name: 'Cá Phượng Hoàng Biển', emoji: '🔥', zone: 'sea', rarity: 'mythic', value: 8500, kg: [1, 5] },
   { id: 'bay_sac', name: 'Cá Thuỷ Tinh Bảy Sắc', emoji: '🌈', zone: 'sea', rarity: 'mythic', value: 9000, kg: [1, 3] },
+  // Rạn san hô (15 loài)
+  { id: 'thia_duoi_vang', name: 'Cá thia đuôi vàng', emoji: '🐠', zone: 'coral', rarity: 'common', value: 160, kg: [0.02, 0.1] },
+  { id: 'bang_chai', name: 'Cá bàng chài', emoji: '🐠', zone: 'coral', rarity: 'common', value: 170, kg: [0.1, 0.8] },
+  { id: 'duoi_gai', name: 'Cá đuôi gai xanh', emoji: '🐠', zone: 'coral', rarity: 'common', value: 200, kg: [0.2, 0.8] },
+  { id: 'mo', name: 'Cá mó', emoji: '🦜', zone: 'coral', rarity: 'common', value: 220, kg: [1, 6] },
+  { id: 'bo_giay', name: 'Cá bò giấy', emoji: '🐡', zone: 'coral', rarity: 'uncommon', value: 400, kg: [0.3, 2] },
+  { id: 'mao_tien', name: 'Cá mao tiên', emoji: '🦁', zone: 'coral', rarity: 'uncommon', value: 420, kg: [0.2, 1] },
+  { id: 'lich_bien', name: 'Cá lịch biển', emoji: '🐍', zone: 'coral', rarity: 'uncommon', value: 450, kg: [1, 8] },
+  { id: 'hoang_de', name: 'Cá hoàng đế', emoji: '👑', zone: 'coral', rarity: 'uncommon', value: 480, kg: [0.5, 2] },
+  { id: 'mu_cham', name: 'Cá mú chấm xanh', emoji: '🐡', zone: 'coral', rarity: 'rare', value: 950, kg: [1, 8] },
+  { id: 'map_ran', name: 'Cá mập rạn san hô', emoji: '🦈', zone: 'coral', rarity: 'rare', value: 1050, kg: [10, 40] },
+  { id: 'napoleon', name: 'Cá Napoleon', emoji: '🐟', zone: 'coral', rarity: 'rare', value: 1100, kg: [20, 150] },
+  { id: 'o_sao', name: 'Cá ó sao', emoji: '🛸', zone: 'coral', rarity: 'epic', value: 3200, kg: [50, 200] },
+  { id: 'hai_long', name: 'Cá hải long', emoji: '🐉', zone: 'coral', rarity: 'epic', value: 3500, kg: [0.1, 0.5] },
+  { id: 'than_tien_vang', name: 'Cá Thần Tiên Hoàng Kim', emoji: '✨', zone: 'coral', rarity: 'legendary', value: 9000, kg: [1, 4] },
+  { id: 'ngoc_san_ho', name: 'Cá Ngọc San Hô', emoji: '💎', zone: 'coral', rarity: 'mythic', value: 15000, kg: [1, 5] },
   // Vực sâu huyền bí (21 loài)
   { id: 'den_long', name: 'Cá đèn lồng', emoji: '🏮', zone: 'abyss', rarity: 'common', value: 150, kg: [0.5, 5] },
   { id: 'ran_sau', name: 'Cá rắn biển sâu', emoji: '🐍', zone: 'abyss', rarity: 'common', value: 160, kg: [0.1, 0.5] },
@@ -162,6 +218,38 @@ export const FISH = [
   { id: 'megalodon', name: 'Cá mập Megalodon', emoji: '🦈', zone: 'abyss', rarity: 'legendary', value: 9000, kg: [2000, 9000] },
   { id: 'long_vuong', name: 'Cá Long Vương Thuỷ Tề', emoji: '🐲', zone: 'abyss', rarity: 'mythic', value: 20000, kg: [80, 300] },
   { id: 'rong_thieng', name: 'Cá Rồng Thiêng', emoji: '🐉', zone: 'abyss', rarity: 'mythic', value: 25000, kg: [100, 400] },
+  // Biển băng (15 loài)
+  { id: 'trich_bac', name: 'Cá trích Bắc Cực', emoji: '🐟', zone: 'ice', rarity: 'common', value: 380, kg: [0.1, 0.5] },
+  { id: 'tuyet', name: 'Cá tuyết', emoji: '🐟', zone: 'ice', rarity: 'common', value: 420, kg: [1, 10] },
+  { id: 'bang_trong', name: 'Cá băng trong suốt', emoji: '🧊', zone: 'ice', rarity: 'common', value: 450, kg: [0.5, 2] },
+  { id: 'hoi_bac', name: 'Cá hồi Bắc Cực', emoji: '🐟', zone: 'ice', rarity: 'common', value: 480, kg: [1, 6] },
+  { id: 'vay_chi', name: 'Cá vây chỉ Nam Cực', emoji: '🐟', zone: 'ice', rarity: 'uncommon', value: 850, kg: [0.5, 3] },
+  { id: 'bon_green', name: 'Cá bơn Greenland', emoji: '🐟', zone: 'ice', rarity: 'uncommon', value: 900, kg: [2, 20] },
+  { id: 'mu_lan', name: 'Cá mù làn', emoji: '🐡', zone: 'ice', rarity: 'uncommon', value: 920, kg: [0.2, 2] },
+  { id: 'soi', name: 'Cá sói', emoji: '🐺', zone: 'ice', rarity: 'uncommon', value: 950, kg: [3, 20] },
+  { id: 'rang_soi', name: 'Cá răng sói băng', emoji: '🐍', zone: 'ice', rarity: 'rare', value: 2400, kg: [2, 10] },
+  { id: 'tuyet_den', name: 'Cá tuyết đen', emoji: '🐟', zone: 'ice', rarity: 'rare', value: 2600, kg: [5, 60] },
+  { id: 'map_green', name: 'Cá mập Greenland', emoji: '🦈', zone: 'ice', rarity: 'rare', value: 2800, kg: [200, 1000] },
+  { id: 'cuc_quang', name: 'Cá Cực Quang', emoji: '🌌', zone: 'ice', rarity: 'epic', value: 8500, kg: [1, 5] },
+  { id: 'kiem_bang', name: 'Cá Kiếm Băng', emoji: '🗡️', zone: 'ice', rarity: 'epic', value: 9000, kg: [40, 300] },
+  { id: 'map_tuyet', name: 'Cá Mập Tuyết Khổng Lồ', emoji: '🦈', zone: 'ice', rarity: 'legendary', value: 22000, kg: [800, 3000] },
+  { id: 'bang_long', name: 'Băng Long Vương', emoji: '🐲', zone: 'ice', rarity: 'mythic', value: 35000, kg: [100, 400] },
+  // Hồ dung nham (15 loài)
+  { id: 'da_bazan', name: 'Cá đá bazan', emoji: '🪨', zone: 'volcano', rarity: 'common', value: 650, kg: [0.5, 3] },
+  { id: 'tro_bay', name: 'Cá tro bay', emoji: '🐟', zone: 'volcano', rarity: 'common', value: 680, kg: [0.1, 0.8] },
+  { id: 'than_hong', name: 'Cá than hồng', emoji: '🔥', zone: 'volcano', rarity: 'common', value: 700, kg: [0.2, 1] },
+  { id: 'luu_huynh', name: 'Cá lưu huỳnh', emoji: '🐟', zone: 'volcano', rarity: 'common', value: 720, kg: [0.2, 1.5] },
+  { id: 'luon_lua', name: 'Lươn dung nham', emoji: '🐍', zone: 'volcano', rarity: 'uncommon', value: 1400, kg: [1, 6] },
+  { id: 'suoi_nong', name: 'Cá suối nóng', emoji: '♨️', zone: 'volcano', rarity: 'uncommon', value: 1450, kg: [0.1, 0.6] },
+  { id: 'vay_lua', name: 'Cá vảy lửa', emoji: '🐠', zone: 'volcano', rarity: 'uncommon', value: 1500, kg: [1, 5] },
+  { id: 'nham_thach', name: 'Cá nham thạch', emoji: '🌋', zone: 'volcano', rarity: 'uncommon', value: 1600, kg: [2, 10] },
+  { id: 'duoi_lua', name: 'Cá đuối lửa', emoji: '🛸', zone: 'volcano', rarity: 'rare', value: 4000, kg: [20, 120] },
+  { id: 'map_nui_lua', name: 'Cá mập núi lửa', emoji: '🦈', zone: 'volcano', rarity: 'rare', value: 4200, kg: [30, 200] },
+  { id: 'hoa_ky_lan', name: 'Cá Hoả Kỳ Lân', emoji: '🦄', zone: 'volcano', rarity: 'rare', value: 4500, kg: [3, 15] },
+  { id: 'phuong_lua', name: 'Cá Phượng Lửa', emoji: '🐦‍🔥', zone: 'volcano', rarity: 'epic', value: 12000, kg: [2, 8] },
+  { id: 'kim_cuong_do', name: 'Cá Kim Cương Đỏ', emoji: '💎', zone: 'volcano', rarity: 'epic', value: 13000, kg: [1, 4] },
+  { id: 'hoa_long', name: 'Cá Hoả Long', emoji: '🐉', zone: 'volcano', rarity: 'legendary', value: 28000, kg: [50, 300] },
+  { id: 'than_hoa', name: 'Thần Hoả Long Vương', emoji: '☀️', zone: 'volcano', rarity: 'mythic', value: 50000, kg: [200, 800] },
 ];
 
 export const fishById = (id) => FISH.find((f) => f.id === id);
@@ -221,12 +309,12 @@ export const lineById = (id) => LINES.find((l) => l.id === id);
 export const ITEMS = {
   worm: { name: 'Giun đất', icon: '🐛', kind: 'bait', luck: 0, desc: 'Mồi miễn phí, dùng không giới hạn.' },
   bread: { name: 'Mồi bánh mì', icon: '🍞', kind: 'bait', luck: 0.5, desc: 'Rẻ, cá Thường và cá Khá rất thích.' },
-  cricket: { name: 'Mồi dế', icon: '🦗', kind: 'bait', luck: 1, kg: 0.1, desc: 'Cá ở ao, sông đớp mạnh; cá to hơn 10%.', zones: { pond: 0.5, river: 0.5 } },
+  cricket: { name: 'Mồi dế', icon: '🦗', kind: 'bait', luck: 1, kg: 0.1, desc: 'Cá ở ao, sông đớp mạnh; cá to hơn 10%.', zones: { pond: 0.5, river: 0.5, mangrove: 0.5 } },
   shrimp: { name: 'Mồi tôm', icon: '🦐', kind: 'bait', luck: 1, desc: 'Tăng nhẹ cơ hội gặp cá hiếm.' },
   minnow: { name: 'Mồi cá con', icon: '🐟', kind: 'bait', luck: 1.5, kg: 0.3, desc: 'Dụ cá săn mồi: cá to hơn 30%.' },
-  squid: { name: 'Mồi mực', icon: '🦑', kind: 'bait', luck: 2, desc: 'Rất hợp ở Biển xanh và Vực sâu.', zones: { sea: 1, abyss: 1 } },
+  squid: { name: 'Mồi mực', icon: '🦑', kind: 'bait', luck: 2, desc: 'Rất hợp ở Biển xanh, Rạn san hô và Vực sâu.', zones: { sea: 1, coral: 1, abyss: 1 } },
   golden: { name: 'Mồi vàng', icon: '🟡', kind: 'bait', luck: 3, desc: 'Tăng mạnh cơ hội gặp cá hiếm.' },
-  glow: { name: 'Mồi phát sáng', icon: '🌟', kind: 'bait', luck: 4, kg: 0.1, desc: 'Toả sáng dưới nước sâu – rất dễ gặp cá Sử thi.', zones: { lake: 0.5, abyss: 1.5 } },
+  glow: { name: 'Mồi phát sáng', icon: '🌟', kind: 'bait', luck: 4, kg: 0.1, desc: 'Toả sáng dưới nước sâu – rất dễ gặp cá Sử thi.', zones: { lake: 0.5, abyss: 1.5, ice: 1, volcano: 1 } },
   rainbow: { name: 'Mồi cầu vồng', icon: '🌈', kind: 'bait', luck: 5, kg: 0.2, desc: 'Mồi huyền thoại: cơ hội gặp cá Huyền thoại cao nhất.' },
   hint: { name: 'Phao gợi ý 50/50', icon: '💡', kind: 'helper', desc: 'Bỏ bớt 2 đáp án sai.' },
   time: { name: 'Đồng hồ cát', icon: '⏳', kind: 'helper', desc: 'Thêm 15 giây suy nghĩ.' },
@@ -275,6 +363,7 @@ export const QUESTS = [
   { id: 'q5', title: 'Mang cá ra chợ', goal: { type: 'sell', n: 5 }, reward: { coins: 80, xp: 50 } },
   { id: 'q6', title: 'Chuỗi 5 câu đúng', goal: { type: 'streak', n: 5 }, reward: { items: { charm: 1 } } },
   { id: 'q7', title: 'Mở đường ra sông', goal: { type: 'level', n: 3 }, reward: { zone: 'river', coins: 50 } },
+  { id: 'qz1', title: 'Khám phá rừng đước', goal: { type: 'level', n: 4 }, reward: { zone: 'mangrove', coins: 80 } },
   { id: 'q8', title: 'Giỏi Tiếng Việt', goal: { type: 'correct', n: 6, subject: 'vi' }, reward: { items: { shrimp: 5 } } },
   { id: 'q9', title: 'Săn cá hiếm', goal: { type: 'catch', n: 3, minRarity: 'rare' }, reward: { rod: 'fiber' } },
   { id: 'q10', title: 'Nhà sưu tầm', goal: { type: 'species', n: 8 }, reward: { coins: 300, line: 'braid' } },
@@ -285,9 +374,55 @@ export const QUESTS = [
   { id: 'q15', title: 'Thông thạo Tiếng Anh', goal: { type: 'correct', n: 10, subject: 'en' }, reward: { coins: 600, items: { tea: 3, net: 1 } } },
   { id: 'q16', title: 'Hiểu biết Sử – Địa', goal: { type: 'correct', n: 10, subject: 'his' }, reward: { coins: 800, items: { golden: 3 } } },
   { id: 'q17', title: 'Triệu phú làng chài', goal: { type: 'coinsEarned', n: 5000 }, reward: { zone: 'sea' } },
+  { id: 'qz2', title: 'Lặn ngắm san hô', goal: { type: 'level', n: 12 }, reward: { zone: 'coral', items: { squid: 5 } } },
   { id: 'q18', title: 'Chạm tay huyền thoại', goal: { type: 'catch', n: 1, minRarity: 'legendary' }, reward: { rod: 'gold' } },
   { id: 'q19', title: 'Bách khoa toàn thư', goal: { type: 'correct', n: 150 }, reward: { items: { golden: 10, charm: 3 } } },
   { id: 'q20', title: 'Xuống vực sâu', goal: { type: 'level', n: 15 }, reward: { zone: 'abyss' } },
+  { id: 'qz3', title: 'Vượt biển băng', goal: { type: 'level', n: 18 }, reward: { zone: 'ice', coins: 3000 } },
   { id: 'q21', title: 'Truy tìm Cá Rồng Thiêng', goal: { type: 'catch', n: 1, minRarity: 'mythic' }, reward: { rod: 'dragon', coins: 10000 } },
+  { id: 'qz4', title: 'Chinh phục núi lửa', goal: { type: 'level', n: 22 }, reward: { zone: 'volcano', coins: 8000 } },
   { id: 'q22', title: 'Đại sư câu cá', goal: { type: 'species', n: FISH.length }, reward: { coins: 50000, title: 'Đại sư câu cá' } },
 ];
+
+// ---------------------------------------------------------------------------
+// Diện mạo nhân vật: giới tính, màu da, tóc, trang phục, mũ (tủ đồ).
+// Trang phục / mũ có giá xu và cấp tối thiểu; món giá 0 có sẵn cho mọi người.
+// ---------------------------------------------------------------------------
+export const GENDERS = [{ id: 'nam', name: 'Nam', icon: '👦' }, { id: 'nu', name: 'Nữ', icon: '👧' }];
+export const SKINS = ['#f6d3b0', '#e8b88a', '#c98f5f', '#8d5a3b'];
+export const HAIR_COLORS = ['#1f1a17', '#4a2f1d', '#8b5a2b', '#d6a14a', '#b91c1c', '#6b7280'];
+export const HAIRS = [
+  { id: 'short', name: 'Tóc ngắn', gender: 'nam' },
+  { id: 'spiky', name: 'Tóc dựng', gender: 'nam' },
+  { id: 'buzz', name: 'Đầu đinh', gender: 'nam' },
+  { id: 'long', name: 'Tóc dài', gender: 'nu' },
+  { id: 'ponytail', name: 'Đuôi ngựa', gender: 'nu' },
+  { id: 'braids', name: 'Tóc hai bím', gender: 'nu' },
+  { id: 'bun', name: 'Tóc búi', gender: 'nu' },
+];
+// top/bottom: màu áo/quần; extra: chi tiết riêng (khăn quàng, áo phao, tà áo dài…)
+export const OUTFITS = [
+  { id: 'tee', name: 'Áo thun xanh', icon: '👕', top: '#2f6db5', bottom: '#2b2b38', price: 0, level: 1 },
+  { id: 'school', name: 'Đồng phục học sinh', icon: '🎒', top: '#f8fafc', bottom: '#1e3a8a', extra: 'scarf', price: 0, level: 1 },
+  { id: 'baba', name: 'Áo bà ba', icon: '🌾', top: '#7c4a2a', bottom: '#1f1f1f', price: 150, level: 2 },
+  { id: 'vest', name: 'Áo phao câu cá', icon: '🦺', top: '#0f766e', bottom: '#475569', extra: 'vest', trim: '#f97316', price: 400, level: 3 },
+  { id: 'raincoat', name: 'Áo mưa ngư dân', icon: '🧥', top: '#facc15', bottom: '#ca8a04', price: 800, level: 5 },
+  { id: 'aodai', name: 'Áo dài', icon: '👘', top: '#dc2626', bottom: '#ffffff', extra: 'aodai', trim: '#facc15', price: 1500, level: 6 },
+  { id: 'sailor', name: 'Đồ thuỷ thủ', icon: '⚓', top: '#ffffff', bottom: '#1e3a8a', extra: 'collar', trim: '#1e3a8a', price: 2500, level: 9 },
+  { id: 'diver', name: 'Đồ lặn biển', icon: '🤿', top: '#0f172a', bottom: '#0f172a', extra: 'stripes', trim: '#22d3ee', price: 5000, level: 13 },
+  { id: 'royal', name: 'Hoàng bào', icon: '🐉', top: '#eab308', bottom: '#b91c1c', extra: 'belt', trim: '#fde68a', glow: true, price: 15000, level: 18 },
+  { id: 'dragonsuit', name: 'Giáp Rồng Thần', icon: '🛡️', top: '#991b1b', bottom: '#1f2937', extra: 'armor', trim: '#fbbf24', glow: true, price: 40000, level: 22 },
+];
+export const HATS = [
+  { id: 'none', name: 'Không đội mũ', icon: '🙂', price: 0, level: 1 },
+  { id: 'nonla', name: 'Nón lá', icon: '👒', price: 0, level: 1 },
+  { id: 'cap', name: 'Mũ lưỡi trai', icon: '🧢', color: '#dc2626', price: 100, level: 1 },
+  { id: 'bow', name: 'Nơ cài tóc', icon: '🎀', color: '#ec4899', price: 150, level: 1 },
+  { id: 'bucket', name: 'Mũ tai bèo', icon: '🪖', color: '#4d7c0f', price: 300, level: 2 },
+  { id: 'straw', name: 'Mũ rơm', icon: '👒', color: '#e9c46a', price: 500, level: 4 },
+  { id: 'beanie', name: 'Mũ len', icon: '🧶', color: '#7c3aed', price: 700, level: 6 },
+  { id: 'captain', name: 'Mũ thuyền trưởng', icon: '⚓', color: '#ffffff', price: 3000, level: 10 },
+  { id: 'crown', name: 'Vương miện', icon: '👑', color: '#fbbf24', price: 20000, level: 18 },
+];
+export const DEFAULT_LOOK = { gender: 'nam', skin: 0, hair: 'short', hairColor: 0, outfit: 'tee', hat: 'nonla' };
+export const wearById = (id) => OUTFITS.find((o) => o.id === id) || HATS.find((h) => h.id === id);

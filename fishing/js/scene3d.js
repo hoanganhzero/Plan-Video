@@ -4,6 +4,8 @@
 // setZone(zone) · cast() · bite() · reel(emoji, color, fish) · escape() · phase
 import * as THREE from '../vendor/three.module.min.js';
 import { buildFish3D } from './fish3d.js';
+import { buildCharacter, disposeCharacter } from './avatar3d.js';
+import { DEFAULT_LOOK } from './data.js';
 
 const CAST_MS = 750;
 const REEL_MS = 1100;
@@ -35,6 +37,22 @@ const THEMES = {
   abyss: {
     top: 0x04041a, horizon: 0x2a2266, sun: 0x9fb4ff, sunDir: [0.3, 0.5, -0.8], sunI: 0.7,
     shallow: 0x2442a8, deep: 0x02061a, amp: 1.2, hemiGround: 0x120a30, fogNear: 30, fogFar: 140,
+  },
+  mangrove: {
+    top: 0x7fae9a, horizon: 0xe6efd2, sun: 0xfff2c8, sunDir: [0.4, 0.45, -0.7], sunI: 2.0,
+    shallow: 0x6b8a4a, deep: 0x26391f, amp: 0.4, hemiGround: 0x4a5a2a, fogNear: 25, fogFar: 110,
+  },
+  coral: {
+    top: 0x0ea5e9, horizon: 0xcffafe, sun: 0xfffbe8, sunDir: [-0.3, 0.75, -0.6], sunI: 2.7,
+    shallow: 0x2dd4bf, deep: 0x0b5f7a, amp: 0.9, hemiGround: 0xe8d39b, fogNear: 70, fogFar: 260,
+  },
+  ice: {
+    top: 0x5f86c4, horizon: 0xeef4ff, sun: 0xe8f0ff, sunDir: [0.2, 0.35, -0.9], sunI: 1.7,
+    shallow: 0x5fb4d8, deep: 0x0c3a5c, amp: 0.7, hemiGround: 0xc8d6e8, fogNear: 80, fogFar: 420,
+  },
+  volcano: {
+    top: 0x2a0606, horizon: 0xff7a3a, sun: 0xff8a4a, sunDir: [-0.2, 0.3, -0.9], sunI: 1.6,
+    shallow: 0xff6a1a, deep: 0x3a0800, amp: 0.5, hemiGround: 0x2a0a05, fogNear: 50, fogFar: 340,
   },
 };
 
@@ -207,24 +225,19 @@ export function createScene3D(canvas) {
   dock.add(bucketMesh);
   scene.add(dock);
 
-  // ---------- Người câu đội nón lá ----------
+  // ---------- Người câu (diện mạo theo Tủ đồ: nam/nữ, tóc, trang phục, mũ) ----------
   const fisher = new THREE.Group();
   fisher.position.set(0, 0.74, -1.7);
-  const body = shadowed(mesh(new THREE.CapsuleGeometry(0.26, 0.42, 4, 10), M.shirt, 0, 0.5, 0));
-  const head = shadowed(mesh(new THREE.SphereGeometry(0.2, 16, 12), M.skin, 0, 1.08, -0.02));
-  const hat = shadowed(mesh(new THREE.ConeGeometry(0.46, 0.3, 24), M.hat, 0, 1.3, -0.02));
-  const hatRim = mesh(new THREE.TorusGeometry(0.44, 0.015, 4, 32), mat(0xc9b073), 0, 1.16, -0.02);
-  hatRim.rotation.x = Math.PI / 2;
-  const legL = shadowed(mesh(new THREE.CapsuleGeometry(0.09, 0.5, 3, 8), M.pants, -0.13, -0.05, -0.32));
-  const legR = shadowed(mesh(new THREE.CapsuleGeometry(0.09, 0.5, 3, 8), M.pants, 0.13, -0.05, -0.32));
-  legL.rotation.x = 0.25; legR.rotation.x = 0.15;
-  const thighL = shadowed(mesh(new THREE.CapsuleGeometry(0.1, 0.32, 3, 8), M.pants, -0.13, 0.17, -0.16));
-  const thighR = shadowed(mesh(new THREE.CapsuleGeometry(0.1, 0.32, 3, 8), M.pants, 0.13, 0.17, -0.16));
-  thighL.rotation.x = thighR.rotation.x = Math.PI / 2;
-  const armL = shadowed(mesh(new THREE.CapsuleGeometry(0.07, 0.42, 3, 8), M.shirt, -0.2, 0.62, -0.26));
-  const armR = shadowed(mesh(new THREE.CapsuleGeometry(0.07, 0.42, 3, 8), M.shirt, 0.2, 0.62, -0.26));
-  armL.rotation.set(1.1, 0, -0.35); armR.rotation.set(1.1, 0, 0.35);
-  fisher.add(body, head, hat, hatRim, legL, legR, thighL, thighR, armL, armR);
+  let character = buildCharacter(DEFAULT_LOOK, { pose: 'sit' });
+  let body = character.userData.body;
+  fisher.add(character);
+  function setLook(look) {
+    fisher.remove(character);
+    disposeCharacter(character);
+    character = buildCharacter(look, { pose: 'sit' });
+    body = character.userData.body;
+    fisher.add(character);
+  }
 
   // Cần câu: trục quay ở tay
   const rodPivot = new THREE.Group();
@@ -617,6 +630,152 @@ export function createScene3D(canvas) {
     g.add(glowPts);
     return g;
   })();
+  // ---------- Rừng ngập mặn: cây đước rễ chống, bãi bùn, xuồng ba lá ----------
+  const mudMat = mat(0x6b5a3a);
+  function mangroveTree(x, z, s = 1) {
+    const g = new THREE.Group();
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      const root = mesh(new THREE.CylinderGeometry(0.04 * s, 0.06 * s, 1.6 * s, 4), M.trunk, Math.cos(a) * 0.45 * s, 0.6 * s, Math.sin(a) * 0.45 * s);
+      root.rotation.set(Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5);
+      g.add(root);
+    }
+    g.add(shadowed(mesh(new THREE.CylinderGeometry(0.1 * s, 0.14 * s, 1.8 * s, 6), M.trunk, 0, 2.1 * s, 0)));
+    for (const [dx, dy, dz, r] of [[0, 3.3, 0, 1.2], [0.8, 2.9, 0.3, 0.8], [-0.7, 3.0, -0.2, 0.85], [0.1, 3.0, 0.8, 0.7]]) {
+      g.add(shadowed(mesh(new THREE.IcosahedronGeometry(r * s, 0), M.leafDark, dx * s, dy * s, dz * s)));
+    }
+    g.position.set(x, -0.2, z);
+    return g;
+  }
+  decor.mangrove = (() => {
+    const g = new THREE.Group();
+    g.add(land([[-90, 30], [90, 30], [90, 6], [-90, 6]], 0.2, mudMat));
+    g.add(land([[-90, 6], [-16, 6], [-20, -60], [-90, -60]], 0.15, mudMat));
+    g.add(land([[16, 6], [90, 6], [90, -60], [22, -60]], 0.15, mudMat));
+    for (let i = 0; i < 34; i++) {
+      const side = i % 2 ? 1 : -1;
+      g.add(mangroveTree(side * (13 + Math.random() * 22), 4 - Math.random() * 60, 0.8 + Math.random() * 0.6));
+    }
+    // Xuồng ba lá neo bên bờ
+    const boat = new THREE.Group();
+    const hull = shadowed(mesh(new THREE.BoxGeometry(0.9, 0.3, 3.2), M.woodDark, 0, 0.05, 0));
+    boat.add(hull, mesh(new THREE.ConeGeometry(0.45, 0.8, 4), M.woodDark, 0, 0.05, -2).rotateX(-Math.PI / 2));
+    boat.position.set(-8, 0, -12);
+    boat.rotation.y = 0.6;
+    boat.userData.float = true;
+    g.add(boat);
+    return g;
+  })();
+
+  // ---------- Rạn san hô: san hô nhiều màu nhô lên mặt nước, đảo cát, phao ----------
+  const CORAL_COLORS = [0xf472b6, 0xfb923c, 0xa855f7, 0xfacc15, 0xef4444, 0x22d3ee];
+  function coralClump(x, z, s = 1) {
+    const g = new THREE.Group();
+    const n = 3 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < n; i++) {
+      const c = mat(CORAL_COLORS[Math.floor(Math.random() * CORAL_COLORS.length)], { roughness: 0.6 });
+      const k = Math.random();
+      const px = (Math.random() - 0.5) * 1.6 * s; const pz = (Math.random() - 0.5) * 1.6 * s;
+      if (k < 0.35) g.add(mesh(new THREE.SphereGeometry(0.35 * s + Math.random() * 0.3 * s, 8, 6), c, px, 0.05, pz));
+      else if (k < 0.7) {
+        for (let b = 0; b < 4; b++) {
+          const br = mesh(new THREE.CylinderGeometry(0.05 * s, 0.08 * s, 0.9 * s, 5), c, px + (Math.random() - 0.5) * 0.4, 0.35 * s, pz + (Math.random() - 0.5) * 0.4);
+          br.rotation.set((Math.random() - 0.5) * 0.8, 0, (Math.random() - 0.5) * 0.8);
+          g.add(br);
+        }
+      } else g.add(mesh(new THREE.ConeGeometry(0.3 * s, 0.9 * s, 6), c, px, 0.3, pz));
+    }
+    g.position.set(x, -0.15, z);
+    return g;
+  }
+  decor.coral = (() => {
+    const g = new THREE.Group();
+    g.add(land([[-90, 30], [90, 30], [90, 6], [-90, 6]], 0.3, M.sand));
+    for (let i = 0; i < 26; i++) {
+      const side = i % 2 ? 1 : -1;
+      const x = side * (6 + Math.random() * 26);
+      const z = -8 - Math.random() * 50;
+      if (Math.abs(x - 2.2) < 3 && z > -14) continue;
+      g.add(coralClump(x, z, 0.8 + Math.random() * 0.8));
+    }
+    [[-45, -110, 12], [60, -140, 16]].forEach(([x, z, r]) => {
+      g.add(mesh(new THREE.SphereGeometry(r, 16, 8), M.sand, x, -r * 0.84, z));
+      g.add(palm(x - r * 0.2, r * 0.12, z, r / 8), palm(x + r * 0.25, r * 0.1, z + 1, r / 9));
+    });
+    for (const [x, z, c] of [[-6, -18, 0xef4444], [9, -26, 0xfacc15]]) {
+      const buoy = mesh(new THREE.SphereGeometry(0.35, 12, 8), mat(c, { roughness: 0.4 }), x, 0.15, z);
+      buoy.userData.float = true;
+      g.add(buoy);
+    }
+    return g;
+  })();
+
+  // ---------- Biển băng: núi băng trôi, bờ tuyết, cực quang, tuyết rơi ----------
+  const iceMat = new THREE.MeshStandardMaterial({ color: 0xe6f4ff, roughness: 0.25, metalness: 0.05, flatShading: true });
+  const iceBlue = new THREE.MeshStandardMaterial({ color: 0x9fd4f5, roughness: 0.2, flatShading: true, transparent: true, opacity: 0.92 });
+  const SNOW_N = 500;
+  const snowGeo = new THREE.BufferGeometry();
+  const snowPos = new Float32Array(SNOW_N * 3);
+  for (let i = 0; i < SNOW_N; i++) snowPos.set([(Math.random() - 0.5) * 60, Math.random() * 18, 6 - Math.random() * 50], i * 3);
+  snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
+  const aurora = [];
+  decor.ice = (() => {
+    const g = new THREE.Group();
+    g.add(land([[-90, 30], [90, 30], [90, 6], [-90, 6]], 0.35, M.snow));
+    for (let i = 0; i < 14; i++) {
+      const side = i % 2 ? 1 : -1;
+      const s2 = 1.5 + Math.random() * 4;
+      const berg = shadowed(mesh(new THREE.IcosahedronGeometry(s2, 0), i % 3 ? iceMat : iceBlue, side * (10 + Math.random() * 40), s2 * 0.1, -16 - Math.random() * 90));
+      berg.scale.set(1.3, 0.8 + Math.random() * 0.8, 1);
+      berg.rotation.y = Math.random() * 3;
+      g.add(berg);
+    }
+    [[-90, -230, 45, 42], [5, -260, 60, 55], [95, -235, 48, 40]].forEach(([x, z, r, h]) => g.add(mountain(x, z, r, h, true, mat(0x8fb3d4))));
+    g.add(new THREE.Points(snowGeo, new THREE.PointsMaterial({ size: 0.16, map: particles.material.map, color: 0xffffff, transparent: true, depthWrite: false })));
+    // Cực quang: các dải sáng xanh – tím uốn lượn trên trời
+    for (let i = 0; i < 3; i++) {
+      const geo = new THREE.PlaneGeometry(220, 40, 60, 1);
+      const m = new THREE.MeshBasicMaterial({ color: [0x34d399, 0x22d3ee, 0xa78bfa][i], transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
+      const a = new THREE.Mesh(geo, m);
+      a.position.set(-20 + i * 25, 60 + i * 8, -220 - i * 20);
+      a.userData.base = Float32Array.from(geo.attributes.position.array);
+      a.userData.k = i;
+      aurora.push(a);
+      g.add(a);
+    }
+    return g;
+  })();
+
+  // ---------- Hồ dung nham: núi lửa phát sáng, đá bazan, khe dung nham, tàn lửa bay ----------
+  const lavaMat = new THREE.MeshStandardMaterial({ color: 0xff5a1a, emissive: 0xff4500, emissiveIntensity: 1.6, roughness: 0.6 });
+  const EMBER_N = 220;
+  const emberGeo = new THREE.BufferGeometry();
+  const emberPos = new Float32Array(EMBER_N * 3);
+  for (let i = 0; i < EMBER_N; i++) emberPos.set([(Math.random() - 0.5) * 50, Math.random() * 14, 4 - Math.random() * 45], i * 3);
+  emberGeo.setAttribute('position', new THREE.BufferAttribute(emberPos, 3));
+  decor.volcano = (() => {
+    const g = new THREE.Group();
+    g.add(land([[-90, 30], [90, 30], [90, 6], [-90, 6]], 0.3, M.rockDark));
+    // Núi lửa lớn ở xa với miệng phun sáng
+    const v = mountain(-15, -210, 75, 75, false, mat(0x2a1a14));
+    v.add(mesh(new THREE.CylinderGeometry(8, 11, 4, 10), lavaMat, 0, 73, 0));
+    const crater = new THREE.PointLight(0xff6a00, 60, 260, 1.4);
+    crater.position.set(0, 80, 0);
+    v.add(crater);
+    g.add(v);
+    g.add(mountain(85, -200, 45, 40, false, mat(0x3a2418)), mountain(-100, -190, 40, 34, false, mat(0x3a2418)));
+    // Đá bazan có khe dung nham
+    for (let i = 0; i < 16; i++) {
+      const side = i % 2 ? 1 : -1;
+      const x = side * (12 + Math.random() * 30); const z = -12 - Math.random() * 55;
+      const r = rock(x, z, 1.4 + Math.random() * 2.6, M.rockDark, 0);
+      r.scale.y = 1 + Math.random() * 1.4;
+      g.add(r);
+      if (i % 2 === 0) g.add(mesh(new THREE.BoxGeometry(0.25, 0.08, 2 + Math.random() * 2), lavaMat, x + 0.3, 0.12, z + 1));
+    }
+    g.add(new THREE.Points(emberGeo, new THREE.PointsMaterial({ size: 0.2, map: particles.material.map, color: 0xffa030, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })));
+    return g;
+  })();
   Object.values(decor).forEach((g) => { g.visible = false; scene.add(g); });
 
   // ---------- Khu & chủ đề ----------
@@ -631,7 +790,7 @@ export function createScene3D(canvas) {
     skyUniforms.uHorizon.value.setHex(th.horizon);
     skyUniforms.uSunDir.value.copy(sunDir);
     skyUniforms.uSunColor.value.setHex(th.sun);
-    skyUniforms.uNight.value = z.id === 'abyss' ? 1 : 0;
+    skyUniforms.uNight.value = z.id === 'abyss' ? 1 : z.id === 'volcano' ? 0.45 : 0;
     waterUniforms.uShallow.value.setHex(th.shallow);
     waterUniforms.uDeep.value.setHex(th.deep);
     waterUniforms.uSkyTop.value.setHex(th.top);
@@ -642,18 +801,18 @@ export function createScene3D(canvas) {
     waterUniforms.uFogNear.value = th.fogNear;
     waterUniforms.uFogFar.value = th.fogFar;
     waterUniforms.uAmp.value = th.amp;
-    waterUniforms.uGlow.value = z.id === 'abyss' ? 0.25 : 0;
+    waterUniforms.uGlow.value = z.id === 'abyss' ? 0.25 : z.id === 'volcano' ? 0.55 : z.id === 'coral' ? 0.08 : 0;
     scene.fog.color.setHex(th.horizon);
     scene.fog.near = th.fogNear;
     scene.fog.far = th.fogFar;
     hemi.color.setHex(th.top).lerp(new THREE.Color(0xffffff), 0.5);
     hemi.groundColor.setHex(th.hemiGround);
-    hemi.intensity = z.id === 'abyss' ? 0.5 : 0.9;
+    hemi.intensity = z.id === 'abyss' ? 0.5 : z.id === 'volcano' ? 0.6 : z.id === 'ice' ? 1.05 : 0.9;
     sun.color.setHex(th.sun);
     sun.intensity = th.sunI;
     sun.position.copy(sunDir).multiplyScalar(30);
-    lanternLight.intensity = z.id === 'abyss' ? 6 : z.id === 'river' ? 1.5 : 0;
-    lantern.material.emissiveIntensity = z.id === 'abyss' || z.id === 'river' ? 1.6 : 0.3;
+    lanternLight.intensity = z.id === 'abyss' ? 6 : z.id === 'volcano' ? 3 : z.id === 'river' || z.id === 'mangrove' ? 1.5 : 0;
+    lantern.material.emissiveIntensity = ['abyss', 'river', 'mangrove', 'volcano'].includes(z.id) ? 1.6 : 0.3;
     if (caught) { scene.remove(caught); caught = null; caughtLight.intensity = 0; }
   }
 
@@ -822,6 +981,31 @@ export function createScene3D(canvas) {
     }
     // Lá sen nổi theo sóng
     if (zoneId === 'pond') decor.pond.children.forEach((c) => { if (c.userData.float) c.position.y = waveHeight(c.position.x, c.position.z) + 0.04; });
+    if (zoneId === 'mangrove' || zoneId === 'coral') decor[zoneId].children.forEach((c) => { if (c.userData.float) c.position.y = waveHeight(c.position.x, c.position.z) + 0.05; });
+    if (zoneId === 'ice') {
+      for (let i = 0; i < SNOW_N; i++) {
+        snowPos[i * 3 + 1] -= dt * (0.8 + (i % 5) * 0.15);
+        snowPos[i * 3] += Math.sin(t + i) * dt * 0.3;
+        if (snowPos[i * 3 + 1] < 0) snowPos[i * 3 + 1] = 18;
+      }
+      snowGeo.attributes.position.needsUpdate = true;
+      for (const a of aurora) {
+        const arr = a.geometry.attributes.position.array;
+        const b = a.userData.base;
+        for (let i = 0; i < arr.length; i += 3) arr[i + 2] = b[i + 2] + Math.sin(b[i] * 0.04 + t * 0.6 + a.userData.k) * 10;
+        a.geometry.attributes.position.needsUpdate = true;
+        a.material.opacity = 0.16 + Math.sin(t * 0.8 + a.userData.k * 2) * 0.08;
+      }
+    }
+    if (zoneId === 'volcano') {
+      for (let i = 0; i < EMBER_N; i++) {
+        emberPos[i * 3 + 1] += dt * (0.6 + (i % 7) * 0.15);
+        emberPos[i * 3] += Math.sin(t * 1.5 + i) * dt * 0.4;
+        if (emberPos[i * 3 + 1] > 14) emberPos[i * 3 + 1] = 0;
+      }
+      emberGeo.attributes.position.needsUpdate = true;
+      lavaMat.emissiveIntensity = 1.4 + Math.sin(t * 2.2) * 0.4;
+    }
     if (zoneId === 'abyss') {
       const arr = glowGeo.attributes.position.array;
       for (let i = 0; i < glowCount; i++) arr[i * 3 + 1] = 0.3 + ((i * 0.37 + t * 0.15) % 3);
@@ -1035,19 +1219,10 @@ export function createScene3D(canvas) {
     const raft = new THREE.Group();
     for (let i = 0; i < 4; i++) raft.add(shadowed(mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.9, 7).rotateZ(Math.PI / 2), i % 2 ? M.wood : M.woodDark, 0, 0.12, -0.5 + i * 0.33)));
     body.add(raft);
-    // Người câu (giống nhân vật chính, khác màu áo)
-    const shirt = mat(meta.color);
-    const person = new THREE.Group();
+    // Người câu: diện mạo người đó chọn (người dùng bản cũ: áo theo màu riêng)
+    const person = buildCharacter(meta.look || DEFAULT_LOOK, { pose: 'sit', shirtColor: meta.look ? null : meta.color });
     person.position.set(0, 0.3, 0.2);
-    person.add(shadowed(mesh(new THREE.CapsuleGeometry(0.24, 0.38, 4, 10), shirt, 0, 0.5, 0)));
-    person.add(shadowed(mesh(new THREE.SphereGeometry(0.19, 16, 12), M.skin, 0, 1.03, 0)));
-    person.add(shadowed(mesh(new THREE.ConeGeometry(0.44, 0.28, 20), M.hat, 0, 1.24, 0)));
-    const band = mesh(new THREE.TorusGeometry(0.3, 0.035, 6, 24), shirt, 0, 1.16, 0);
-    band.rotation.x = Math.PI / 2;
-    person.add(band);
-    const arm = shadowed(mesh(new THREE.CapsuleGeometry(0.065, 0.38, 3, 8), shirt, 0, 0.6, -0.25));
-    arm.rotation.x = 1.1;
-    person.add(arm);
+    person.scale.setScalar(0.95);
     body.add(person);
     // Cần câu
     const pivot = new THREE.Group();
@@ -1160,7 +1335,7 @@ export function createScene3D(canvas) {
   let selfBubbleUntil = 0;
 
   return {
-    // players: [{ id, name, level, rod, color, seat }]
+    // players: [{ id, name, level, rod, color, look, seat }]
     setRemotePlayers(players) {
       const keep = new Set(players.map((p) => p.id));
       for (const [id, a] of remotes) {
@@ -1168,7 +1343,7 @@ export function createScene3D(canvas) {
       }
       for (const p of players) {
         const cur = remotes.get(p.id);
-        if (cur && cur.seat === p.seat && cur.meta.name === p.name && cur.meta.level === p.level && cur.meta.rod === p.rod) continue;
+        if (cur && cur.seat === p.seat && cur.meta.name === p.name && cur.meta.level === p.level && cur.meta.rod === p.rod && JSON.stringify(cur.meta.look) === JSON.stringify(p.look)) continue;
         if (cur) { disposeAvatar(cur); remotes.delete(p.id); }
         const a = makeAvatar(p, p.seat);
         remotes.set(p.id, a);
@@ -1212,6 +1387,7 @@ export function createScene3D(canvas) {
       selfBubbleUntil = time.t + 3;
     },
     setZone,
+    setLook,
     setGear({ rod, rodFx, lineColor, bait, charm = false, tea = false, net = false }) {
       Object.assign(gear, { rod, bait, charm, tea, net });
       gear.fx.set(rodFx || '#ffffff');
