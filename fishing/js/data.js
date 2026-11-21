@@ -84,7 +84,7 @@ export const FISH = [
   { id: 'bay_sac', name: 'Cá Thuỷ Tinh Bảy Sắc', emoji: '🌈', zone: 'sea', rarity: 'mythic', value: 9000, kg: [1, 3] },
   // Vực sâu huyền bí
   { id: 'den_long', name: 'Cá đèn lồng', emoji: '🏮', zone: 'abyss', rarity: 'common', value: 150, kg: [0.5, 5] },
-  { id: 'riu_bac', name: 'Cá rìu bạc', emoji: '🪓', zone: 'abyss', rarity: 'uncommon', value: 300, kg: [0.05, 0.3] },
+  { id: 'riu_bac', name: 'Cá rìu bạc', emoji: '🔪', zone: 'abyss', rarity: 'uncommon', value: 300, kg: [0.05, 0.3] },
   { id: 'mat_trang', name: 'Cá mặt trăng', emoji: '🌕', zone: 'abyss', rarity: 'rare', value: 900, kg: [50, 500] },
   { id: 'mai_cheo', name: 'Cá mái chèo', emoji: '🎐', zone: 'abyss', rarity: 'epic', value: 2500, kg: [20, 200] },
   { id: 'vay_tay', name: 'Cá vây tay', emoji: '🦕', zone: 'abyss', rarity: 'legendary', value: 7000, kg: [30, 90] },
@@ -96,13 +96,28 @@ export const fishById = (id) => FISH.find((f) => f.id === id);
 // luck: tăng tỉ lệ ra cá hiếm.
 export const RODS = [
   { id: 'bamboo', name: 'Cần tre', icon: '🎋', luck: 0, price: 0, level: 1, skill: 'calm', fx: '#d9f99d' },
+  { id: 'reed', name: 'Cần trúc vàng', icon: '🎋', luck: 0.5, price: 150, level: 1, skill: 'calm', fx: '#bef264' },
   { id: 'fiber', name: 'Cần sợi thuỷ tinh', icon: '🎣', luck: 1, price: 400, level: 2, skill: 'wave', fx: '#38bdf8' },
+  { id: 'steel', name: 'Cần inox rút gọn', icon: '🎣', luck: 1.5, price: 900, level: 3, skill: 'storm', fx: '#94a3b8' },
   { id: 'carbon', name: 'Cần carbon', icon: '🎣', luck: 2, price: 1500, level: 5, skill: 'gust', fx: '#e2e8f0' },
+  { id: 'jade', name: 'Cần ngọc bích', icon: '💚', luck: 2.5, price: 3000, level: 7, skill: 'jade', fx: '#34d399' },
   { id: 'gold', name: 'Cần vàng', icon: '✨', luck: 3, price: 5000, level: 9, skill: 'gold', fx: '#fbbf24' },
+  { id: 'thunder', name: 'Cần sấm sét', icon: '⚡', luck: 4, price: 9000, level: 12, skill: 'thunder', fx: '#a78bfa' },
   { id: 'dragon', name: 'Cần rồng', icon: '🐉', luck: 5, price: 15000, level: 14, skill: 'dragon', fx: '#f97316' },
+  { id: 'phoenix', name: 'Cần phượng hoàng', icon: '🔥', luck: 6, price: 30000, level: 18, skill: 'phoenix', fx: '#fb7185' },
 ];
 
 export const rodById = (id) => RODS.find((r) => r.id === id);
+
+// Thùng đựng cá: sức chứa và thưởng giá bán (thùng giữ lạnh giữ cá tươi → bán đắt hơn).
+export const BUCKETS = [
+  { id: 'bag', name: 'Túi lưới', cap: 15, bonus: 0, price: 0, level: 1, color: '#a3a3a3', desc: 'Túi lưới nhỏ, đựng được 15 con.' },
+  { id: 'basket', name: 'Giỏ tre', cap: 25, bonus: 0, price: 300, level: 2, color: '#d6a75c', desc: 'Giỏ tre đan tay, đựng 25 con.' },
+  { id: 'wood', name: 'Thùng gỗ', cap: 40, bonus: 0.05, price: 1200, level: 4, color: '#a16207', desc: 'Đựng 40 con, cá tươi hơn: bán +5% giá.' },
+  { id: 'cooler', name: 'Thùng giữ lạnh', cap: 60, bonus: 0.1, price: 4000, level: 8, color: '#38bdf8', desc: 'Đựng 60 con, giữ lạnh: bán +10% giá.' },
+  { id: 'aquarium', name: 'Bể kính sống', cap: 100, bonus: 0.2, price: 12000, level: 12, color: '#22d3ee', desc: 'Đựng 100 con, cá còn sống: bán +20% giá.' },
+];
+export const bucketById = (id) => BUCKETS.find((b) => b.id === id) || BUCKETS[0];
 
 // Kỹ năng câu cá của từng cần – dùng khi đang kéo cá.
 // Mỗi trận có 1 lượt; mỗi câu trả lời đúng nạp thêm 1 lượt (tối đa 2).
@@ -112,23 +127,34 @@ export const SKILLS = {
   gust: { name: 'Lốc xoáy', icon: '🌪️', desc: 'Cuốn cá lại gần 25% quãng đường mà không làm căng dây.' },
   gold: { name: 'Ánh vàng', icon: '✨', desc: 'Làm cá choáng 3 giây: không vùng vẫy, dây gần như không căng.' },
   dragon: { name: 'Rồng cuộn', icon: '🐉', desc: 'Kéo cá lại gần 35%, xả hết độ căng và làm cá choáng 2 giây.' },
+  storm: { name: 'Gió giật', icon: '💨', desc: 'Kéo cá lại gần 15%, giảm 60% độ căng, cá choáng 1 giây.' },
+  jade: { name: 'Ngọc hồi sinh', icon: '💚', desc: 'Hồi 1 ❤️ độ bền dây và giảm 50% độ căng.' },
+  thunder: { name: 'Sấm sét', icon: '⚡', desc: 'Kéo cá lại gần 30%, giảm 80% độ căng, cá choáng 1,5 giây.' },
+  phoenix: { name: 'Lửa phượng hoàng', icon: '🔥', desc: 'Kéo cá lại gần 45%, xả hết căng, hồi 1 ❤️, cá choáng 3 giây.' },
 };
 
 // Dây câu: thêm ❤️ độ bền (số câu được phép trả lời sai) và sức chịu căng khi kéo cá.
 export const LINES = [
-  { id: 'nylon', name: 'Dây cước', icon: '🧵', color: '#e5e7eb', lives: 2, strength: 0, price: 0, level: 1 },
-  { id: 'braid', name: 'Dây dù bện', icon: '🧵', color: '#4ade80', lives: 3, strength: 0.1, price: 600, level: 3 },
-  { id: 'kevlar', name: 'Dây kevlar', icon: '🧵', color: '#fbbf24', lives: 3, strength: 0.25, price: 2500, level: 7 },
-  { id: 'titan', name: 'Dây titan', icon: '🧵', color: '#60a5fa', lives: 4, strength: 0.4, price: 8000, level: 12 },
+  { id: 'nylon', name: 'Dây cước', icon: '➰', color: '#e5e7eb', lives: 2, strength: 0, price: 0, level: 1 },
+  { id: 'braid', name: 'Dây dù bện', icon: '➰', color: '#4ade80', lives: 3, strength: 0.1, price: 600, level: 3 },
+  { id: 'kevlar', name: 'Dây kevlar', icon: '➰', color: '#fbbf24', lives: 3, strength: 0.25, price: 2500, level: 7 },
+  { id: 'titan', name: 'Dây titan', icon: '➰', color: '#60a5fa', lives: 4, strength: 0.4, price: 8000, level: 12 },
 ];
 
 export const lineById = (id) => LINES.find((l) => l.id === id);
 
 // Vật phẩm tiêu hao. kind 'bait' dùng mỗi lần thả câu; 'helper' dùng khi trả lời.
+// Mồi: luck = may mắn gặp cá hiếm; kg = cá to hơn (+%); zones = thêm may mắn ở các khu đó.
 export const ITEMS = {
-  worm: { name: 'Giun đất', icon: '🪱', kind: 'bait', luck: 0, desc: 'Mồi miễn phí, dùng không giới hạn.' },
+  worm: { name: 'Giun đất', icon: '🐛', kind: 'bait', luck: 0, desc: 'Mồi miễn phí, dùng không giới hạn.' },
+  bread: { name: 'Mồi bánh mì', icon: '🍞', kind: 'bait', luck: 0.5, desc: 'Rẻ, cá Thường và cá Khá rất thích.' },
+  cricket: { name: 'Mồi dế', icon: '🦗', kind: 'bait', luck: 1, kg: 0.1, desc: 'Cá ở ao, sông đớp mạnh; cá to hơn 10%.', zones: { pond: 0.5, river: 0.5 } },
   shrimp: { name: 'Mồi tôm', icon: '🦐', kind: 'bait', luck: 1, desc: 'Tăng nhẹ cơ hội gặp cá hiếm.' },
+  minnow: { name: 'Mồi cá con', icon: '🐟', kind: 'bait', luck: 1.5, kg: 0.3, desc: 'Dụ cá săn mồi: cá to hơn 30%.' },
+  squid: { name: 'Mồi mực', icon: '🦑', kind: 'bait', luck: 2, desc: 'Rất hợp ở Biển xanh và Vực sâu.', zones: { sea: 1, abyss: 1 } },
   golden: { name: 'Mồi vàng', icon: '🟡', kind: 'bait', luck: 3, desc: 'Tăng mạnh cơ hội gặp cá hiếm.' },
+  glow: { name: 'Mồi phát sáng', icon: '🌟', kind: 'bait', luck: 4, kg: 0.1, desc: 'Toả sáng dưới nước sâu – rất dễ gặp cá Sử thi.', zones: { lake: 0.5, abyss: 1.5 } },
+  rainbow: { name: 'Mồi cầu vồng', icon: '🌈', kind: 'bait', luck: 5, kg: 0.2, desc: 'Mồi huyền thoại: cơ hội gặp cá Huyền thoại cao nhất.' },
   hint: { name: 'Phao gợi ý 50/50', icon: '💡', kind: 'helper', desc: 'Bỏ bớt 2 đáp án sai.' },
   time: { name: 'Đồng hồ cát', icon: '⏳', kind: 'helper', desc: 'Thêm 15 giây suy nghĩ.' },
   charm: { name: 'Bùa may mắn', icon: '🍀', kind: 'charm', desc: 'Lần câu tới chắc chắn gặp cá Hiếm trở lên.' },
@@ -136,9 +162,17 @@ export const ITEMS = {
   net: { name: 'Vợt vàng', icon: '🥅', kind: 'boost', desc: 'Con cá câu được ở lượt kế tiếp bán giá gấp đôi.' },
 };
 
+export const BAITS = Object.keys(ITEMS).filter((id) => ITEMS[id].kind === 'bait');
+
 export const SHOP = [
+  { id: 'bread10', item: 'bread', qty: 10, price: 30, level: 1 },
+  { id: 'cricket5', item: 'cricket', qty: 5, price: 45, level: 1 },
   { id: 'shrimp5', item: 'shrimp', qty: 5, price: 60, level: 1 },
+  { id: 'minnow5', item: 'minnow', qty: 5, price: 140, level: 3 },
+  { id: 'squid5', item: 'squid', qty: 5, price: 200, level: 5 },
   { id: 'golden5', item: 'golden', qty: 5, price: 250, level: 4 },
+  { id: 'glow5', item: 'glow', qty: 5, price: 600, level: 8 },
+  { id: 'rainbow3', item: 'rainbow', qty: 3, price: 1500, level: 12 },
   { id: 'hint3', item: 'hint', qty: 3, price: 100, level: 1 },
   { id: 'time3', item: 'time', qty: 3, price: 80, level: 1 },
   { id: 'charm1', item: 'charm', qty: 1, price: 200, level: 3 },

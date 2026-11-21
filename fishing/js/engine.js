@@ -1,7 +1,7 @@
 // Bộ máy trò chơi: trạng thái, thả câu, trả lời, nhiệm vụ, cửa hàng, lên cấp.
 // Thuần logic (không đụng tới DOM) để dễ kiểm thử; rng truyền vào được.
 import {
-  RARITIES, ZONES, FISH, RODS, ITEMS, SHOP, QUESTS, GRADES,
+  RARITIES, ZONES, FISH, RODS, ITEMS, SHOP, QUESTS, GRADES, BUCKETS, bucketById,
   rarityIndex, zoneById, fishById, rodById, LINES, lineById,
 } from './data.js';
 import { pickQuestion } from './questions.js';
@@ -23,6 +23,8 @@ export function newGame() {
     ownedRods: ['bamboo'],
     line: 'nylon',
     ownedLines: ['nylon'],
+    bucketId: 'bag',
+    ownedBuckets: ['bag'],
     bait: 'worm',
     items: { shrimp: 3, golden: 0, hint: 1, time: 1, charm: 0, tea: 1, net: 0 },
     zones: ['pond'],
@@ -86,6 +88,8 @@ export function normalizeState(raw) {
     settings: normalizeSettings({ ...base.settings, ...(raw.settings || {}) }),
     online: { ...base.online, ...(raw.online || {}) },
     practice: { ...base.practice, ...(raw.practice || {}) },
+    ownedBuckets: Array.isArray(raw.ownedBuckets) && raw.ownedBuckets.length ? raw.ownedBuckets : ['bag'],
+    bucketId: raw.bucketId && (raw.ownedBuckets || []).includes(raw.bucketId) ? raw.bucketId : 'bag',
   };
 }
 
@@ -109,7 +113,8 @@ export function currentBait(state) {
 }
 
 export function totalLuck(state) {
-  return (rodById(state.rod)?.luck || 0) + (ITEMS[currentBait(state)]?.luck || 0);
+  const bait = ITEMS[currentBait(state)];
+  return (rodById(state.rod)?.luck || 0) + (bait?.luck || 0) + (bait?.zones?.[state.zone] || 0);
 }
 
 // Mỗi điểm may mắn tăng tỉ lệ các bậc cao hơn, bậc càng cao tăng càng nhiều.
@@ -198,6 +203,13 @@ export function startCast(state, rng = Math.random, { useCharm = false, useTea =
   state.stats.casts += 1;
 
   const catchInfo = rollFish(state.zone, luck, rng, { charm });
+  // Mồi làm cá to hơn (cá câu được nặng hơn → giá cao hơn).
+  const kgBonus = ITEMS[bait]?.kg || 0;
+  if (kgBonus) {
+    const fishDef = fishById(catchInfo.fishId);
+    catchInfo.kg = Math.round(catchInfo.kg * (1 + kgBonus) * 100) / 100;
+    catchInfo.value = Math.round(fishValue(fishDef, Math.min(catchInfo.kg, fishDef.kg[1])) * (1 + kgBonus * 0.5));
+  }
   const difficulty = RARITIES[rarityIndex(catchInfo.rarity)].difficulty;
   const question = pickQuestion(difficulty, questionOpts(state), rng);
   rememberQuestion(state, question);
@@ -274,12 +286,19 @@ export function landFish(state, attempt) {
   // Vợt vàng: cá bán giá gấp đôi.
   const value = attempt.net ? attempt.value * 2 : attempt.value;
   const fish = { uid: state.nextUid++, fishId: attempt.fishId, kg: attempt.kg, value, zone: attempt.zone };
-  state.bucket.push(fish);
+  // Thùng đầy: tự bán con cá này (vẫn được ghi vào bộ sưu tập).
+  let autoSold = 0;
+  if (state.bucket.length >= bucketCap(state)) {
+    autoSold = Math.round(value * (1 + currentBucket(state).bonus));
+    state.coins += autoSold;
+    s.coinsEarned += autoSold;
+    s.fishSold += 1;
+  } else state.bucket.push(fish);
   s.catches += 1;
   s.catchesByRarity[attempt.rarity] = (s.catchesByRarity[attempt.rarity] || 0) + 1;
   const entry = state.collection[attempt.fishId];
   state.collection[attempt.fishId] = { count: (entry?.count || 0) + 1, bestKg: Math.max(entry?.bestKg || 0, attempt.kg) };
-  return { fish, xp, newSpecies: !entry, record: !!entry && attempt.kg > entry.bestKg };
+  return { fish, xp, newSpecies: !entry, record: !!entry && attempt.kg > entry.bestKg, autoSold };
 }
 
 export function loseFish(state) { state.stats.escaped += 1; }
@@ -303,9 +322,10 @@ export function sellFish(state, uids) {
   const set = new Set(uids);
   let coins = 0;
   let count = 0;
+  const bonus = currentBucket(state).bonus;
   state.bucket = state.bucket.filter((f) => {
     if (!set.has(f.uid)) return true;
-    coins += f.value;
+    coins += Math.round(f.value * (1 + bonus));
     count += 1;
     return false;
   });
@@ -363,7 +383,7 @@ export function claimQuest(state, questId) {
 
 export function describeReward(reward) {
   const parts = [];
-  if (reward.coins) parts.push(`🪙 ${reward.coins.toLocaleString('vi-VN')} xu`);
+  if (reward.coins) parts.push(`💰 ${reward.coins.toLocaleString('vi-VN')} xu`);
   if (reward.xp) parts.push(`⭐ ${reward.xp} KN`);
   for (const [id, qty] of Object.entries(reward.items || {})) parts.push(`${ITEMS[id].icon} ${ITEMS[id].name} ×${qty}`);
   if (reward.rod) { const rod = rodById(reward.rod); parts.push(`${rod.icon} ${rod.name}`); }
@@ -383,6 +403,21 @@ export function buyShopItem(state, shopId) {
   if (state.coins < offer.price) return { ok: false, reason: 'Chưa đủ xu.' };
   state.coins -= offer.price;
   state.items[offer.item] = (state.items[offer.item] || 0) + offer.qty;
+  return { ok: true };
+}
+
+// ---------- Thùng đựng cá ----------
+export const currentBucket = (state) => bucketById(state.bucketId);
+export const bucketCap = (state) => currentBucket(state).cap;
+export function buyBucket(state, id) {
+  const b = BUCKETS.find((x) => x.id === id);
+  if (!b) return { ok: false, reason: 'Không có thùng này.' };
+  if (state.ownedBuckets.includes(id)) return { ok: false, reason: 'Bạn đã có thùng này.' };
+  if (levelFromXp(state.xp) < b.level) return { ok: false, reason: `Cần đạt cấp ${b.level}.` };
+  if (state.coins < b.price) return { ok: false, reason: 'Chưa đủ xu.' };
+  state.coins -= b.price;
+  state.ownedBuckets.push(id);
+  state.bucketId = id;
   return { ok: true };
 }
 

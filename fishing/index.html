@@ -9,7 +9,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎣</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Noto+Color+Emoji&display=swap">
   <link rel="stylesheet" href="game.css">
 </head>
 <body>
@@ -30,7 +30,7 @@
       <button class="server-pill" id="server-pill" data-open="server" title="Tài khoản & lớp học"></button>
     </div>
     <div class="resources">
-      <span class="res" title="Xu">🪙 <b id="hud-coins">0</b></span>
+      <span class="res" title="Xu">💰 <b id="hud-coins">0</b></span>
       <span class="res" title="Chuỗi trả lời đúng liên tiếp">🔥 <b id="hud-streak">0</b></span>
       <span class="res hide-sm" title="Loài cá đã câu được">🐟 <b id="hud-species">0</b></span>
       <button class="res world-pill" id="world-pill" title="Các bạn đang câu cùng khu">👥 <b id="world-count">1</b></button>
@@ -43,7 +43,7 @@
     <button data-open="rank" class="rank-btn"><span class="ico">🏆</span><span class="lbl">Xếp hạng</span></button>
     <button data-open="match" class="match-btn"><span class="ico">⚔️</span><span class="lbl">Thi đấu</span></button>
     <button data-open="quests"><span class="ico">📜</span><span class="lbl">Nhiệm vụ</span><i class="badge" id="quest-badge" hidden></i></button>
-    <button data-open="bucket"><span class="ico">🪣</span><span class="lbl">Thùng cá</span><i class="badge blue" id="bucket-badge" hidden></i></button>
+    <button data-open="bucket"><span class="ico">📦</span><span class="lbl">Thùng cá</span><i class="badge blue" id="bucket-badge" hidden></i></button>
     <button data-open="dex"><span class="ico">📚</span><span class="lbl">Sưu tập</span></button>
     <button data-open="shop"><span class="ico">🏪</span><span class="lbl">Cửa hàng</span></button>
     <button data-open="review"><span class="ico">📒</span><span class="lbl">Ôn tập</span><i class="badge gray" id="review-badge" hidden></i></button>
@@ -106,6 +106,7 @@
       <button class="gear-chip" id="rod-chip" data-open="shop" title="Cần câu đang dùng"></button>
       <button class="gear-chip" id="line-chip" data-open="shop" title="Dây câu đang dùng"></button>
       <button class="gear-chip" id="bait-chip" title="Bấm để đổi mồi"></button>
+      <div class="bait-pop" id="bait-pop" hidden></div>
       <button class="gear-chip emote-chip" id="emote-btn" title="Gửi biểu cảm cho các bạn cùng hồ">😀</button>
       <div class="emote-pop" id="emote-pop" hidden></div>
       <div class="boosts" id="boosts" aria-label="Vật phẩm hỗ trợ (bấm để bật cho lượt tới)">
@@ -182,8 +183,9 @@
   </dialog>
 
   <dialog class="sheet" id="sheet-bucket">
-    <header><h2>🪣 Thùng cá</h2><button class="close" data-close aria-label="Đóng">✕</button></header>
+    <header><h2>📦 Thùng cá</h2><button class="close" data-close aria-label="Đóng">✕</button></header>
     <div class="sheet-body">
+      <div class="bucket-head" id="bucket-head"></div>
       <div class="row">
         <span id="bucket-summary" class="muted"></span>
         <span class="spacer"></span>
@@ -205,11 +207,13 @@
   <dialog class="sheet" id="sheet-shop">
     <header><h2>🏪 Cửa hàng</h2><button class="close" data-close aria-label="Đóng">✕</button></header>
     <div class="sheet-body">
-      <p class="muted">Bạn có 🪙 <b id="shop-coins">0</b> xu. Bán cá trong Thùng cá để có thêm xu.</p>
+      <p class="muted">Bạn có 💰 <b id="shop-coins">0</b> xu. Bán cá trong Thùng cá để có thêm xu.</p>
       <div class="tabs-row" id="shop-tabs" role="tablist">
         <button data-tab="rods">🎣 Cần câu</button>
-        <button data-tab="lines">🧵 Dây câu</button>
-        <button data-tab="items">🎒 Mồi & hỗ trợ</button>
+        <button data-tab="lines">➰ Dây câu</button>
+        <button data-tab="baits">🦐 Mồi câu</button>
+        <button data-tab="items">🎒 Hỗ trợ</button>
+        <button data-tab="buckets">📦 Thùng cá</button>
       </div>
       <div id="shop-list" class="shop-list"></div>
       <h3>Túi đồ</h3>
@@ -230,7 +234,7 @@
           <div class="big">🧠</div>
           <div class="grow">
             <h3 style="margin:0">Ôn tập nhận thưởng</h3>
-            <p class="muted small" style="margin:4px 0 0">Không cần câu cá: trả lời câu hỏi để nhận <b>🪙 xu</b>, chuỗi <b>3 câu đúng = ⚡ năng lượng kỹ năng</b>
+            <p class="muted small" style="margin:4px 0 0">Không cần câu cá: trả lời câu hỏi để nhận <b>💰 xu</b>, chuỗi <b>3 câu đúng = ⚡ năng lượng kỹ năng</b>
               (dùng khi kéo cá mà hết lượt kỹ năng), chuỗi 5 = 🦐 mồi tôm, chuỗi 10 = ✨ mồi vàng. Câu trong sổ được hỏi trước.</p>
           </div>
         </div>

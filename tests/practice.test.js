@@ -146,3 +146,61 @@ test('old grade groups and subject lists are migrated', () => {
   assert.equal(s.settings.grade, 2);
   assert.ok(s.settings.subjects.includes('nature') && s.settings.subjects.includes('custom'));
 });
+
+import { totalLuck, startCast, landFish, sellFish, buyBucket, bucketCap, buyShopItem } from '../fishing/js/engine.js';
+import { ITEMS, BAITS, BUCKETS, RODS, SKILLS } from '../fishing/js/data.js';
+import { SKILL_EFFECTS, useSkill } from '../fishing/js/fight.js';
+
+test('every bait, rod and skill is complete', () => {
+  assert.ok(BAITS.length >= 9 && BAITS[0] === 'worm');
+  assert.ok(RODS.length >= 10);
+  for (const r of RODS) { assert.ok(SKILLS[r.skill], r.id); assert.ok(SKILL_EFFECTS[r.skill], r.skill); }
+  assert.equal(BUCKETS[0].cap, 15);
+});
+
+test('baits add luck, more in their favourite zone, and bigger fish', () => {
+  const s = newGame();
+  s.items.squid = 5; s.bait = 'squid';
+  s.zone = 'pond';
+  const pond = totalLuck(s);
+  s.zone = 'sea';
+  assert.equal(totalLuck(s), pond + ITEMS.squid.zones.sea);
+  const m = newGame();
+  m.items.minnow = 50; m.bait = 'minnow';
+  const plain = newGame();
+  let a = 0; let b = 0;
+  for (let i = 0; i < 40; i++) {
+    a += startCast(m, seeded(i + 1)).kg;
+    b += startCast(plain, seeded(i + 1)).kg;
+  }
+  assert.ok(a > b * 1.2, `${a} vs ${b}`);
+  assert.equal(m.items.minnow, 10);
+});
+
+test('a full bucket sells new fish automatically; better buckets pay more', () => {
+  const s = newGame();
+  const att = (v) => ({ fishId: 'ro', rarity: 'common', kg: 0.3, value: v, zone: 'pond' });
+  for (let i = 0; i < bucketCap(s); i++) landFish(s, att(10));
+  assert.equal(s.bucket.length, 15);
+  const coins = s.coins;
+  const r = landFish(s, att(10));
+  assert.equal(r.autoSold, 10);
+  assert.equal(s.bucket.length, 15);
+  assert.equal(s.coins, coins + 10);
+  // Thùng giữ lạnh: +10% giá bán
+  s.xp = 999999; s.coins = 100000;
+  assert.ok(buyBucket(s, 'cooler').ok);
+  assert.equal(bucketCap(s), 60);
+  const sold = sellFish(s, [s.bucket[0].uid]);
+  assert.equal(sold.coins, 11);
+  assert.equal(buyBucket(s, 'cooler').ok, false);
+  assert.ok(buyShopItem(s, 'rainbow3').ok);
+  assert.equal(s.items.rainbow, 3);
+});
+
+test('new rod skills heal the line', () => {
+  const f = { charges: 1, tension: 0.9, distance: 10, start: 10, stun: 0, surge: 1, lives: 1, maxLives: 3, done: false };
+  assert.ok(useSkill(f, 'jade'));
+  assert.equal(f.lives, 2);
+  assert.ok(f.tension < 0.5);
+});

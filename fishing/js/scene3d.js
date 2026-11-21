@@ -883,7 +883,7 @@ export function createScene3D(canvas) {
     fxTick += dt;
     const every = (s) => { if (fxTick >= s) { fxTick = 0; return true; } return false; };
     // Mồi vàng: phao phát sáng
-    const goldBait = gear.bait === 'golden' && (phase === 'wait' || phase === 'bite' || phase === 'cast');
+    const goldBait = ['golden', 'glow', 'rainbow'].includes(gear.bait) && (phase === 'wait' || phase === 'bite' || phase === 'cast');
     bobGlow.intensity = goldBait ? 2.5 + Math.sin(t * 6) * 0.8 : 0;
     bobGlow.position.copy(bobPos).add(tmp.set(0, 0.25, 0));
     bobTop.material.emissive.set(goldBait ? 0xffb21e : 0x000000);
@@ -918,6 +918,11 @@ export function createScene3D(canvas) {
     else if (gear.rod === 'carbon') { burst(pos, 50, '#f8fafc', { shape: 'ring', speed: 3, up: 0.4, gravity: 1, fade: 1.6 }); ripple(pos.x, pos.z, 2); }
     else if (gear.rod === 'gold') { burst(pos, 60, null, { colors: GOLD, shape: 'up', speed: 1.2, up: 4, gravity: 6, fade: 1 }); flash(pos, '#fbbf24', 5); }
     else if (gear.rod === 'dragon') { burst(pos, 80, null, { colors: FIRE, shape: 'ring', speed: 3, up: 2, gravity: 2, fade: 1.2 }); flash(pos, '#f97316', 7); ripple(pos.x, pos.z, 3); }
+    else if (gear.rod === 'phoenix') { burst(pos, 100, null, { colors: ['#fb7185', '#fde047', '#f97316'], shape: 'up', speed: 1.6, up: 6, gravity: 5, fade: 1.2 }); flash(pos, '#fb7185', 9); ripple(pos.x, pos.z, 3); }
+    else if (gear.rod === 'thunder') { burst(pos, 70, null, { colors: ['#c4b5fd', '#f5f3ff', '#a78bfa'], shape: 'up', speed: 0.6, up: 8, gravity: 9, fade: 0.6 }); flash(pos, '#a78bfa', 10); }
+    else if (gear.rod === 'jade') { burst(pos, 50, null, { colors: ['#34d399', '#a7f3d0'], shape: 'ring', speed: 2, up: 1.5, gravity: 2, fade: 1.3 }); ripple(pos.x, pos.z, 2.4); }
+    else if (gear.rod === 'steel' || gear.rod === 'reed') { burst(pos, 30, gear.fx, { shape: 'ring', speed: 2, up: 1, gravity: 3, fade: 1.2 }); ripple(pos.x, pos.z, 1.8); }
+    if (gear.bait === 'rainbow') burst(pos, 50, null, { colors: ['#ef4444', '#f59e0b', '#22c55e', '#3b82f6', '#a855f7'], shape: 'up', speed: 0.8, up: 3, gravity: 1, fade: 1.2 });
     if (gear.charm) burst(pos, 30, null, { colors: ['#4ade80', '#bbf7d0'], shape: 'up', speed: 0.6, up: 2.5, gravity: 0.5, fade: 0.9 });
   }
 
@@ -936,8 +941,16 @@ export function createScene3D(canvas) {
   function skillFx(skill) {
     const pos = bobPos.clone();
     const tip = tipPos.clone();
-    const AURA = { calm: ['#86efac', '#d9f99d'], wave: ['#38bdf8', '#e0f2fe'], gust: ['#f8fafc', '#cbd5e1'], gold: GOLD, dragon: FIRE };
-    heroAura(AURA[skill] || GOLD, skill === 'dragon' ? 140 : 90, skill === 'dragon' ? 5 : 3);
+    const AURA = { calm: ['#86efac', '#d9f99d'], wave: ['#38bdf8', '#e0f2fe'], gust: ['#f8fafc', '#cbd5e1'], gold: GOLD, dragon: FIRE,
+      storm: ['#e2e8f0', '#94a3b8'], jade: ['#34d399', '#a7f3d0'], thunder: ['#c4b5fd', '#f5f3ff'], phoenix: ['#fb7185', '#fde047', '#f97316'] };
+    const big = skill === 'dragon' || skill === 'phoenix';
+    heroAura(AURA[skill] || GOLD, big ? 140 : 90, big ? 5 : 3);
+    if (['storm', 'jade', 'thunder', 'phoenix'].includes(skill)) {
+      burst(pos, big ? 140 : 90, null, { colors: AURA[skill], shape: skill === 'thunder' ? 'up' : 'ring', speed: skill === 'thunder' ? 0.8 : 3, up: skill === 'thunder' ? 9 : 3, gravity: 5, fade: 1.1 });
+      flash(pos, AURA[skill][0], big ? 10 : 7);
+      for (let i = 0; i < 3; i++) setTimeout(() => ripple(pos.x, pos.z, 1.5 + i), i * 120);
+      shake = skill === 'thunder' || big ? 0.08 : 0.03;
+    }
     // Dải sáng chạy dọc dây câu từ đầu cần tới cá
     for (let i = 0; i < 40; i++) {
       const k = i / 40;

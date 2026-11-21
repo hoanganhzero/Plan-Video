@@ -1,5 +1,5 @@
 /* Giao diện Bộ đề dùng trong trang thầy cô (lấy từ game.css). */
-.sets-area { --panel-2: rgba(255, 255, 255, .07); --line: rgba(255, 255, 255, .14); --good: #3ddc84; --gold: #ffc531; --text: #f2f8fc; --muted: #a9c3d3; --font: "Baloo 2", system-ui, sans-serif; }
+.sets-area { --panel-2: rgba(255, 255, 255, .07); --line: rgba(255, 255, 255, .14); --good: #3ddc84; --gold: #ffc531; --text: #f2f8fc; --muted: #a9c3d3; --font: "Baloo 2", system-ui, sans-serif, "Noto Color Emoji"; }
 .sets-area .check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; margin-top: 12px; }
 .sets-area select, .sets-area textarea { font: inherit; color: var(--text); background: rgba(0, 0, 0, .35); border: 2px solid var(--line); border-radius: 10px; padding: 6px 10px; }
 .sets-area textarea { width: 100%; resize: vertical; font-family: ui-monospace, monospace; font-size: .88rem; }

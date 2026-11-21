@@ -13,7 +13,7 @@
   --good: #3ddc84;
   --bad: #ff5a5a;
   --radius: 16px;
-  --font: "Baloo 2", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font: "Baloo 2", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif, "Noto Color Emoji";
   color-scheme: dark;
 }
 
@@ -888,3 +888,30 @@ button.server-item { cursor: pointer; }
 .music-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; }
 .music-row .vol { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; font-size: .9rem; }
 .music-row input[type=range] { width: 150px; accent-color: var(--gold); }
+
+/* ---------- Chọn mồi, thùng cá ---------- */
+.bait-pop {
+  position: absolute; bottom: 64px; left: 0; z-index: 9; width: min(360px, 92vw); max-height: 60vh; overflow-y: auto; display: grid; gap: 6px; padding: 10px;
+  background: var(--panel); border: 2px solid var(--gold); border-radius: 18px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.bait-pop[hidden] { display: none; }
+.bp-title { font-weight: 800; color: var(--gold); }
+.bp-item {
+  display: grid; grid-template-columns: 38px 1fr auto; align-items: center; gap: 8px; text-align: left; font: inherit; color: var(--text); cursor: pointer;
+  background: rgba(255, 255, 255, .06); border: 2px solid transparent; border-radius: 12px; padding: 4px 8px;
+}
+.bp-item small { display: block; color: var(--muted); font-size: .74rem; }
+.bp-item i { font-style: normal; font-weight: 800; color: var(--gold); }
+.bp-item.on { border-color: var(--good); background: rgba(61, 220, 132, .14); }
+.bp-item:disabled { opacity: .38; cursor: default; }
+.bp-item:not(:disabled):hover { border-color: var(--gold); }
+.bp-shop { justify-self: center; }
+.bucket-head { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 16px; background: var(--panel-2); border: 2px solid var(--line); }
+.bk-main { flex: 1; display: grid; gap: 4px; }
+.bk-bar { position: relative; height: 18px; border-radius: 99px; background: rgba(0, 0, 0, .4); overflow: hidden; }
+.bk-bar i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #22c55e, #4ade80); }
+.bk-bar.warn i { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.bk-bar.full i { background: linear-gradient(90deg, #ef4444, #f87171); }
+.bk-bar span { position: relative; display: block; text-align: center; font-size: .78rem; font-weight: 800; line-height: 18px; }
+.badge.full { background: var(--bad); font-size: .62rem; }
+#shop-tabs button { min-width: 100px; }

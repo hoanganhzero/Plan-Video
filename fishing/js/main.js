@@ -5,7 +5,9 @@ import {
   startCast, nextQuestion, currentLine, buyLine, LINES, lineById, answerQuestion, landFish, loseFish, useHelper, fiftyFifty, sellFish, bucketValue,
   activeQuests, questProgress, claimQuest, describeReward, buyShopItem, buyRod, unlockZone, zoneFish, speciesTotal,
   RARITIES, ZONES, RODS, ITEMS, SHOP, QUESTS, fishById, zoneById, rodById,
+  buyBucket, bucketCap, currentBucket,
 } from './engine.js';
+import { BAITS, BUCKETS } from './data.js';
 import { SUBJECTS, GRADES, SKILLS, rarityOf, rarityIndex, subjectById } from './data.js';
 import { initMatchUI } from './match-ui.js';
 import { createWorld, assignSlots, EMOTES, makePublicId, colorFor } from './world.js';
@@ -24,7 +26,7 @@ import { setQuestions } from './engine.js';
 import { createFight, stepFight, answerInFight, surging, useSkill } from './fight.js';
 import { createScene } from './scene.js';
 import { fishSVG } from './art.js';
-import { itemIcon, rodIcon, lineIcon } from './icons.js';
+import { itemIcon, rodIcon, lineIcon, bucketIcon } from './icons.js';
 import { worldMapSVG } from './map.js';
 import { getFishViewer } from './fish3d.js';
 import {
@@ -164,7 +166,8 @@ function renderHud() {
   $('#quest-badge').hidden = !ready;
   $('#quest-badge').textContent = ready;
   $('#bucket-badge').hidden = !state.bucket.length;
-  $('#bucket-badge').textContent = state.bucket.length;
+  $('#bucket-badge').textContent = state.bucket.length >= bucketCap(state) ? 'Đầy' : state.bucket.length;
+  $('#bucket-badge').classList.toggle('full', state.bucket.length >= bucketCap(state));
   const on = state.online || {};
   $('#hud-rank-text').textContent = on.nickname && on.rank ? `#${on.rank}` : 'Đua top';
   $('#review-badge').hidden = !state.review.length;
@@ -173,7 +176,6 @@ function renderHud() {
   scene.setZone(z);
 }
 
-const BAITS = ['worm', 'shrimp', 'golden'];
 const BOOSTS = ['charm', 'tea', 'net'];
 const BOOST_TIP = {
   charm: '🍀 Lần ném tới chắc chắn gặp cá Hiếm trở lên!',
@@ -210,14 +212,41 @@ function renderGear() {
     });
   }
 }
-$('#bait-chip').addEventListener('click', () => {
-  const owned = BAITS.filter((b) => b === 'worm' || state.items[b] > 0);
-  state.bait = owned[(owned.indexOf(currentBait(state)) + 1) % owned.length];
-  if (owned.length === 1) toast('Bạn chỉ có Giun đất. Mua mồi tôm / mồi vàng ở Cửa hàng hoặc nhận từ nhiệm vụ.');
+// Bảng chọn mồi: mồi đang có bấm để dùng; mồi chưa có hiện mờ (mua ở Cửa hàng → Mồi câu).
+function renderBaitPop() {
+  const cur = currentBait(state);
+  $('#bait-pop').innerHTML = `<div class="bp-title">🦐 Chọn mồi câu</div>${BAITS.map((id) => {
+    const it = ITEMS[id];
+    const n = id === 'worm' ? '∞' : state.items[id] || 0;
+    const has = id === 'worm' || n > 0;
+    const zoneBonus = it.zones?.[state.zone] ? ' · hợp khu này!' : '';
+    return `<button class="bp-item ${id === cur ? 'on' : ''}" data-bait="${id}" ${has ? '' : 'disabled'} title="${esc(it.desc)}">
+      ${itemIcon(id, 34)}<span><b>${esc(it.name)}</b><small>🍀 +${it.luck}${it.kg ? ` · ⚖️ +${Math.round(it.kg * 100)}%` : ''}${zoneBonus}</small></span><i>${n}</i></button>`;
+  }).join('')}<button class="btn small sea bp-shop" data-open-shop="baits">🏪 Mua thêm mồi</button>`;
+}
+$('#bait-chip').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const pop = $('#bait-pop');
+  if (!pop.hidden) { pop.hidden = true; return; }
+  renderBaitPop();
+  pop.hidden = false;
   beep(SOUND.click);
-  save();
-  renderGear();
 });
+$('#bait-pop').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const b = e.target.closest('[data-bait]');
+  if (b && !b.disabled) {
+    state.bait = b.dataset.bait;
+    save();
+    renderGear();
+    $('#bait-pop').hidden = true;
+    toast(`${ITEMS[state.bait].icon} Dùng <b>${esc(ITEMS[state.bait].name)}</b>`);
+    return;
+  }
+  const s = e.target.closest('[data-open-shop]');
+  if (s) { $('#bait-pop').hidden = true; shopTab = s.dataset.openShop; openSheet('shop'); }
+});
+document.addEventListener('click', (e) => { if (!e.target.closest('#bait-pop, #bait-chip')) $('#bait-pop').hidden = true; });
 $('#boosts').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-boost]');
   if (!btn || btn.disabled) return;
@@ -242,7 +271,7 @@ RENDER.map = () => {
   let action;
   if (z.id === state.zone) action = '<span class="rarity-tag" style="background:#c47f00">📍 Bạn đang câu ở đây</span>';
   else if (open) action = `<button class="btn gold big" data-go="${z.id}">⛵ Đến câu</button>`;
-  else action = `<button class="btn ${canBuy ? 'gold' : ''} big" data-unlock="${z.id}" ${canBuy ? '' : 'disabled'}>🔓 Mở khu · 🪙 ${fmt(z.price)}</button>
+  else action = `<button class="btn ${canBuy ? 'gold' : ''} big" data-unlock="${z.id}" ${canBuy ? '' : 'disabled'}>🔓 Mở khu · 💰 ${fmt(z.price)}</button>
     <span class="small muted">${level < z.level ? `Cần cấp ${z.level} (bạn cấp ${level})` : state.coins < z.price ? 'Chưa đủ xu' : ''}</span>`;
   $('#zone-list').innerHTML = `<div class="zone-info" style="--sky:${z.sky[0]};--water:${z.water[1]}">
     <div class="zi">${z.icon}</div>
@@ -333,14 +362,23 @@ function fishCard(f, extra = '') {
     <div class="art">${fishSVG(fish.id, { size: 120, uid: `b${f.uid}` })}</div>
     <div class="name">${esc(fish.name)}</div>
     ${tag(fish.rarity)}
-    <div class="meta">${f.kg} kg · 🪙 ${fmt(f.value)}</div>
+    <div class="meta">${f.kg} kg · 💰 ${fmt(f.value)}</div>
     ${extra}
   </div>`;
 }
 RENDER.bucket = () => {
+  const bk = currentBucket(state);
+  const cap = bucketCap(state);
+  const pct = Math.min(100, (state.bucket.length / cap) * 100);
+  const next = BUCKETS.find((b) => b.cap > cap && !state.ownedBuckets.includes(b.id));
+  $('#bucket-head').innerHTML = `<div class="bk-icon">${bucketIcon(bk.id, 64)}</div>
+    <div class="bk-main"><b>${esc(bk.name)}</b>${bk.bonus ? ` <span class="pill on">💰 bán +${Math.round(bk.bonus * 100)}%</span>` : ''}
+      <div class="bk-bar ${pct >= 100 ? 'full' : pct >= 80 ? 'warn' : ''}"><i style="width:${pct}%"></i><span>${state.bucket.length}/${cap} con</span></div>
+      <small class="muted">${pct >= 100 ? '⚠️ Thùng đầy – cá câu thêm sẽ được tự bán ngay.' : 'Thùng đầy thì cá câu thêm được tự bán ngay.'}${next ? ` Nâng cấp: ${esc(next.name)} (${next.cap} con) ở 🏪 Cửa hàng.` : ''}</small></div>
+    ${next ? '<button class="btn small sea" data-open-shop="buckets">⬆️ Nâng cấp</button>' : ''}`;
   const sorted = [...state.bucket].sort((a, b) => b.value - a.value);
   $('#bucket-summary').textContent = state.bucket.length
-    ? `${state.bucket.length} con cá · tổng giá trị 🪙 ${fmt(bucketValue(state))}`
+    ? `${state.bucket.length} con cá · tổng giá trị 💰 ${fmt(bucketValue(state))}`
     : 'Thùng đang trống – đi câu thôi!';
   $('#bucket-list').innerHTML = sorted.map((f) => fishCard(f, `<button class="btn small gold" data-sell="${f.uid}">Bán</button>`)).join('');
   $('#sell-all').disabled = !state.bucket.length;
@@ -350,11 +388,14 @@ function doSell(uids) {
   if (!uids.length) return;
   const r = sellFish(state, uids);
   beep(SOUND.catch);
-  toast(`🪙 Bán ${r.count} con cá được ${fmt(r.coins)} xu!`);
+  toast(`💰 Bán ${r.count} con cá được ${fmt(r.coins)} xu!`);
   save();
   afterAction();
   RENDER.bucket();
 }
+$('#bucket-head').addEventListener('click', (e) => {
+  if (e.target.closest('[data-open-shop]')) { $('#sheet-bucket').close(); shopTab = 'buckets'; openSheet('shop'); }
+});
 $('#bucket-list').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-sell]');
   if (btn) doSell([Number(btn.dataset.sell)]);
@@ -377,7 +418,7 @@ RENDER.dex = () => {
         const c = state.collection[fish.id];
         const r = rarityOf(fish.rarity);
         return c
-          ? `<div class="fish-card" style="border-color:${r.color}"><button class="view4d" data-view="${fish.id}" title="Xem cá 4D">4D</button><div class="art">${fishSVG(fish.id, { size: 120, uid: `d${fish.id}` })}</div><div class="name">${esc(fish.name)}</div>${tag(fish.rarity)}<div class="meta">Đã câu ${c.count} lần · kỷ lục ${c.bestKg} kg<br>Giá gốc 🪙 ${fmt(fish.value)}</div></div>`
+          ? `<div class="fish-card" style="border-color:${r.color}"><button class="view4d" data-view="${fish.id}" title="Xem cá 4D">4D</button><div class="art">${fishSVG(fish.id, { size: 120, uid: `d${fish.id}` })}</div><div class="name">${esc(fish.name)}</div>${tag(fish.rarity)}<div class="meta">Đã câu ${c.count} lần · kỷ lục ${c.bestKg} kg<br>Giá gốc 💰 ${fmt(fish.value)}</div></div>`
           : `<div class="fish-card unknown"><div class="art">${fishSVG(fish.id, { size: 120, uid: `u${fish.id}` })}</div><div class="name">???</div>${tag(fish.rarity)}<div class="meta">Chưa khám phá</div></div>`;
       }).join('')}</div>
     </div>`).join('');
@@ -410,7 +451,7 @@ $('#dex-list').addEventListener('click', (e) => {
     <div class="stats">
       <div class="stat"><span class="muted small">Đã câu</span><b>${c.count} lần</b></div>
       <div class="stat"><span class="muted small">Kỷ lục</span><b>${c.bestKg} kg</b></div>
-      <div class="stat"><span class="muted small">Giá gốc</span><b>🪙 ${fmt(fish.value)}</b></div>
+      <div class="stat"><span class="muted small">Giá gốc</span><b>💰 ${fmt(fish.value)}</b></div>
       <div class="stat"><span class="muted small">Khu</span><b>${z.icon} ${esc(z.name)}</b></div>
     </div>
     <p class="muted small">${has3D ? '🖐️ Kéo để xoay con cá' : 'Thiết bị không hỗ trợ 3D – đang hiện hình phẳng.'}</p>`;
@@ -437,7 +478,7 @@ RENDER.shop = () => {
   $$('#shop-tabs [data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === shopTab));
   const buyBtn = (attr, id, price, need) => {
     const can = level >= need && state.coins >= price;
-    return `<button class="btn ${can ? 'gold' : ''}" ${attr}="${id}" ${can ? '' : 'disabled'}>🪙 ${fmt(price)}</button>${level < need ? `<span class="small muted">Cấp ${need}</span>` : ''}`;
+    return `<button class="btn ${can ? 'gold' : ''}" ${attr}="${id}" ${can ? '' : 'disabled'}>💰 ${fmt(price)}</button>${level < need ? `<span class="small muted">Cấp ${need}</span>` : ''}`;
   };
   const inUse = '<span class="rarity-tag" style="background:#1f9d55">Đang dùng</span>';
   let html = '';
@@ -448,7 +489,7 @@ RENDER.shop = () => {
       return shopCard({
         icon: rodIcon(r.id, 64), title: esc(r.name), owned, using,
         desc: `<span class="skill-tag" style="--fx:${r.fx}">${SKILLS[r.skill].icon} ${esc(SKILLS[r.skill].name)}</span> ${esc(SKILLS[r.skill].desc)}`,
-        stats: bar('🍀 May mắn', r.luck, 5, '#4ade80') + bar('💪 Sức kéo', r.luck, 5, '#38bdf8'),
+        stats: bar('🍀 May mắn', r.luck, 6, '#4ade80') + bar('💪 Sức kéo', r.luck, 6, '#38bdf8'),
         action: using ? inUse : owned ? `<button class="btn sea" data-rod-use="${r.id}">Dùng</button>` : buyBtn('data-rod-buy', r.id, r.price, r.level),
       });
     }).join('');
@@ -463,12 +504,25 @@ RENDER.shop = () => {
         action: using ? inUse : owned ? `<button class="btn sea" data-line-use="${l.id}">Dùng</button>` : buyBtn('data-line-buy', l.id, l.price, l.level),
       });
     }).join('');
+  } else if (shopTab === 'buckets') {
+    html = BUCKETS.map((b) => {
+      const owned = state.ownedBuckets.includes(b.id);
+      const using = state.bucketId === b.id;
+      return shopCard({
+        icon: bucketIcon(b.id, 64), title: esc(b.name), owned, using, desc: esc(b.desc),
+        stats: bar('📦 Sức chứa', b.cap, 100, '#38bdf8') + (b.bonus ? bar(`💰 Giá bán +${Math.round(b.bonus * 100)}%`, b.bonus, 0.2, '#fbbf24') : ''),
+        action: using ? inUse : owned ? `<button class="btn sea" data-bucket-use="${b.id}">Dùng</button>` : buyBtn('data-bucket-buy', b.id, b.price, b.level),
+      });
+    }).join('');
   } else {
-    html = SHOP.map((o) => {
+    const baits = shopTab === 'baits';
+    html = SHOP.filter((o) => (ITEMS[o.item].kind === 'bait') === baits).map((o) => {
       const it = ITEMS[o.item];
+      const extra = baits ? bar('🍀 May mắn', it.luck, 5, '#4ade80') + (it.kg ? bar(`⚖️ Cá to hơn +${Math.round(it.kg * 100)}%`, it.kg, 0.3, '#f472b6') : '')
+        + (it.zones ? `<div class="small muted">🗺️ Hợp: ${Object.keys(it.zones).map((z) => `${zoneById(z).icon} ${esc(zoneById(z).name)}`).join(', ')}</div>` : '') : '';
       return shopCard({
         icon: itemIcon(o.item, 64), title: `${esc(it.name)} ×${o.qty}`, desc: esc(it.desc),
-        stats: `<div class="small">Đang có: <b>${state.items[o.item] || 0}</b></div>`,
+        stats: `${extra}<div class="small">Đang có: <b>${state.items[o.item] || 0}</b></div>`,
         action: buyBtn('data-item-buy', o.id, o.price, o.level),
       });
     }).join('');
@@ -493,6 +547,12 @@ $('#sheet-shop').addEventListener('click', (e) => {
   else if (t.dataset.rodUse) { state.rod = t.dataset.rodUse; r = { ok: true }; }
   else if (t.dataset.lineBuy) r = buyLine(state, t.dataset.lineBuy);
   else if (t.dataset.lineUse) { state.line = t.dataset.lineUse; r = { ok: true }; }
+  else if (t.dataset.bucketBuy) r = buyBucket(state, t.dataset.bucketBuy);
+  else if (t.dataset.bucketUse) {
+    const b = BUCKETS.find((x) => x.id === t.dataset.bucketUse);
+    if (state.bucket.length > b.cap) { toast(`⚠️ Thùng này chỉ đựng ${b.cap} con – hãy bán bớt cá trước.`); return; }
+    state.bucketId = b.id; r = { ok: true };
+  }
   if (!r) return;
   if (r.ok) { beep(SOUND.catch); toast('✅ Thành công!'); save(); } else toast(`⚠️ ${r.reason}`);
   RENDER.shop();
@@ -505,7 +565,7 @@ RENDER.review = () => {
   const isToday = p.day === practiceToday();
   $('#practice-stats').innerHTML = `
     <span class="chip">⚡ Năng lượng <b>${state.skillEnergy || 0}/${ENERGY_MAX}</b></span>
-    <span class="chip">🪙 Hôm nay <b>${isToday ? p.coins : 0}/${DAILY_COIN_CAP}</b></span>
+    <span class="chip">💰 Hôm nay <b>${isToday ? p.coins : 0}/${DAILY_COIN_CAP}</b></span>
     <span class="chip">✅ Hôm nay đúng <b>${isToday ? p.correct : 0}/${isToday ? p.answered : 0}</b></span>
     <span class="chip">🔥 Chuỗi tốt nhất <b>${p.best || 0}</b></span>
     <span class="chip">🎓 Đã thuộc <b>${state.stats.reviewedOk}</b></span>`;
@@ -549,7 +609,7 @@ function runRescue(wrongQuestions) {
     }
     while (queue.length < RESCUE_QUESTIONS) queue.push(practiceQuestion(state, Math.random, queue.map((x) => x.id)));
     pr = { mode: 'rescue', queue, asked: [], right: 0, n: 0, total: RESCUE_QUESTIONS, resolve };
-    $('#pr-title').textContent = '🛟 Cứu cá';
+    $('#pr-title').textContent = '⛑️ Cứu cá';
     $('#practice-dlg').classList.add('rescue');
     $('#practice-dlg').showModal();
     nextPractice();
@@ -563,7 +623,7 @@ function renderPracticeBar() {
   }
   const p = state.practice;
   $('#pr-bar').innerHTML = `<span class="chip">⚡ ${'<i class="on"></i>'.repeat(state.skillEnergy || 0)}${'<i></i>'.repeat(ENERGY_MAX - (state.skillEnergy || 0))}</span>
-    <span class="chip">🔥 Chuỗi <b>${p.streak}</b></span><span class="chip">🪙 Hôm nay <b>${p.coins}/${DAILY_COIN_CAP}</b></span>
+    <span class="chip">🔥 Chuỗi <b>${p.streak}</b></span><span class="chip">💰 Hôm nay <b>${p.coins}/${DAILY_COIN_CAP}</b></span>
     <span class="chip">📒 Sổ ôn <b>${state.review.length}</b></span>`;
 }
 function nextPractice() {
@@ -604,7 +664,7 @@ function answerPractice(i) {
       pr.right += 1; pr.coins += r.coins; pr.energy += r.energy;
       bits.push('✅ Đúng!');
       if (r.xp) bits.push(`⭐ +${r.xp} KN`);
-      if (r.coins) bits.push(`🪙 +${r.coins}`); else if (r.capped) bits.push('🪙 đã đủ xu hôm nay');
+      if (r.coins) bits.push(`💰 +${r.coins}`); else if (r.capped) bits.push('💰 đã đủ xu hôm nay');
       if (r.energy) bits.push('⚡ +1 năng lượng kỹ năng!');
       if (r.bait === 'shrimp') bits.push('🦐 +1 mồi tôm!');
       if (r.bait === 'golden') bits.push('✨ +1 mồi vàng!');
@@ -623,7 +683,7 @@ function answerPractice(i) {
     $('#pr-explain').hidden = false;
   }
   const done = pr.mode === 'rescue' && pr.n >= pr.total;
-  $('#pr-next').textContent = done ? 'Xem kết quả 🛟' : 'Câu tiếp ➜';
+  $('#pr-next').textContent = done ? 'Xem kết quả ⛑️' : 'Câu tiếp ➜';
   $('#pr-next-row').hidden = false;
   renderPracticeBar();
   save();
@@ -638,7 +698,7 @@ function closePractice() {
   pr = null;
   if (done.mode === 'rescue') { done.resolve(done.right); return; }
   const answered = done.n;
-  if (answered) toast(`🧠 Ôn tập: đúng <b>${done.right}/${answered}</b>${done.coins ? ` · 🪙 +${done.coins}` : ''}${done.energy ? ` · ⚡ +${done.energy}` : ''}`);
+  if (answered) toast(`🧠 Ôn tập: đúng <b>${done.right}/${answered}</b>${done.coins ? ` · 💰 +${done.coins}` : ''}${done.energy ? ` · ⚡ +${done.energy}` : ''}`);
   afterAction();
 }
 $('#pr-choices').addEventListener('click', (e) => { const b = e.target.closest('.choice'); if (b) answerPractice(Number(b.dataset.i)); });
@@ -1615,19 +1675,22 @@ async function finishCatch() {
     <h2>${esc(fish.name)}</h2>
     <div class="stats">
       <div class="stat"><span class="muted small">Cân nặng</span><b>${attempt.kg} kg</b></div>
-      <div class="stat"><span class="muted small">Giá bán</span><b>🪙 ${fmt(attempt.value)}</b></div>
+      <div class="stat"><span class="muted small">Giá bán</span><b>💰 ${fmt(attempt.value)}</b></div>
       <div class="stat"><span class="muted small">Khu</span><b>${zoneById(attempt.zone).icon}</b></div>
     </div>
     <div class="gains">${gains.map((g) => `<span>${g}</span>`).join('')}</div>
     ${level > before ? `<div class="levelup">🎊 LÊN CẤP ${level}!${unlockHint(level)}</div>` : ''}`;
-  $('#result-actions').innerHTML = `<button class="btn sea big" id="r-keep">🪣 Cho vào thùng</button><button class="btn gold big" id="r-sell">🪙 Bán ngay +${fmt(attempt.value)}</button>`;
+  const sellPrice = Math.round(attempt.value * (attempt.net ? 2 : 1) * (1 + currentBucket(state).bonus));
+  $('#result-actions').innerHTML = landed.autoSold
+    ? `<div class="small" style="width:100%">📦 Thùng đầy – đã tự bán con cá này được <b>💰 ${fmt(landed.autoSold)}</b>. Nâng cấp thùng ở 🏪 Cửa hàng!</div><button class="btn gold big" id="r-keep">Câu tiếp 🎣</button>`
+    : `<button class="btn sea big" id="r-keep">📦 Cho vào thùng (${state.bucket.length}/${bucketCap(state)})</button><button class="btn gold big" id="r-sell">💰 Bán ngay +${fmt(sellPrice)}</button>`;
   if (level > before) beep(SOUND.level);
   const uid = landed.fish.uid;
   const choice = await showResult(() => show4D($('#catch-viewer'), fish.id));
-  if (choice === 'sell') {
-    sellFish(state, [uid]);
+  if (choice === 'sell' && !landed.autoSold) {
+    const r = sellFish(state, [uid]);
     save();
-    toast(`🪙 +${fmt(attempt.value)} xu`);
+    toast(`💰 +${fmt(r.coins)} xu`);
   }
   endTurn();
 }
@@ -1657,7 +1720,7 @@ async function finishLost(reason) {
     ${wrongs.map((l) => `<div class="explain"><b>${esc(l.question.text)}</b><br>Đáp án đúng: <b style="color:var(--good)">${esc(l.question.choices[l.question.answer])}</b>${l.question.explain ? `<br><span class="muted">${esc(l.question.explain)}</span>` : ''}</div>`).join('')}`;
   // Không cứu cá khi đang thi đấu (giữ công bằng cho trận).
   const canRescue = !attempt.rescued && !matchUI.code;
-  $('#result-actions').innerHTML = (canRescue ? `<button class="btn sea big" id="r-rescue" title="Trả lời đúng ${RESCUE_QUESTIONS} câu để kéo cá lên">🛟 Cứu cá (${RESCUE_QUESTIONS} câu)</button>` : '')
+  $('#result-actions').innerHTML = (canRescue ? `<button class="btn sea big" id="r-rescue" title="Trả lời đúng ${RESCUE_QUESTIONS} câu để kéo cá lên">⛑️ Cứu cá (${RESCUE_QUESTIONS} câu)</button>` : '')
     + '<button class="btn gold big" id="r-ok">Câu tiếp 🎣</button>';
   const pick = await showResult();
   if (pick === 'rescue') {
@@ -1667,13 +1730,13 @@ async function finishLost(reason) {
     state.practice.rescues = (state.practice.rescues || 0) + (outcome === 'catch' ? 1 : 0);
     if (outcome === 'catch') {
       state.stats.escaped = Math.max(0, state.stats.escaped - 1);
-      banner('🛟 CỨU ĐƯỢC CÁ!', 'gold', 1400);
+      banner('⛑️ CỨU ĐƯỢC CÁ!', 'gold', 1400);
       await finishCatch();
       return;
     }
-    if (outcome === 'bait' && refundBait(state, attempt.bait)) toast(`🛟 Đúng ${right}/${RESCUE_QUESTIONS} câu – được trả lại mồi ${esc(ITEMS[attempt.bait]?.name || '')}!`);
-    else if (outcome === 'bait') toast(`🛟 Đúng ${right}/${RESCUE_QUESTIONS} câu – suýt nữa thì cứu được!`);
-    else toast(`🛟 Đúng ${right}/${RESCUE_QUESTIONS} câu – ôn lại trong 📒 Ôn tập rồi thử lại nhé!`);
+    if (outcome === 'bait' && refundBait(state, attempt.bait)) toast(`⛑️ Đúng ${right}/${RESCUE_QUESTIONS} câu – được trả lại mồi ${esc(ITEMS[attempt.bait]?.name || '')}!`);
+    else if (outcome === 'bait') toast(`⛑️ Đúng ${right}/${RESCUE_QUESTIONS} câu – suýt nữa thì cứu được!`);
+    else toast(`⛑️ Đúng ${right}/${RESCUE_QUESTIONS} câu – ôn lại trong 📒 Ôn tập rồi thử lại nhé!`);
     save();
   }
   endTurn();

@@ -41,6 +41,10 @@ export const SKILL_EFFECTS = {
   gust: { pull: 0.25 },
   gold: { tension: 0.6, stun: 3, calmFish: true },
   dragon: { tension: 0, pull: 0.35, stun: 2, calmFish: true },
+  storm: { tension: 0.4, pull: 0.15, stun: 1 },
+  jade: { tension: 0.5, heal: 1, calmFish: true },
+  thunder: { tension: 0.2, pull: 0.3, stun: 1.5, calmFish: true },
+  phoenix: { tension: 0, pull: 0.45, stun: 3, heal: 1, calmFish: true },
 };
 
 // Dùng kỹ năng. Không bỏ qua được câu hỏi: kéo vượt mốc thì bước kế tiếp vẫn dừng ở mốc để hỏi.
@@ -52,6 +56,7 @@ export function useSkill(f, skillId) {
   if (fx.pull) f.distance = Math.max(0, f.distance - f.start * fx.pull);
   if (fx.stun) f.stun = Math.max(f.stun, fx.stun);
   if (fx.calmFish) f.surge = 0;
+  if (fx.heal && f.lives < f.maxLives) f.lives = Math.min(f.maxLives, f.lives + fx.heal);
   f.breakTimer = 0;
   return true;
 }

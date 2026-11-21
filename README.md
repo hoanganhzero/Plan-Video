@@ -135,6 +135,10 @@ Trò chơi vừa học vừa chơi trong thư mục `fishing/` – mở `http://
   - **Học sinh** chỉ chọn *khối lớp* trong ⚙️ Cài đặt khi chơi cá nhân; khi vào lớp của thầy cô thì dùng đúng khối lớp và môn thầy cô chọn.
   - **Thầy cô** chọn khối lớp + môn cho từng lớp (trang thầy cô → ⚙️ Cài đặt server) và soạn / giao **📝 Bộ đề** (trang thầy cô → 📝 Bộ đề).
     Học sinh không còn thấy Bộ đề hay phần quản lý server trong trò chơi – chỉ có *👤 Tài khoản* (đăng nhập, vào lớp bằng mã).
+- **🛒 Cửa hàng 5 ngăn** – Cần câu · Dây câu · Mồi câu · Hỗ trợ · Thùng cá:
+  - **10 cần câu** từ Cần tre đến Cần phượng hoàng, mỗi cần một kỹ năng riêng (mới: Gió giật, Ngọc hồi sinh, Sấm sét, Phượng hoàng – hồi độ bền dây, làm cá choáng).
+  - **9 loại mồi**: giun, bánh mì, dế, tôm, cá con, mực, vàng, phát sáng, cầu vồng. Có mồi tăng may mắn, mồi giúp câu **cá to hơn**, mồi **hợp khu vực** (mực ở Biển xanh/Vực sâu, phát sáng ở Hồ/Vực sâu…). Bấm ô mồi dưới màn hình để đổi mồi nhanh.
+  - **5 thùng cá**: Túi lưới 15 → Giỏ tre 25 → Thùng gỗ 40 (+5% giá bán) → Thùng giữ lạnh 60 (+10%) → Bể kính sống 100 (+20%). Thùng đầy thì cá câu thêm được tự bán.
 - **🎵 Nhạc nền** tự tổng hợp trong trình duyệt (không cần tệp nhạc): nhạc ngũ cung êm + tiếng nước khi chờ cá, nhịp nhanh có trống khi kéo cá. Bật/tắt và chỉnh âm lượng trong ⚙️ Cài đặt.
 - **👤 Tài khoản học sinh** (🌐 Server → Tạo tài khoản): tên đăng nhập (vd `an.5a`) + tên hiển thị + PIN 4–6 số.
   **Một tài khoản vào được mọi server**; thế giới cá nhân cũng lưu theo tài khoản → đăng nhập ở máy nào cũng chơi tiếp.

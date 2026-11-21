@@ -80,7 +80,7 @@ export function initSetsUI({ getState, save, toast, esc, beep, onChange }) {
           <p class="muted">Tạo bộ đề để học sinh trả lời đúng bài đang học trên lớp:</p>
           <ul class="muted small">
             <li>✍️ <b>Soạn tay</b>: bấm "Tạo bộ đề" rồi thêm từng câu.</li>
-            <li>🪄 <b>Từ tài liệu</b>: tải PDF, Word, ảnh chụp trang SGK hoặc dán nội dung bài học ở tab "Tạo từ tài liệu".</li>
+            <li>✨ <b>Từ tài liệu</b>: tải PDF, Word, ảnh chụp trang SGK hoặc dán nội dung bài học ở tab "Tạo từ tài liệu".</li>
             <li>📊 <b>Từ Excel</b>: lưu bảng thành CSV (cột: Câu hỏi, Đáp án đúng, Sai 1, Sai 2, Sai 3, Giải thích, Độ khó) rồi "Nhập CSV".</li>
             <li>🔑 <b>Từ thầy cô</b>: nhập mã bộ đề ở tab "Nhập mã".</li>
           </ul></div>`}`;
@@ -121,7 +121,7 @@ export function initSetsUI({ getState, save, toast, esc, beep, onChange }) {
       <details class="card"><summary><b>⚡ Dán nhanh nhiều câu</b> <span class="muted small">(mỗi dòng: Câu hỏi | Đáp án đúng | Sai 1 | Sai 2 | Sai 3)</span></summary>
         <textarea id="quick-text" rows="5" placeholder="7 × 8 bằng bao nhiêu? | 56 | 54 | 48 | 64&#10;&quot;Dog&quot; nghĩa là gì? | Con chó | Con mèo | Con gà | Con vịt"></textarea>
         <div class="row"><button class="btn sea" data-act="quick-add">Thêm các câu này</button>
-          <button class="btn" data-act="goto-import">🪄 Tạo từ tài liệu cho bộ đề này</button></div>
+          <button class="btn" data-act="goto-import">✨ Tạo từ tài liệu cho bộ đề này</button></div>
       </details>
       <ol class="q-list">${s.questions.map((q) => `
         <li class="${q.id === editingQ ? 'editing' : ''}">
