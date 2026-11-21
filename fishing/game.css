@@ -961,3 +961,7 @@ button.server-item { cursor: pointer; }
   background: rgba(31, 182, 224, .12); border: 1px solid rgba(127, 220, 246, .55); border-left: 4px solid var(--sea, #1fb6e0);
 }
 .ref-box b { color: #9be7ff; display: block; margin-bottom: 2px; }
+
+/* Ảnh cá 3D ("4D") */
+img.fish-art.fish-3d { height: auto; max-width: 100%; filter: drop-shadow(0 6px 6px rgba(0, 0, 0, .35)); animation: fade3d .35s ease-out; }
+@keyframes fade3d { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }

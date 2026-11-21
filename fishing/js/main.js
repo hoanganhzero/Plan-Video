@@ -27,6 +27,7 @@ import { setQuestions } from './engine.js';
 import { createFight, stepFight, answerInFight, surging, useSkill } from './fight.js';
 import { createScene } from './scene.js';
 import { fishSVG } from './art.js';
+import { fishArt, autoUpgradeFishArt } from './fishthumb.js';
 import { itemIcon, rodIcon, lineIcon, bucketIcon } from './icons.js';
 import { worldMapSVG } from './map.js';
 import { getFishViewer } from './fish3d.js';
@@ -142,6 +143,7 @@ function openSheet(id) {
   dlg.showModal();
 }
 $$('[data-open]').forEach((b) => b.addEventListener('click', () => openSheet(b.dataset.open)));
+autoUpgradeFishArt(); // hình cá → ảnh 3D "4D" khi máy hỗ trợ WebGL
 
 // Điện thoại: menu trái gói sau nút ☰ (hiện dạng lưới giữa màn hình); có thông báo thì nút ☰ có chấm đỏ.
 {
@@ -298,7 +300,7 @@ RENDER.map = () => {
     <div class="zbody">
       <div class="zn">${esc(z.name)} <span class="small muted">· 🐟 ${found}/${fishList.length} loài</span></div>
       <div class="zd">${esc(z.desc)}</div>
-      <div class="zfish">${fishList.map((f) => `<span class="${state.collection[f.id] ? '' : 'unknown'}" title="${state.collection[f.id] ? esc(f.name) : '???'}">${fishSVG(f.id, { size: 56, uid: `m${f.id}` })}</span>`).join('')}</div>
+      <div class="zfish">${fishList.map((f) => `<span class="${state.collection[f.id] ? '' : 'unknown'}" title="${state.collection[f.id] ? esc(f.name) : '???'}">${fishArt(f.id, { size: 56, uid: `m${f.id}` })}</span>`).join('')}</div>
       <div class="actions">${action}</div>
     </div>
   </div>`;
@@ -379,7 +381,7 @@ function fishCard(f, extra = '') {
   const fish = fishById(f.fishId);
   const r = rarityOf(fish.rarity);
   return `<div class="fish-card" style="border-color:${r.color}">
-    <div class="art">${fishSVG(fish.id, { size: 120, uid: `b${f.uid}` })}</div>
+    <div class="art">${fishArt(fish.id, { size: 120, uid: `b${f.uid}` })}</div>
     <div class="name">${esc(fish.name)}</div>
     ${tag(fish.rarity)}
     <div class="meta">${f.kg} kg · 💰 ${fmt(f.value)}</div>
@@ -438,8 +440,8 @@ RENDER.dex = () => {
         const c = state.collection[fish.id];
         const r = rarityOf(fish.rarity);
         return c
-          ? `<div class="fish-card" style="border-color:${r.color}"><button class="view4d" data-view="${fish.id}" title="Xem cá 4D">4D</button><div class="art">${fishSVG(fish.id, { size: 120, uid: `d${fish.id}` })}</div><div class="name">${esc(fish.name)}</div>${tag(fish.rarity)}<div class="meta">Đã câu ${c.count} lần · kỷ lục ${c.bestKg} kg<br>Giá gốc 💰 ${fmt(fish.value)}</div></div>`
-          : `<div class="fish-card unknown"><div class="art">${fishSVG(fish.id, { size: 120, uid: `u${fish.id}` })}</div><div class="name">???</div>${tag(fish.rarity)}<div class="meta">Chưa khám phá</div></div>`;
+          ? `<div class="fish-card" style="border-color:${r.color}"><button class="view4d" data-view="${fish.id}" title="Xem cá 4D">4D</button><div class="art">${fishArt(fish.id, { size: 120, uid: `d${fish.id}` })}</div><div class="name">${esc(fish.name)}</div>${tag(fish.rarity)}<div class="meta">Đã câu ${c.count} lần · kỷ lục ${c.bestKg} kg<br>Giá gốc 💰 ${fmt(fish.value)}</div></div>`
+          : `<div class="fish-card unknown"><div class="art">${fishArt(fish.id, { size: 120, uid: `u${fish.id}` })}</div><div class="name">???</div>${tag(fish.rarity)}<div class="meta">Chưa khám phá</div></div>`;
       }).join('')}</div>
     </div>`).join('');
 };

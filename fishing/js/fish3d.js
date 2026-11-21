@@ -11,7 +11,9 @@ const DIM = {
   classic: [1, 0.42, 0.22], round: [0.85, 0.56, 0.26], long: [1.15, 0.32, 0.2], koi: [1, 0.45, 0.25],
   eel: [1.6, 0.17, 0.14], flat: [0.72, 0.74, 0.14], sword: [1.05, 0.34, 0.21], lantern: [0.82, 0.58, 0.4],
   puffer: [0.8, 0.7, 0.6], dragon: [1.15, 0.42, 0.25],
+  angel: [0.62, 0.55, 0.13], shark: [1.3, 0.3, 0.27], ray: [0.8, 0.1, 0.95], betta: [0.72, 0.34, 0.17],
 };
+const shade = (hex, t) => { const c = new THREE.Color(hex); return t < 0 ? c.multiplyScalar(1 + t) : c.lerp(new THREE.Color(0xffffff), t); };
 
 // Vẽ da cá lên canvas: chuyển màu lưng → bụng + hoa văn (đối xứng hai bên thân).
 function skinTexture(look) {
@@ -21,7 +23,8 @@ function skinTexture(look) {
   c.width = W; c.height = H;
   const g = c.getContext('2d');
   const grd = g.createLinearGradient(0, 0, 0, H);
-  grd.addColorStop(0, look.top); grd.addColorStop(0.5, look.top); grd.addColorStop(0.78, look.belly); grd.addColorStop(1, look.belly);
+  grd.addColorStop(0, `#${shade(look.top, -0.25).getHexString()}`); grd.addColorStop(0.3, look.top); grd.addColorStop(0.55, `#${shade(look.top, 0.12).getHexString()}`);
+  grd.addColorStop(0.78, look.belly); grd.addColorStop(1, look.belly);
   g.fillStyle = grd; g.fillRect(0, 0, W, H);
   // p: 0 = đuôi, 1 = đầu; vẽ ở cả hai bên thân (u = p/2 và u = 1 - p/2).
   const both = (p, fn) => { fn(p * 0.5 * W); fn((1 - p * 0.5) * W); };
@@ -40,8 +43,30 @@ function skinTexture(look) {
     g.globalAlpha = 0.6;
     ['#ef4444', '#f59e0b', '#22c55e', '#3b82f6', '#a855f7'].forEach((col, i) => { g.fillStyle = col; both(0.2 + i * 0.14, (x) => g.fillRect(x - 9, 20, 18, 150)); });
   } else if (look.pattern === 'glow') {
-    g.globalAlpha = 1; g.fillStyle = '#a5f3fc';
-    for (const [p, y] of [[0.3, 90], [0.45, 70], [0.55, 110], [0.7, 85], [0.8, 120], [0.38, 125]]) both(p, (x) => { g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill(); });
+    g.globalAlpha = 1; g.fillStyle = '#e0fbff';
+    for (const [p, y] of [[0.3, 90], [0.45, 70], [0.55, 110], [0.7, 85], [0.8, 120], [0.38, 125], [0.62, 60]]) both(p, (x) => { g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill(); });
+  } else if (look.pattern === 'tiger') {
+    g.globalAlpha = 0.85;
+    for (const p of [0.22, 0.38, 0.54, 0.7, 0.84]) both(p, (x) => g.fillRect(x - 11, 0, 22, H));
+  } else if (look.pattern === 'clown') {
+    g.globalAlpha = 1;
+    for (const p of [0.3, 0.62, 0.9]) both(p, (x) => { g.fillStyle = look.fin; g.fillRect(x - 15, 0, 30, H); g.fillStyle = '#fff'; g.fillRect(x - 10, 0, 20, H); });
+  } else if (look.pattern === 'lines') {
+    g.globalAlpha = 0.55;
+    for (const y of [50, 75, 100, 125]) g.fillRect(0, y, W, 5);
+  } else if (look.pattern === 'dots') {
+    g.globalAlpha = 0.9; g.fillStyle = '#fff';
+    for (let y = 30; y < 170; y += 16) for (let x = (y / 16) % 2 ? 6 : 14; x < W; x += 16) { g.beginPath(); g.arc(x, y, 3, 0, 7); g.fill(); }
+  } else if (look.pattern === 'crown') {
+    g.globalAlpha = 1; g.fillStyle = '#ef4444';
+    both(0.9, (x) => { g.beginPath(); g.arc(x, 20, 22, 0, 7); g.fill(); });
+  }
+  // Nắp mang + đường bên thân
+  if (!['ray', 'eel'].includes(look.shape)) {
+    g.globalAlpha = 0.35; g.strokeStyle = `#${shade(look.top, -0.55).getHexString()}`; g.lineWidth = 4;
+    both(0.8, (x) => { g.beginPath(); g.moveTo(x, 40); g.quadraticCurveTo(x + (x < W / 2 ? 12 : -12), 110, x, 170); g.stroke(); });
+    g.globalAlpha = 0.3; g.lineWidth = 2; g.setLineDash([6, 8]);
+    g.beginPath(); g.moveTo(0, 104); g.lineTo(W, 104); g.stroke(); g.setLineDash([]);
   }
   // Ánh bóng lưng
   g.globalAlpha = 0.18; g.fillStyle = '#fff'; g.fillRect(0, 48, W, 10);
@@ -51,10 +76,50 @@ function skinTexture(look) {
   return tex;
 }
 
+// Vảy nổi (bump map) – cá có vảy trông "thật" hơn khi xoay.
+let scaleBump = null;
+function scaleBumpTexture() {
+  if (scaleBump) return scaleBump;
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = '#808080'; g.fillRect(0, 0, 256, 128);
+  for (let y = 0; y < 136; y += 8) for (let x = (y / 8) % 2 ? 0 : 5; x < 266; x += 10) {
+    const rg = g.createRadialGradient(x, y - 2, 0, x, y, 7);
+    rg.addColorStop(0, '#b0b0b0'); rg.addColorStop(1, '#6a6a6a');
+    g.fillStyle = rg; g.beginPath(); g.arc(x, y, 6, 0, Math.PI); g.fill();
+  }
+  scaleBump = new THREE.CanvasTexture(c);
+  scaleBump.wrapS = scaleBump.wrapT = THREE.RepeatWrapping;
+  scaleBump.repeat.set(2, 2);
+  return scaleBump;
+}
+
+// Vây trong mờ có tia vây.
+function finTexture(color) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  const grd = g.createLinearGradient(0, 0, 128, 0);
+  grd.addColorStop(0, `rgba(255,255,255,.95)`); grd.addColorStop(1, `rgba(255,255,255,.55)`);
+  g.fillStyle = grd; g.fillRect(0, 0, 128, 128);
+  g.strokeStyle = `#${shade(color, -0.4).getHexString()}`; g.globalAlpha = 0.55; g.lineWidth = 2;
+  for (let i = -4; i <= 4; i++) { g.beginPath(); g.moveTo(128, 64); g.lineTo(0, 64 + i * 22); g.stroke(); }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 function finShape(points) {
   const s = new THREE.Shape();
   points.forEach(([x, y], i) => (i ? s.lineTo(x, y) : s.moveTo(x, y)));
-  return new THREE.ShapeGeometry(s, 8);
+  const geo = new THREE.ShapeGeometry(s, 8);
+  // Chuẩn hoá UV về 0–1 để hoạ tiết tia vây phủ đúng cả vây.
+  geo.computeBoundingBox();
+  const { min, max } = geo.boundingBox;
+  const uv = geo.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) - min.x) / (max.x - min.x || 1), (uv.getY(i) - min.y) / (max.y - min.y || 1));
+  return geo;
 }
 
 export function buildFish3D(fishId) {
@@ -77,35 +142,52 @@ export function buildFish3D(fishId) {
   }
   geo.computeVertexNormals();
   const base = Float32Array.from(pos.array);
+  const smooth = ['eel', 'shark', 'ray'].includes(look.shape) || look.pattern === 'none';
   const skin = new THREE.MeshPhysicalMaterial({
-    map: skinTexture(look), roughness: 0.35, metalness: 0.15, clearcoat: 0.7, clearcoatRoughness: 0.25,
-    emissive: tier >= 4 || look.pattern === 'glow' ? glowColor : new THREE.Color(0), emissiveIntensity: tier >= 4 ? 0.18 + (tier - 4) * 0.12 : look.pattern === 'glow' ? 0.15 : 0,
+    map: skinTexture(look), roughness: 0.32, metalness: 0.18, clearcoat: 0.8, clearcoatRoughness: 0.2,
+    bumpMap: smooth ? null : scaleBumpTexture(), bumpScale: 0.6,
+    iridescence: tier >= 3 ? 0.1 + (tier - 3) * 0.08 : 0, iridescenceIOR: 1.3, iridescenceThicknessRange: [150, 300], sheen: 0.4, sheenColor: new THREE.Color(look.belly),
+    // Tự phát sáng theo màu của chính con cá (không nhuộm màu bậc hiếm lên da).
+    emissive: look.pattern === 'glow' ? new THREE.Color(look.fin) : tier >= 4 ? new THREE.Color(look.top) : new THREE.Color(0),
+    emissiveIntensity: look.pattern === 'glow' ? 0.12 : tier >= 4 ? 0.08 + (tier - 4) * 0.06 : 0,
   });
   const body = new THREE.Mesh(geo, skin);
   root.add(body);
 
   const finMat = new THREE.MeshPhysicalMaterial({
-    color: look.fin, roughness: 0.4, transparent: true, opacity: 0.9, side: THREE.DoubleSide, clearcoat: 0.4,
-    emissive: tier >= 4 ? glowColor : new THREE.Color(0), emissiveIntensity: tier >= 4 ? 0.25 : 0,
+    color: look.fin, map: finTexture(look.fin), roughness: 0.4, transparent: true, opacity: 0.88, side: THREE.DoubleSide, clearcoat: 0.4, depthWrite: false,
+    iridescence: tier >= 3 ? 0.25 : 0, iridescenceThicknessRange: [150, 300],
+    emissive: tier >= 4 ? glowColor.clone().lerp(new THREE.Color(look.fin), 0.6) : new THREE.Color(0), emissiveIntensity: tier >= 4 ? 0.2 : 0,
   });
 
   // ---- Đuôi (trục xoay ở cuống đuôi) ----
   const tail = new THREE.Group();
   tail.position.x = -lx * 0.96;
   const tailH = Math.max(0.32, ly * 0.95);
-  const tailMesh = new THREE.Mesh(look.shape === 'eel'
-    ? finShape([[0, 0], [-0.35, 0.12], [-0.45, 0], [-0.35, -0.12]])
-    : finShape([[0.05, 0], [-0.45, tailH], [-0.32, 0.05], [-0.32, -0.05], [-0.45, -tailH * 0.9]]), finMat);
+  const TAILS = {
+    eel: [[0, 0], [-0.35, 0.12], [-0.45, 0], [-0.35, -0.12]],
+    betta: [[0.08, 0], [-0.3, 0.55], [-0.7, 0.5], [-0.8, 0], [-0.7, -0.5], [-0.3, -0.55]],
+    shark: [[0.05, 0], [-0.35, 0.55], [-0.28, 0.05], [-0.3, -0.05], [-0.25, -0.32]],
+    sword: [[0.05, 0], [-0.4, 0.5], [-0.3, 0.03], [-0.3, -0.03], [-0.4, -0.5]],
+    ray: [[0, 0.01], [-0.9, 0.005], [-0.9, -0.005], [0, -0.01]],
+  };
+  const tailMesh = new THREE.Mesh(finShape(TAILS[look.shape] || [[0.05, 0], [-0.45, tailH], [-0.32, 0.05], [-0.32, -0.05], [-0.45, -tailH * 0.9]]), finMat);
+  if (look.shape === 'ray') tailMesh.material = new THREE.MeshStandardMaterial({ color: look.top, side: THREE.DoubleSide });
   tail.add(tailMesh);
   root.add(tail);
 
   // ---- Vây lưng, vây bụng, vây ngực ----
-  const dorsal = new THREE.Mesh(look.shape === 'eel'
-    ? finShape([[-1.4, 0], [1.2, 0], [1.1, 0.08], [-1.3, 0.1]])
-    : finShape([[-lx * 0.45, 0], [lx * 0.3, 0], [-lx * 0.05, ly * 0.75], [-lx * 0.35, ly * 0.55]]), finMat);
+  const DORSAL = {
+    eel: [[-1.4, 0], [1.2, 0], [1.1, 0.08], [-1.3, 0.1]],
+    angel: [[-lx * 0.5, 0], [lx * 0.35, 0], [-lx * 0.35, ly * 1.5], [-lx * 0.6, ly * 1.2]],
+    shark: [[-lx * 0.15, 0], [lx * 0.25, 0], [-lx * 0.1, ly * 1.1]],
+    betta: [[-lx * 0.7, 0], [lx * 0.2, 0], [-lx * 0.4, ly * 1.1], [-lx * 0.9, ly * 0.9]],
+    ray: [[0, 0], [0.01, 0], [0, 0.01]],
+  };
+  const dorsal = new THREE.Mesh(finShape(DORSAL[look.shape] || [[-lx * 0.45, 0], [lx * 0.3, 0], [-lx * 0.05, ly * 0.75], [-lx * 0.35, ly * 0.55]]), finMat);
   dorsal.position.y = ly * 0.86;
   root.add(dorsal);
-  if (look.shape === 'flat') {
+  if (look.shape === 'flat' || look.shape === 'angel' || look.shape === 'betta') {
     const anal = dorsal.clone();
     anal.scale.y = -1; anal.position.y = -ly * 0.86;
     root.add(anal);
@@ -114,8 +196,8 @@ export function buildFish3D(fishId) {
     belly.position.y = -ly * 0.75;
     root.add(belly);
   }
-  const pecs = [1, -1].map((side) => {
-    const p = new THREE.Mesh(finShape([[0, 0], [-0.32, -0.12], [-0.22, 0.04]]), finMat);
+  const pecs = (look.shape === 'ray' ? [] : [1, -1]).map((side) => {
+    const p = new THREE.Mesh(finShape(look.shape === 'shark' ? [[0, 0], [-0.42, -0.3], [-0.18, 0.02]] : [[0, 0], [-0.32, -0.12], [-0.22, 0.04]]), finMat);
     p.position.set(lx * 0.42, -ly * 0.25, side * lz * 0.82);
     p.rotation.y = side * 0.5;
     root.add(p);
@@ -126,17 +208,21 @@ export function buildFish3D(fishId) {
   const ex = lx * (look.shape === 'eel' ? 0.82 : 0.66);
   const ey = ly * 0.22;
   const ez = lz * Math.sqrt(Math.max(0.05, 1 - (ex / lx) ** 2 - (ey / ly) ** 2)) * 0.98;
-  const eyeR = Math.min(0.11, ly * 0.22);
+  const eyeR = look.shape === 'ray' ? 0.06 : Math.min(0.11, ly * 0.22);
   const white = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
   const black = new THREE.MeshStandardMaterial({ color: 0x0b0f19, roughness: 0.1, metalness: 0.3 });
+  const irisMat = new THREE.MeshStandardMaterial({ color: tier >= 4 ? 0xfbbf24 : shade(look.fin, 0.3), roughness: 0.25, metalness: 0.2 });
   for (const side of [1, -1]) {
     const e = new THREE.Mesh(new THREE.SphereGeometry(eyeR, 16, 12), white);
-    e.position.set(ex, ey, side * ez);
-    const pupil = new THREE.Mesh(new THREE.SphereGeometry(eyeR * 0.6, 14, 10), black);
-    pupil.position.set(eyeR * 0.15, 0, side * eyeR * 0.55);
+    if (look.shape === 'ray') e.position.set(lx * 0.45, ly * 0.8, side * lz * 0.16);
+    else e.position.set(ex, ey, side * ez);
+    const iris = new THREE.Mesh(new THREE.SphereGeometry(eyeR * 0.78, 16, 10), irisMat);
+    iris.position.set(eyeR * 0.08, 0, side * eyeR * 0.32);
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(eyeR * 0.5, 14, 10), black);
+    pupil.position.set(eyeR * 0.15, 0, side * eyeR * 0.62);
     const shine = new THREE.Mesh(new THREE.SphereGeometry(eyeR * 0.2, 8, 6), white);
     shine.position.set(eyeR * 0.35, eyeR * 0.3, side * eyeR * 0.95);
-    e.add(pupil, shine);
+    e.add(iris, pupil, shine);
     root.add(e);
   }
 
@@ -170,6 +256,18 @@ export function buildFish3D(fishId) {
     l.position.copy(lure.position);
     extras.add(l);
   }
+  if (look.shape === 'puffer') {
+    const spikeMat = new THREE.MeshStandardMaterial({ color: shade(look.top, -0.3), roughness: 0.5 });
+    for (let i = 0; i < 40; i++) {
+      const u = Math.acos(1 - 2 * ((i + 0.5) / 40)); const v = i * 2.39996;
+      const dir = new THREE.Vector3(Math.cos(u) * 0.9, Math.sin(u) * Math.cos(v), Math.sin(u) * Math.sin(v));
+      if (dir.x > 0.75) continue;
+      const sp = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.12, 5), spikeMat);
+      sp.position.set(dir.x * lx * 0.95, dir.y * ly * 0.95, dir.z * lz * 0.95);
+      sp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+      extras.add(sp);
+    }
+  }
   if (look.shape === 'dragon') {
     for (const side of [1, -1]) {
       const horn = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.36, 8), finMat);
@@ -187,10 +285,18 @@ export function buildFish3D(fishId) {
     return amp * Math.pow(s, 1.6) * Math.sin(t * 7 - s * 3.4);
   };
   root.userData = {
-    tier, tail, lx, ly, lure,
+    tier, tail, lx, ly, lz, lure, shape: look.shape,
     swim(t, strength = 1) {
       const amp = (look.shape === 'eel' ? 0.32 : 0.16) * strength;
-      for (let i = 0; i < arr.length; i += 3) arr[i + 2] = base[i + 2] + wave(base[i], t, amp);
+      if (look.shape === 'ray') {
+        // Cá đuối vỗ "cánh": mép thân trái/phải lên xuống theo sóng.
+        for (let i = 0; i < arr.length; i += 3) {
+          const z = base[i + 2];
+          arr[i + 1] = base[i + 1] + Math.pow(Math.abs(z) / lz, 1.5) * 0.28 * strength * Math.sin(t * 3.2 - base[i] * 1.5);
+        }
+      } else {
+        for (let i = 0; i < arr.length; i += 3) arr[i + 2] = base[i + 2] + wave(base[i], t, amp);
+      }
       pos.needsUpdate = true;
       const tz = wave(-lx * 0.96, t, amp);
       tail.position.z = tz;
@@ -324,7 +430,7 @@ export function getFishViewer() {
       if (fish) { holder.remove(fish); fish.traverse((o) => { o.geometry?.dispose(); }); }
       fish = buildFish3D(fishId);
       tier = fish.userData.tier;
-      const s = 1.55 / Math.max(fish.userData.lx * 2.2, fish.userData.ly * 3);
+      const s = 1.55 / Math.max(fish.userData.lx * 2.2, fish.userData.ly * 3, (fish.userData.lz || 0) * 2.4);
       fish.scale.setScalar(s * 1.6);
       holder.add(fish);
       const col = new THREE.Color(rarityOf(fishById(fishId)?.rarity || 'common').color);
@@ -333,7 +439,7 @@ export function getFishViewer() {
       sparks.visible = tier >= 2;
       sparkGeo.setDrawRange(0, Math.round(N * (0.3 + tier * 0.14)));
       rim.color.copy(col).lerp(new THREE.Color(0xffffff), 0.4);
-      yaw = -0.5; pitch = 0.12; idle = 0;
+      yaw = -0.5; pitch = fish.userData.shape === 'ray' ? 0.85 : 0.12; idle = 0;
       resize();
       if (!running) { running = true; clock.getDelta(); requestAnimationFrame(loop); }
     },
