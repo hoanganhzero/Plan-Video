@@ -8,7 +8,7 @@ import {
   parseCSV, setToCSV, parsePipeLines, addToSet, MAX_QUESTIONS_PER_SET,
 } from './content.js';
 import { extractText, fileKind, fileToBase64 } from './extract.js';
-import { generateQuestionsAI, loadKey, saveKey, MAX_FILE_BYTES } from './ai.js';
+import { generateQuestionsAI, loadKey, saveKey, MAX_FILE_BYTES, loadFallback, fallbackFieldsHtml, bindFallbackFields } from './ai.js';
 import { publishSet, fetchSet, cleanCode, setReport } from './online.js';
 
 const DIFF = { 1: 'Dễ', 2: 'Vừa', 3: 'Khó' };
@@ -207,6 +207,7 @@ export function initSetsUI({ getState, save, toast, esc, beep, onChange, book = 
             ${sendable ? `<label class="check small"><input type="checkbox" id="ai-sendfile" ${doc.kind === 'image' || doc.note ? 'checked' : ''}> Gửi cả tệp gốc cho AI (đọc được ảnh / PDF scan)</label>` : ''}
             <label class="fld">Gemini API key <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">lấy miễn phí</a>
               <input id="ai-key" type="password" value="${esc(key)}" placeholder="Dán key – chỉ lưu trong trình duyệt này" autocomplete="off"></label>
+            ${fallbackFieldsHtml(esc)}
             <button class="btn gold" data-act="gen-ai" ${busy ? 'disabled' : ''}>${busy === 'ai' ? '⏳ AI đang soạn…' : '✨ AI tạo câu hỏi'}</button>
           </div>
         </div>
@@ -294,8 +295,8 @@ export function initSetsUI({ getState, save, toast, esc, beep, onChange, book = 
   async function genAI() {
     syncDocText();
     const apiKey = body.querySelector('#ai-key').value.trim();
-    if (!apiKey) { toast('Cần Gemini API key – bấm "lấy miễn phí" để tạo.'); return; }
-    saveKey(apiKey);
+    if (!apiKey && !loadFallback()) { toast('Cần Gemini API key (bấm "lấy miễn phí") hoặc AI dự phòng.'); return; }
+    if (apiKey) saveKey(apiKey);
     const useFile = body.querySelector('#ai-sendfile')?.checked && doc.file;
     if (!useFile && doc.text.trim().length < 50) { toast('Nội dung còn quá ngắn – hãy tải tệp hoặc dán bài học.'); return; }
     const options = {
@@ -511,6 +512,7 @@ export function initSetsUI({ getState, save, toast, esc, beep, onChange, book = 
     else if (t.dataset.rv === 'opt') r.options[Number(t.dataset.j)] = t.value;
     else if (t.dataset.rv === 'e') r.e = t.value;
   });
+  bindFallbackFields(body);
   // Kéo thả tệp
   body.addEventListener('dragover', (e) => { if (e.target.closest('#drop')) { e.preventDefault(); e.target.closest('#drop').classList.add('over'); } });
   body.addEventListener('dragleave', (e) => e.target.closest('#drop')?.classList.remove('over'));

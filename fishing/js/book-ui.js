@@ -3,7 +3,7 @@
 // Khi học sinh trả lời sai, trò chơi hiện "📖 Xem lại" với tên bài và đoạn nội dung liên quan.
 import { newSet, reviewToQuestion, addToSet, newId } from './content.js';
 import { extractText, fileKind } from './extract.js';
-import { generateLessonAI, findLessonsAI, uploadBookFile, loadKey, saveKey } from './ai.js';
+import { generateLessonAI, findLessonsAI, uploadBookFile, loadKey, saveKey, loadFallback, fallbackFieldsHtml, bindFallbackFields } from './ai.js';
 import { publishSet } from './online.js';
 import {
   QTYPES, HEADING_KINDS, splitLessons, singleLesson, keyPoints, offlineQuestions, tagWithLesson,
@@ -22,7 +22,7 @@ export function initBookUI({ root, getState, save, toast, esc, openEditor }) {
   let progress = null; // { done, total, log: [] }
   const texts = new Map(); // lessonId → nội dung bài (chỉ giữ trong phiên làm việc)
   let draft = null;
-  const opts = { types: ['mcq', 'tf', 'cloze'], count: 10, difficulty: 'mix', method: loadKey() ? 'ai' : 'auto' };
+  const opts = { types: ['mcq', 'tf', 'cloze'], count: 10, difficulty: 'mix', method: loadKey() || loadFallback() ? 'ai' : 'auto' };
 
   const sets = () => (getState().sets ||= []);
   const books = () => sets().filter((s) => s.book);
@@ -78,7 +78,8 @@ export function initBookUI({ root, getState, save, toast, esc, openEditor }) {
       </div>
       ${opts.method === 'ai' ? `<label class="fld">Gemini API key <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">lấy miễn phí</a>
         <input id="bk-key" type="password" value="${esc(key)}" placeholder="Dán key – chỉ lưu trong trình duyệt này" autocomplete="off"></label>
-        <p class="muted small">AI đọc từng bài, viết ý trọng tâm và câu hỏi đúng dạng đã chọn. Gói miễn phí giới hạn số lượt mỗi phút – hệ thống tự chờ rồi làm tiếp.</p>`
+        ${fallbackFieldsHtml(esc)}
+        <p class="muted small">AI đọc từng bài, viết ý trọng tâm và câu hỏi đúng dạng đã chọn. Gemini miễn phí giới hạn số lượt mỗi phút – hệ thống tự chờ rồi làm tiếp, hoặc chuyển sang AI dự phòng nếu đã cài.</p>`
         : '<p class="muted small">Chế độ tự động tạo câu Đúng/Sai, điền khuyết và "phát biểu nào đúng / không đúng" từ các câu định nghĩa, số liệu, tên riêng trong bài. Nên xem lại câu hỏi.</p>'}
     </div>`;
   }
@@ -231,7 +232,7 @@ export function initBookUI({ root, getState, save, toast, esc, openEditor }) {
 
   async function aiFind() {
     const key = apiKey();
-    if (!key) { opts.method = 'ai'; render(); toast('Cần Gemini API key ở mục 3️⃣ – bấm "lấy miễn phí".'); return; }
+    if (!key && (draft.scanned || !loadFallback())) { opts.method = 'ai'; render(); toast('Cần Gemini API key ở mục 3️⃣ – bấm "lấy miễn phí"' + (draft.scanned ? ' (sách scan chỉ Gemini đọc được).' : ' hoặc cài AI dự phòng.')); return; }
     busy = 'AI đang tìm các bài trong sách…';
     render();
     try {
@@ -275,7 +276,7 @@ export function initBookUI({ root, getState, save, toast, esc, openEditor }) {
 
   async function runGeneration(set, lessons) {
     const key = opts.method === 'ai' ? apiKey() : '';
-    if (opts.method === 'ai' && !key) { toast('Cần Gemini API key – hoặc chọn "Tự động, không cần mạng".'); return; }
+    if (opts.method === 'ai' && !key && !loadFallback()) { toast('Cần Gemini API key hoặc AI dự phòng – hoặc chọn "Tự động, không cần mạng".'); return; }
     stop = false;
     progress = { done: 0, total: lessons.length, log: [] };
     busy = 'gen';
@@ -294,7 +295,7 @@ export function initBookUI({ root, getState, save, toast, esc, openEditor }) {
         progress.log.push(`✅ ${esc(target.title)}: ${n} câu`);
       } catch (err) {
         progress.log.push(`⚠️ ${esc(lesson.title)}: ${esc(err.message)}`);
-        if (/API key|hết lượt/i.test(err.message)) { stop = true; }
+        if (/API key|key không đúng|hết lượt/i.test(err.message)) { stop = true; }
       }
       progress.done++;
       commit();
@@ -432,6 +433,7 @@ export function initBookUI({ root, getState, save, toast, esc, openEditor }) {
   });
 
   root.addEventListener('input', (e) => { if (e.target.id === 'bk-key') saveKey(e.target.value); });
+  bindFallbackFields(root);
 
   root.addEventListener('dragover', (e) => { const d = e.target.closest('#bk-drop'); if (d) { e.preventDefault(); d.classList.add('over'); } });
   root.addEventListener('dragleave', (e) => e.target.closest('#bk-drop')?.classList.remove('over'));

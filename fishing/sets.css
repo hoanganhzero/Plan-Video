@@ -125,3 +125,7 @@ details.card summary { cursor: pointer; }
   .lesson-row .grow { flex: 1 1 70%; }
   .lc-head .btn { flex: 1; justify-content: center; }
 }
+.ai-fallback { margin: 6px 0; padding: 6px 10px; border-radius: 10px; border: 1px dashed var(--line); }
+.ai-fallback summary { cursor: pointer; }
+.ai-fallback .ok { color: var(--good); }
+.ai-fallback code { font-size: .85em; }

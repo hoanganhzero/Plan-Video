@@ -47,30 +47,11 @@ const SCHEMA = {
 };
 
 // source: { text } hoặc { file: { mimeType, base64 } } (PDF / ảnh)
-export async function generateQuestionsAI({ apiKey, source, options = {}, model = GEMINI_MODEL, fetchImpl = globalThis.fetch }) {
-  if (!apiKey) throw new Error('Cần Gemini API key (miễn phí tại aistudio.google.com/apikey).');
+export async function generateQuestionsAI({ apiKey, source, options = {}, model = GEMINI_MODEL, fetchImpl = globalThis.fetch, fallback }) {
   const parts = [{ text: buildPrompt(options) }];
   if (source.file) parts.push({ inlineData: { mimeType: source.file.mimeType, data: source.file.base64 } });
   if (source.text) parts.push({ text: `NỘI DUNG:\n${String(source.text).slice(0, MAX_TEXT_CHARS)}` });
-  const res = await fetchImpl(`${API}/${encodeURIComponent(model)}:generateContent`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts }],
-      generationConfig: { temperature: 0.6, responseMimeType: 'application/json', responseSchema: SCHEMA },
-    }),
-  });
-  const raw = await res.text();
-  if (!res.ok) {
-    if (res.status === 400 && /API key/i.test(raw)) throw new Error('Gemini API key không đúng, hãy kiểm tra lại.');
-    if (res.status === 429) throw new Error('Đã hết lượt dùng Gemini trong phút này, hãy đợi một lát rồi thử lại.');
-    if (res.status === 413) throw new Error('Tệp quá lớn để gửi cho AI. Hãy cắt bớt trang hoặc dán phần chữ cần dùng.');
-    throw new Error(`Gemini báo lỗi ${res.status}. ${raw.slice(0, 200)}`);
-  }
-  const data = JSON.parse(raw);
-  const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || '';
-  let json;
-  try { json = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, '')); } catch { throw new Error('AI trả về dữ liệu không hợp lệ, hãy thử lại.'); }
+  const json = await callGeminiJSON({ apiKey, parts, schema: SCHEMA, model, fetchImpl, temperature: 0.6, retries: 1, fallback });
   const out = parseAIQuestions(json);
   if (!out.length) throw new Error('AI chưa tạo được câu hỏi nào từ nội dung này.');
   return out;
@@ -136,24 +117,95 @@ const LESSONS_SCHEMA = {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// ---------------------------------------------------------------------------
+// AI dự phòng: dịch vụ chuẩn OpenAI (POST …/chat/completions) – dùng khi Gemini hết lượt hoặc chưa có key.
+// Địa chỉ, key, model do thầy cô nhập; chỉ lưu trong trình duyệt này (không nằm trong mã nguồn công khai).
+// ---------------------------------------------------------------------------
+export const FALLBACK_STORAGE = 'plan-video:ai-fallback';
+export function loadFallback() {
+  try { const c = JSON.parse(localStorage.getItem(FALLBACK_STORAGE) || 'null'); return c && c.url && c.key ? c : null; } catch { return null; }
+}
+export function loadFallbackRaw() {
+  try { return JSON.parse(localStorage.getItem(FALLBACK_STORAGE) || 'null') || { url: '', key: '', model: '' }; } catch { return { url: '', key: '', model: '' }; }
+}
+export function saveFallback(c) {
+  try { localStorage.setItem(FALLBACK_STORAGE, JSON.stringify({ url: String(c.url || '').trim(), key: String(c.key || '').trim(), model: String(c.model || '').trim() })); } catch { /* bỏ qua */ }
+}
+export function chatUrl(url) {
+  const u = String(url || '').trim().replace(/\/+$/, '');
+  if (/\/chat\/completions$/.test(u)) return u;
+  return `${u}${/\/v\d+[a-z]*$/.test(u) ? '' : '/v1'}/chat/completions`;
+}
+
+// Gemini parts → nội dung tin nhắn chuẩn OpenAI (chữ + ảnh). PDF/tệp sách trên Gemini thì không gửi được.
+function toChatContent(parts) {
+  const content = [];
+  for (const p of parts) {
+    if (p.text) content.push({ type: 'text', text: p.text });
+    else if (p.inlineData && /^image\//.test(p.inlineData.mimeType)) content.push({ type: 'image_url', image_url: { url: `data:${p.inlineData.mimeType};base64,${p.inlineData.data}` } });
+    else throw new Error('AI dự phòng chỉ đọc được chữ và ảnh – tệp PDF scan / sách scan cần Gemini.');
+  }
+  return content.every((c) => c.type === 'text') ? content.map((c) => c.text).join('\n\n') : content;
+}
+
+function parseJSONText(text) {
+  const t = String(text || '').replace(/^```(?:json)?\s*|\s*```$/g, '').trim();
+  try { return JSON.parse(t); } catch { /* thử lấy khối {...} */ }
+  const a = t.indexOf('{');
+  const b = t.lastIndexOf('}');
+  if (a >= 0 && b > a) { try { return JSON.parse(t.slice(a, b + 1)); } catch { /* rơi xuống */ } }
+  throw new Error('AI trả về dữ liệu không hợp lệ, hãy thử lại.');
+}
+
+export async function callOpenAIJSON({ cfg, parts, schema, temperature = 0.5, fetchImpl = globalThis.fetch }) {
+  const sys = `Bạn trả lời bằng DUY NHẤT một đối tượng JSON hợp lệ (không giải thích, không markdown), đúng cấu trúc JSON Schema sau (OBJECT/ARRAY/STRING/INTEGER là kiểu dữ liệu):\n${JSON.stringify(schema)}`;
+  const body = { messages: [{ role: 'system', content: sys }, { role: 'user', content: toChatContent(parts) }], temperature, response_format: { type: 'json_object' } };
+  if (cfg.model) body.model = cfg.model;
+  const send = (b) => fetchImpl(chatUrl(cfg.url), { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.key}` }, body: JSON.stringify(b) });
+  let res = await send(body);
+  let raw = await res.text();
+  // Một số dịch vụ không nhận response_format → gửi lại không có nó.
+  if (res.status === 400 && /response_format|json_object/i.test(raw)) { delete body.response_format; res = await send(body); raw = await res.text(); }
+  if (!res.ok) {
+    if (res.status === 401 || res.status === 403) throw new Error('AI dự phòng: key không đúng hoặc không có quyền.');
+    if (res.status === 429) throw new Error('AI dự phòng cũng đã hết lượt, hãy thử lại sau.');
+    throw new Error(`AI dự phòng báo lỗi ${res.status}. ${raw.slice(0, 160)}`);
+  }
+  const data = JSON.parse(raw);
+  return parseJSONText(data?.choices?.[0]?.message?.content ?? data?.output_text ?? '');
+}
+
 // Gọi Gemini trả về JSON theo schema; tự đợi rồi thử lại khi hết lượt trong phút (429).
-export async function callGeminiJSON({ apiKey, parts, schema, model = GEMINI_MODEL, fetchImpl = globalThis.fetch, retries = 3, wait = 20000, temperature = 0.5 }) {
-  if (!apiKey) throw new Error('Cần Gemini API key (miễn phí tại aistudio.google.com/apikey).');
+// Có AI dự phòng: chưa có Gemini key hoặc Gemini hết lượt → chuyển sang AI dự phòng ngay.
+export async function callGeminiJSON({ apiKey, parts, schema, model = GEMINI_MODEL, fetchImpl = globalThis.fetch, retries = 3, wait = 20000, temperature = 0.5, fallback = loadFallback() }) {
+  const canFallback = fallback && parts.every((p) => p.text || (p.inlineData && /^image\//.test(p.inlineData.mimeType)));
+  if (!apiKey) {
+    if (canFallback) return callOpenAIJSON({ cfg: fallback, parts, schema, temperature, fetchImpl });
+    throw new Error('Cần Gemini API key (miễn phí tại aistudio.google.com/apikey) hoặc AI dự phòng.');
+  }
   for (let attempt = 0; ; attempt++) {
-    const res = await fetchImpl(`${API}/${encodeURIComponent(model)}:generateContent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { temperature, responseMimeType: 'application/json', responseSchema: schema } }),
-    });
+    let res;
+    try {
+      res = await fetchImpl(`${API}/${encodeURIComponent(model)}:generateContent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { temperature, responseMimeType: 'application/json', responseSchema: schema } }),
+      });
+    } catch (err) {
+      if (canFallback) return callOpenAIJSON({ cfg: fallback, parts, schema, temperature, fetchImpl });
+      throw err;
+    }
     const raw = await res.text();
     if (res.ok) {
       const data = JSON.parse(raw);
       const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || '';
-      try { return JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, '')); } catch { throw new Error('AI trả về dữ liệu không hợp lệ, hãy thử lại.'); }
+      return parseJSONText(text);
     }
-    if ((res.status === 429 || res.status === 503) && attempt < retries) { await sleep(wait * (attempt + 1)); continue; }
+    const quota = res.status === 429 || res.status === 503 || /RESOURCE_EXHAUSTED|quota/i.test(raw);
+    if (quota && canFallback) return callOpenAIJSON({ cfg: fallback, parts, schema, temperature, fetchImpl });
+    if (quota && attempt < retries) { await sleep(wait * (attempt + 1)); continue; }
     if (res.status === 400 && /API key/i.test(raw)) throw new Error('Gemini API key không đúng, hãy kiểm tra lại.');
-    if (res.status === 429) throw new Error('Đã hết lượt dùng Gemini (thử lại sau ít phút, hoặc ngày mai nếu hết lượt trong ngày).');
+    if (quota) throw new Error('Đã hết lượt dùng Gemini (thử lại sau ít phút, hoặc ngày mai nếu hết lượt trong ngày). Có thể thêm "AI dự phòng".');
     if (res.status === 413) throw new Error('Nội dung quá lớn để gửi cho AI.');
     throw new Error(`Gemini báo lỗi ${res.status}. ${raw.slice(0, 200)}`);
   }
@@ -238,4 +290,28 @@ export async function uploadBookFile({ apiKey, file, fetchImpl = globalThis.fetc
   }
   if (!f?.uri || f.state === 'FAILED') throw new Error('Gemini chưa đọc được tệp sách này.');
   return { uri: f.uri, mimeType: f.mimeType || mimeType, name: f.name };
+}
+
+// Ô nhập "AI dự phòng" dùng chung cho các khung AI (trang thầy cô). Tự lưu khi gõ.
+export function fallbackFieldsHtml(esc) {
+  const c = loadFallbackRaw();
+  const on = !!(c.url && c.key);
+  return `<details class="ai-fallback" ${on ? '' : ''}><summary class="small">🔁 AI dự phòng khi Gemini hết lượt ${on ? '<b class="ok">· đã cài</b>' : '<span class="muted">(không bắt buộc)</span>'}</summary>
+    <p class="muted small">Dịch vụ AI chuẩn OpenAI (địa chỉ có <code>/v1/chat/completions</code>). Khi Gemini hết lượt hoặc chưa có Gemini key, hệ thống tự chuyển sang AI này.
+      Key chỉ lưu trong trình duyệt này. AI dự phòng đọc được chữ và ảnh; sách / PDF scan vẫn cần Gemini.</p>
+    <div class="fld-row">
+      <label class="fld grow">Địa chỉ API<input data-fb="url" value="${esc(c.url || '')}" placeholder="https://…/v1" autocomplete="off"></label>
+      <label class="fld">Model<input data-fb="model" value="${esc(c.model || '')}" placeholder="vd: gpt-4o-mini" autocomplete="off"></label>
+    </div>
+    <label class="fld">API key<input data-fb="key" type="password" value="${esc(c.key || '')}" placeholder="Dán key" autocomplete="off"></label>
+  </details>`;
+}
+export function bindFallbackFields(root) {
+  root.addEventListener('input', (e) => {
+    const k = e.target.dataset?.fb;
+    if (!k) return;
+    const c = loadFallbackRaw();
+    c[k] = e.target.value;
+    saveFallback(c);
+  });
 }

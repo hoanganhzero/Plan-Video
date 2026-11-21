@@ -139,6 +139,7 @@ Trò chơi vừa học vừa chơi trong thư mục `fishing/` – mở `http://
   - Tải cả cuốn SGK (PDF có chữ, Word, .txt hoặc dán nội dung). Hệ thống tự chia bài theo tiêu đề "Bài / Unit / Tiết / Chủ đề / Chương", bỏ qua mục lục và tiêu đề lặp đầu trang. Có thể gộp bài, đổi tên, bỏ chọn bài.
   - Sách scan (ảnh chụp): bấm **✨ AI tìm bài**. Sách được tải lên Gemini một lần, AI liệt kê bài và số trang.
   - Chọn **dạng câu hỏi**: trắc nghiệm 4 đáp án, Đúng/Sai, điền vào chỗ trống, chọn ý KHÔNG đúng, vận dụng – tình huống (AI). Chọn số câu mỗi bài và mức độ (nhận biết / thông hiểu / vận dụng).
+  - **🔁 AI dự phòng**: nhập địa chỉ, key và model của một dịch vụ AI chuẩn OpenAI (`…/v1/chat/completions`). Khi Gemini hết lượt hoặc chưa có Gemini key, hệ thống tự chuyển sang AI này. Key chỉ lưu trong trình duyệt của thầy cô. Sách / PDF scan vẫn cần Gemini.
   - Có hai cách tạo: **AI (Gemini)** viết ý trọng tâm và câu hỏi cho từng bài; hoặc **tự động không cần mạng** (Đúng/Sai, điền khuyết, phát biểu đúng / không đúng, lấy từ câu định nghĩa, số liệu, tên riêng, mục "Ghi nhớ").
   - Mỗi bài có **nội dung trọng tâm** (sửa được). Mỗi câu hỏi mang theo đoạn **nội dung liên quan**. Khi học sinh trả lời sai (lúc câu cá, ôn tập, thi đấu), trò chơi hiện **📖 Xem lại · tên bài** cùng đoạn đó.
   - Bật/tắt **bài đang học**, rồi bấm **Chia sẻ** (tối đa 1000 câu mỗi lần). Chỉ câu của các bài đang bật được gửi đi. Đổi bài thì chia sẻ lại, mã giữ nguyên, và lớp được giao mã tự cập nhật.
