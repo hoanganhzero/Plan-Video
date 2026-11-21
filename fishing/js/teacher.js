@@ -4,6 +4,7 @@ import { teacherApi, chatError, timeLabel, agoLabel, toCSV, cleanClassCode, CLAS
 import { zoneById } from './data.js';
 import { serverApi, parseNames, SERVER_ERRORS, ACCESS_LABEL } from './servers.js';
 import { initSetsUI } from './sets-ui.js';
+import { initBookUI } from './book-ui.js';
 import { GRADE_LIST, subjectsForGrade, subjectInfo, levelLabel, clampGrade } from './curriculum.js';
 
 const $ = (s) => document.querySelector(s);
@@ -460,7 +461,8 @@ setsState.settings ||= { subjects: ['custom'], grade: 1 };
 setsState.online = { ...(setsState.online || {}), ownerKey: T(), key: T() };
 const saveSets = () => { try { localStorage.setItem(SETS_STORE, JSON.stringify(setsState)); } catch { /* đầy */ } };
 const mySharedSets = () => setsState.sets.filter((x) => x.code);
-const setsUI = initSetsUI({ getState: () => setsState, save: saveSets, toast, esc, beep: () => {}, onChange: saveSets });
+const bookUI = initBookUI({ root: $('#book-body'), getState: () => setsState, save: saveSets, toast, esc, openEditor: (id) => setsUI.editSet(id) });
+const setsUI = initSetsUI({ getState: () => setsState, save: saveSets, toast, esc, beep: () => {}, onChange: saveSets, book: bookUI });
 function showView(v) {
   for (const b of document.querySelectorAll('[data-view]')) b.classList.toggle('on', b.dataset.view === v);
   $('#sets-view').hidden = v !== 'sets';

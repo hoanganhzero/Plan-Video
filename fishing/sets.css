@@ -92,3 +92,36 @@ details.card summary { cursor: pointer; }
 .rep-t th, .rep-t td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; }
 .rep-t th { color: var(--gold); }
 }
+
+/* ---------- Sách giáo khoa ---------- */
+.book-intro p { margin: 4px 0 10px; }
+.qtype-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.qtype { display: inline-flex; gap: 6px; align-items: center; padding: 6px 10px; border-radius: 10px; cursor: pointer; background: var(--panel-2); border: 2px solid var(--line); font-weight: 700; font-size: .9rem; }
+.qtype.on { border-color: var(--gold); background: rgba(255, 197, 49, .14); }
+.qtype.dis { opacity: .45; cursor: default; }
+.qtype input { accent-color: var(--gold); }
+.qtype small { color: var(--muted); font-weight: 600; }
+.book-opts .fld > span { font-weight: 700; font-size: .85rem; }
+.lesson-list { display: grid; gap: 4px; max-height: 420px; overflow-y: auto; padding-right: 4px; }
+.lesson-row { display: flex; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 10px; background: var(--panel-2); }
+.lesson-row.off { opacity: .5; }
+.lesson-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--gold); flex: none; }
+.lesson-row .grow { min-width: 0; }
+.lesson-row .muted { white-space: nowrap; }
+.lesson-cards { display: grid; gap: 8px; margin: 12px 0; }
+.lesson-card { border: 1px solid var(--line); border-radius: 14px; padding: 8px 12px; background: var(--panel-2); }
+.lesson-card.off { opacity: .6; }
+.lc-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.lc-head .grow { flex: 1; min-width: 160px; }
+.lesson-card textarea { width: 100%; margin-top: 4px; }
+.lesson-card summary { cursor: pointer; margin-top: 4px; }
+.qt { font-size: .9em; }
+.book-progress .pbar { height: 10px; border-radius: 6px; background: rgba(255, 255, 255, .1); overflow: hidden; margin: 6px 0; }
+.book-progress .pbar i { display: block; height: 100%; background: linear-gradient(90deg, var(--good), var(--gold)); transition: width .3s; }
+.plog { display: grid; gap: 2px; }
+#book-body[hidden], #sets-body[hidden] { display: none; }
+@media (max-width: 640px) {
+  .lesson-row { flex-wrap: wrap; }
+  .lesson-row .grow { flex: 1 1 70%; }
+  .lc-head .btn { flex: 1; justify-content: center; }
+}

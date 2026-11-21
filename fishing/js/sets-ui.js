@@ -13,7 +13,7 @@ import { publishSet, fetchSet, cleanCode, setReport } from './online.js';
 
 const DIFF = { 1: 'Dễ', 2: 'Vừa', 3: 'Khó' };
 
-export function initSetsUI({ getState, save, toast, esc, beep, onChange }) {
+export function initSetsUI({ getState, save, toast, esc, beep, onChange, book = null }) {
   const $ = (s) => document.querySelector(s);
   const body = $('#sets-body');
   let tab = 'mine';
@@ -43,6 +43,10 @@ export function initSetsUI({ getState, save, toast, esc, beep, onChange }) {
   // ------------------------------------------------------------------ render
   function render() {
     document.querySelectorAll('#sets-tabs [data-stab]').forEach((b) => b.classList.toggle('active', b.dataset.stab === tab));
+    // Tab "📖 Sách giáo khoa" do book-ui.js vẽ trong khung riêng.
+    if (tab === 'book' && book) { body.hidden = true; book.show(); return; }
+    body.hidden = false;
+    book?.hide();
     if (tab === 'mine') body.innerHTML = reportView ? renderSetReport() : editingId ? renderEditor() : renderList();
     else if (tab === 'import') body.innerHTML = renderImport();
     else body.innerHTML = renderJoin();
@@ -69,6 +73,7 @@ export function initSetsUI({ getState, save, toast, esc, beep, onChange }) {
               ${s.code ? ` · <span class="code-pill" title="Mã chia sẻ">🔑 ${esc(s.code)}</span>` : ''}${s.fromCode ? ` · tải từ mã ${esc(s.fromCode)}` : ''}</div>
           </div>
           <div class="set-acts">
+            ${s.book && book ? `<button class="btn small gold" data-act="book" data-id="${s.id}">📚 Bài học</button>` : ''}
             <button class="btn small" data-act="edit" data-id="${s.id}">✏️ Sửa</button>
             <button class="btn small sea" data-act="share" data-id="${s.id}" ${s.questions.length ? '' : 'disabled'}>🔗 Chia sẻ</button>
             ${s.code ? `<button class="btn small gold" data-act="set-report" data-id="${s.id}">📊 Báo cáo</button>` : ''}
@@ -111,7 +116,7 @@ export function initSetsUI({ getState, save, toast, esc, beep, onChange }) {
     const editQ = editingQ ? s.questions.find((q) => q.id === editingQ) : null;
     return `
       <div class="row"><button class="btn small" data-act="back">← Danh sách bộ đề</button><span class="spacer"></span>
-        <span class="muted small">${s.questions.length}/${MAX_QUESTIONS_PER_SET} câu</span></div>
+        <span class="muted small">${s.questions.length}/${s.book ? 3000 : MAX_QUESTIONS_PER_SET} câu</span></div>
       <div class="fld-row">
         <label class="fld grow">Tên bộ đề<input data-set="name" value="${esc(s.name)}"></label>
         <label class="fld">Môn<input data-set="subject" value="${esc(s.subject || '')}" placeholder="Toán, Tiếng Việt…"></label>
@@ -401,6 +406,7 @@ export function initSetsUI({ getState, save, toast, esc, beep, onChange }) {
       editingId = set.id; editingQ = null;
       commit(); render();
     } else if (act === 'edit') { editingId = id; editingQ = null; render(); }
+    else if (act === 'book') { tab = 'book'; render(); book.openBook(id); }
     else if (act === 'back') { editingId = null; editingQ = null; render(); }
     else if (act === 'del-set') {
       const set = findSet(id);
@@ -519,6 +525,7 @@ export function initSetsUI({ getState, save, toast, esc, beep, onChange }) {
   return {
     render,
     open(which = 'mine') { tab = which; editingQ = null; render(); },
+    editSet(id) { tab = 'mine'; reportView = null; editingId = id; editingQ = null; render(); },
   };
 }
 

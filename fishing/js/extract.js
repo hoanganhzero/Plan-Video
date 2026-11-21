@@ -98,7 +98,7 @@ async function pdfText(file, onProgress) {
     pages.push(lines.join('\n'));
     onProgress?.(i, doc.numPages);
   }
-  return { text: pages.join('\n\n'), pages: doc.numPages };
+  return { text: pages.join('\n\n'), pages: doc.numPages, pageTexts: pages };
 }
 
 // Đọc tệp → { kind, text, pages?, note? }
@@ -108,7 +108,7 @@ export async function extractText(file, onProgress) {
     const r = await pdfText(file, onProgress);
     const note = r.text.replace(/\s/g, '').length < 40 * r.pages
       ? 'PDF này gần như không có chữ (có thể là bản scan / ảnh chụp). Hãy dùng chế độ AI để Gemini đọc trực tiếp tệp.' : '';
-    return { kind, text: r.text, pages: r.pages, note };
+    return { kind, text: r.text, pages: r.pages, pageTexts: r.pageTexts, note };
   }
   if (kind === 'docx') return { kind, text: await docxText(file) };
   if (kind === 'text' || kind === 'csv') return { kind, text: await file.text() };

@@ -2,6 +2,7 @@
 // fishing_submit (nộp điểm), fishing_top (top người chơi), fishing_me (hạng của mình).
 // Khoá "publishable" bên dưới được thiết kế để công khai trong trình duyệt; bảng điểm khoá bằng RLS
 // nên không ai đọc/sửa trực tiếp được, và mã người chơi (player key) không bao giờ bị trả về cho người khác.
+import { activeQuestions } from './textbook.js';
 import { RARITIES, rarityIndex, fishById } from './data.js';
 
 export const ONLINE = {
@@ -102,10 +103,14 @@ export const rarityName = (tier) => RARITIES[Math.max(0, Math.min(5, tier || 0))
 export const SET_CODE_RE = /^[A-HJ-NP-Z2-9]{6}$/;
 export const cleanCode = (c) => String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
 
+export const MAX_SHARE_QUESTIONS = 1000;
 export async function publishSet(state, set, fetchImpl) {
   state.online ||= {};
   if (!state.online.ownerKey) state.online.ownerKey = ensurePlayerKey({ online: {} });
-  const payload = set.questions.map(({ q, a, w, e, d }) => ({ q, a, w, e: e || '', d: d || 1 }));
+  // Bộ đề sách giáo khoa: chỉ gửi câu của các bài đang bật ("bài đang học"), kèm dạng câu, tên bài, nội dung liên quan.
+  const payload = activeQuestions(set).map(({ q, a, w, e, d, t, l, r }) => ({ q, a, w, e: e || '', d: d || 1, ...(t ? { t } : {}), ...(l ? { l } : {}), ...(r ? { r } : {}) }));
+  if (!payload.length) throw new Error('Chưa có câu hỏi nào trong các bài đang bật.');
+  if (payload.length > MAX_SHARE_QUESTIONS) throw new Error(`Mỗi lần chia sẻ tối đa ${MAX_SHARE_QUESTIONS} câu – hãy bật ít bài hơn (đang có ${payload.length} câu).`);
   const code = await rpc('fishing_set_publish', {
     p_owner: state.online.ownerKey, p_name: set.name, p_payload: payload, p_code: set.code || null,
   }, fetchImpl);

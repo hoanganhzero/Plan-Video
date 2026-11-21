@@ -43,7 +43,7 @@ export function practiceQuestion(state, rng = Math.random, avoid = []) {
     const q = pool[Math.floor(rng() * pool.length)];
     const right = q.choices[q.answer];
     const choices = [...q.choices];
-    for (let i = choices.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [choices[i], choices[j]] = [choices[j], choices[i]]; }
+    if (q.qtype !== 'tf') for (let i = choices.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [choices[i], choices[j]] = [choices[j], choices[i]]; }
     return { ...q, choices, answer: choices.indexOf(right), isReview: true };
   }
   const opts = questionOpts(state);

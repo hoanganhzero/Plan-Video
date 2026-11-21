@@ -24,7 +24,13 @@ export function normalizeQuestion(raw) {
   const wrong = [...new Set((raw.w || []).map(clean).filter((x) => x && x !== a))].slice(0, 3);
   if (!q || !a || !wrong.length) return null;
   const d = Math.min(3, Math.max(1, Math.round(Number(raw.d) || 1)));
-  return { id: raw.id || newId(), q, a, w: wrong, e: clean(raw.e), d };
+  const out = { id: raw.id || newId(), q, a, w: wrong, e: clean(raw.e), d };
+  // Câu tạo từ sách giáo khoa: dạng câu, bài học, nội dung liên quan (hiện khi học sinh trả lời sai).
+  if (raw.t) out.t = clean(raw.t).slice(0, 10);
+  if (raw.lid) out.lid = clean(raw.lid).slice(0, 40);
+  if (raw.l) out.l = clean(raw.l).slice(0, 120);
+  if (raw.r) out.r = clean(raw.r).slice(0, 400);
+  return out;
 }
 
 // Câu đang duyệt → câu bộ đề (cần đã chọn đáp án đúng).
@@ -32,11 +38,11 @@ export function reviewToQuestion(r) {
   if (!r || r.correct === null || r.correct === undefined) return null;
   const opts = (r.options || []).map(clean).filter(Boolean);
   const a = clean(r.options?.[r.correct]);
-  return normalizeQuestion({ q: r.q, a, w: opts.filter((o) => o !== a), e: r.e, d: r.d });
+  return normalizeQuestion({ q: r.q, a, w: opts.filter((o) => o !== a), e: r.e, d: r.d, t: r.t, lid: r.lid, l: r.l, r: r.r });
 }
 
 export function questionToReview(q, source = '') {
-  return { q: q.q, options: [q.a, ...q.w], correct: 0, e: q.e || '', d: q.d || 1, source };
+  return { q: q.q, options: [q.a, ...q.w], correct: 0, e: q.e || '', d: q.d || 1, source, t: q.t, lid: q.lid, l: q.l, r: q.r };
 }
 
 // ---------------------------------------------------------------------------
@@ -260,13 +266,15 @@ export function parseAIQuestions(data) {
 }
 
 // Gộp câu mới vào bộ đề, bỏ câu trùng nội dung.
-export function addToSet(set, questions) {
-  const seen = new Set(set.questions.map((q) => q.q.toLowerCase()));
+export function addToSet(set, questions, max = set.book ? 3000 : MAX_QUESTIONS_PER_SET) {
+  // Trùng = cùng câu hỏi và cùng đáp án đúng (các câu "Phát biểu nào sau đây đúng?" khác nhau ở đáp án).
+  const keyOf = (q) => `${q.q}|${q.a}`.toLowerCase();
+  const seen = new Set(set.questions.map(keyOf));
   let added = 0;
   for (const raw of questions) {
     const q = normalizeQuestion(raw);
-    if (!q || seen.has(q.q.toLowerCase()) || set.questions.length >= MAX_QUESTIONS_PER_SET) continue;
-    seen.add(q.q.toLowerCase());
+    if (!q || seen.has(keyOf(q)) || set.questions.length >= max) continue;
+    seen.add(keyOf(q));
     set.questions.push(q);
     added++;
   }

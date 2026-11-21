@@ -115,8 +115,9 @@ export function shuffle(list, rng = Math.random) {
 }
 
 // Ghép đáp án đúng + sai thành câu hỏi trắc nghiệm đã xáo trộn.
-export function makeQuestion({ id, subject, difficulty, text, correct, wrong, explain = '' }, rng = Math.random) {
-  const choices = shuffle([String(correct), ...wrong.map(String)], rng);
+export function makeQuestion({ id, subject, difficulty, text, correct, wrong, explain = '', fixedOrder = null }, rng = Math.random) {
+  // Câu Đúng/Sai giữ thứ tự cố định "Đúng – Sai" cho dễ nhìn.
+  const choices = fixedOrder || shuffle([String(correct), ...wrong.map(String)], rng);
   return { id, subject, difficulty, text, choices, answer: choices.indexOf(String(correct)), explain };
 }
 
@@ -319,11 +320,16 @@ export function parseCustomQuestions(textBlock) {
 // Câu từ bộ đề của giáo viên: { id, q, a, w, e, d }
 const customId = (item, index) => `custom-${item.id || index}-${item.q}`;
 function fromCustom(item, index, rng) {
+  const tf = item.t === 'tf' && ['Đúng', 'Sai'].includes(item.a) && item.w?.length === 1;
   const q = makeQuestion({
     id: customId(item, index), subject: 'custom', difficulty: item.d || 1, text: item.q,
-    correct: item.a, wrong: item.w, explain: item.e || '',
+    correct: item.a, wrong: item.w, explain: item.e || '', fixedOrder: tf ? ['Đúng', 'Sai'] : null,
   }, rng);
   if (item.setCode) q.setCode = item.setCode; // bộ đề tải bằng mã → ghi báo cáo cho giáo viên
+  // Câu từ sách giáo khoa: bài học + nội dung liên quan để xem lại khi trả lời sai.
+  if (item.l) q.lesson = item.l;
+  if (item.r) q.ref = item.r;
+  if (item.t) q.qtype = item.t;
   return q;
 }
 
@@ -334,7 +340,7 @@ export function pickQuestion(difficulty, opts = {}, rng = Math.random) {
   if (review.length && rng() < 0.25) {
     const q = review[Math.floor(rng() * review.length)];
     const correct = q.choices[q.answer];
-    const shuffled = shuffle(q.choices, rng);
+    const shuffled = q.qtype === 'tf' ? q.choices : shuffle(q.choices, rng);
     return { ...q, choices: shuffled, answer: shuffled.indexOf(correct), isReview: true };
   }
   let usable = subjects.filter((s) => s !== 'custom' || custom.length);

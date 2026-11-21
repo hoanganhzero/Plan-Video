@@ -20,6 +20,7 @@ import { serverApi, knownServers, activeWorld, setActiveWorld, applyServerIdenti
 import { progressSummary, chatError } from './chat.js';
 import { fetchSet } from './online.js';
 import { newSet, addToSet } from './content.js';
+import { reviewNote } from './textbook.js';
 import { practiceQuestion, practiceAnswer, startPractice, spendEnergy, rescueOutcome, refundBait, ENERGY_MAX, DAILY_COIN_CAP, RESCUE_QUESTIONS, MASTERY } from './practice.js';
 import { cloudCreate, cloudPush, cloudFetch, cleanSaveCode, logSetAnswer } from './online.js';
 import { setQuestions } from './engine.js';
@@ -141,6 +142,25 @@ function openSheet(id) {
   dlg.showModal();
 }
 $$('[data-open]').forEach((b) => b.addEventListener('click', () => openSheet(b.dataset.open)));
+
+// Điện thoại: menu trái gói sau nút ☰ (hiện dạng lưới giữa màn hình); có thông báo thì nút ☰ có chấm đỏ.
+{
+  const menu = $('#side-menu');
+  const toggle = $('#menu-toggle');
+  const backdrop = $('#menu-backdrop');
+  const setMenu = (open) => {
+    menu.classList.toggle('open', open);
+    backdrop.hidden = !open;
+    toggle.setAttribute('aria-expanded', String(open));
+  };
+  toggle.addEventListener('click', () => { beep(SOUND.click); setMenu(!menu.classList.contains('open')); });
+  backdrop.addEventListener('click', () => setMenu(false));
+  menu.addEventListener('click', (e) => { if (e.target.closest('button')) setMenu(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && menu.classList.contains('open')) setMenu(false); });
+  const syncBadge = () => { $('#menu-badge').hidden = ![...menu.querySelectorAll('.badge:not(.blue):not(.gray)')].some((b) => !b.hidden); };
+  new MutationObserver(syncBadge).observe(menu, { subtree: true, attributes: true, attributeFilter: ['hidden'] });
+  syncBadge();
+}
 $$('.sheet [data-close]').forEach((b) => b.addEventListener('click', () => b.closest('dialog').close()));
 $$('.sheet').forEach((d) => {
   d.addEventListener('click', (e) => { if (e.target === d) d.close(); });
@@ -559,6 +579,13 @@ $('#sheet-shop').addEventListener('click', (e) => {
   renderHud();
 });
 
+// Câu từ sách giáo khoa: khi trả lời sai, hiện bài học + nội dung liên quan để em đọc lại.
+function refHtml(q) {
+  const n = reviewNote(q);
+  if (!n) return '';
+  return `<div class="ref-box"><b>📖 Xem lại${n.lesson ? ` · ${esc(n.lesson)}` : ''}</b>${n.ref ? `<div>${esc(n.ref)}</div>` : ''}</div>`;
+}
+
 // ---------- Ôn tập ----------
 RENDER.review = () => {
   const p = state.practice || {};
@@ -579,7 +606,7 @@ RENDER.review = () => {
       <div class="muted small">${s ? `${s.icon} ${esc(s.name)}` : ''}</div>
       <div><b>${esc(q.text)}</b> <span class="mastery" title="Đúng ${q.mastery || 0}/${MASTERY} lần liên tiếp">${'●'.repeat(q.mastery || 0)}${'○'.repeat(Math.max(0, MASTERY - (q.mastery || 0)))}</span></div>
       <div>Đáp án đúng: <span class="ans">${esc(q.choices[q.answer])}</span></div>
-      ${q.explain ? `<div class="muted small">${esc(q.explain)}</div>` : ''}
+      ${q.explain ? `<div class="muted small">${esc(q.explain)}</div>` : ''}${refHtml(q)}
     </div>`;
   }).join('');
 };
@@ -679,7 +706,7 @@ function answerPractice(i) {
   $('#pr-reward').className = `pr-reward ${ok ? 'ok' : 'no'}`;
   $('#pr-reward').hidden = false;
   if (!ok || q.explain) {
-    $('#pr-explain').innerHTML = `${ok ? '' : `Đáp án đúng: <b style="color:var(--good)">${esc(q.choices[q.answer])}</b>`}${q.explain ? `${ok ? '' : '<br>'}<span class="muted">${esc(q.explain)}</span>` : ''}`;
+    $('#pr-explain').innerHTML = `${ok ? '' : `Đáp án đúng: <b style="color:var(--good)">${esc(q.choices[q.answer])}</b>`}${q.explain ? `${ok ? '' : '<br>'}<span class="muted">${esc(q.explain)}</span>` : ''}${ok ? '' : refHtml(q)}`;
     $('#pr-explain').hidden = false;
   }
   const done = pr.mode === 'rescue' && pr.n >= pr.total;
@@ -962,15 +989,23 @@ async function startServerWorld() {
   applyServerCurriculum(r.server);
   // Bộ đề thầy cô giao cho server
   const code = r.server?.set_code;
-  if (code && !state.sets.some((s) => s.fromCode === code)) {
+  if (code) {
+    // Tải lại khi thầy cô chia sẻ lại (vd đổi "bài đang học" trong bộ đề sách giáo khoa).
     try {
       const set = await fetchSet(code);
-      const s = newSet(set.name, { fromCode: set.code, fromServer: true });
-      addToSet(s, set.payload);
-      state.sets.push(s);
-      if (!state.settings.subjects.includes('custom')) state.settings.subjects.push('custom');
-      save();
-      toast(`📝 Thầy cô đã giao bộ đề “<b>${esc(set.name)}</b>” – câu hỏi sẽ xuất hiện khi câu cá và ôn tập.`);
+      let s = state.sets.find((x) => x.fromCode === code);
+      const fresh = !s;
+      if (fresh || s.updatedAt !== set.updated_at) {
+        if (fresh) { s = newSet(set.name, { fromCode: set.code, fromServer: true }); state.sets.push(s); }
+        s.name = set.name;
+        s.questions = [];
+        s.updatedAt = set.updated_at;
+        addToSet(s, set.payload);
+        if (!state.settings.subjects.includes('custom')) state.settings.subjects.push('custom');
+        save();
+        toast(fresh ? `📝 Thầy cô đã giao bộ đề “<b>${esc(set.name)}</b>” – câu hỏi sẽ xuất hiện khi câu cá và ôn tập.`
+          : `📝 Bộ đề “<b>${esc(set.name)}</b>” vừa được thầy cô cập nhật.`);
+      }
     } catch (err) { console.warn('Không tải được bộ đề của server:', err); }
   }
   if (!state.serverSavedAt) scheduleServer(1500); // tài khoản mới: lưu lần đầu
@@ -1554,7 +1589,7 @@ function askQuestion(q, { step, lives }) {
   const updateTools = () => {
     $('#q-hint-count').textContent = state.items.hint || 0;
     $('#q-time-count').textContent = state.items.time || 0;
-    $('#q-hint').disabled = usedHint || !state.items.hint;
+    $('#q-hint').disabled = usedHint || !state.items.hint || q.choices.length < 3;
     $('#q-time').disabled = !state.items.time;
   };
   const updateTimer = () => {
@@ -1599,7 +1634,7 @@ function askQuestion(q, { step, lives }) {
       ex.hidden = false;
       ex.innerHTML = right
         ? `✅ <b>Chính xác!</b>${q.explain ? ` ${esc(q.explain)}` : ''}`
-        : `${choice === null ? '⏰ <b>Hết giờ!</b>' : '❌ <b>Chưa đúng.</b>'} Đáp án đúng: <b style="color:var(--good)">${esc(q.choices[q.answer])}</b>${q.explain ? `<br><span class="muted">${esc(q.explain)}</span>` : ''}<br><span class="muted small">📒 Đã ghi vào Sổ ôn tập.</span>`;
+        : `${choice === null ? '⏰ <b>Hết giờ!</b>' : '❌ <b>Chưa đúng.</b>'} Đáp án đúng: <b style="color:var(--good)">${esc(q.choices[q.answer])}</b>${q.explain ? `<br><span class="muted">${esc(q.explain)}</span>` : ''}${refHtml(q)}<span class="muted small">📒 Đã ghi vào Sổ ôn tập.</span>`;
       if (right) setTimeout(() => close(choice), 900);
       else {
         // Câu sai: cho đọc lời giải rồi mới kéo tiếp.
@@ -1717,7 +1752,7 @@ async function finishLost(reason) {
     <h2>${title}</h2>
     <p class="muted">Đó là một con cá ${tag(attempt.rarity)} … lần sau nhé!</p>
     <p>${why}</p>
-    ${wrongs.map((l) => `<div class="explain"><b>${esc(l.question.text)}</b><br>Đáp án đúng: <b style="color:var(--good)">${esc(l.question.choices[l.question.answer])}</b>${l.question.explain ? `<br><span class="muted">${esc(l.question.explain)}</span>` : ''}</div>`).join('')}`;
+    ${wrongs.map((l) => `<div class="explain"><b>${esc(l.question.text)}</b><br>Đáp án đúng: <b style="color:var(--good)">${esc(l.question.choices[l.question.answer])}</b>${l.question.explain ? `<br><span class="muted">${esc(l.question.explain)}</span>` : ''}${refHtml(l.question)}</div>`).join('')}`;
   // Không cứu cá khi đang thi đấu (giữ công bằng cho trận).
   const canRescue = !attempt.rescued && !matchUI.code;
   $('#result-actions').innerHTML = (canRescue ? `<button class="btn sea big" id="r-rescue" title="Trả lời đúng ${RESCUE_QUESTIONS} câu để kéo cá lên">⛑️ Cứu cá (${RESCUE_QUESTIONS} câu)</button>` : '')

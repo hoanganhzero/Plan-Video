@@ -122,3 +122,4 @@ textarea:focus { outline: none; border-color: var(--gold) !important; }
 .subj input { width: 18px; height: 18px; accent-color: var(--gold); }
 #sets-view .sets-area { max-width: 1100px; margin: 0 auto; }
 html { background: #0b2233; }
+[hidden] { display: none !important; }

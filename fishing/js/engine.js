@@ -1,5 +1,6 @@
 // Bộ máy trò chơi: trạng thái, thả câu, trả lời, nhiệm vụ, cửa hàng, lên cấp.
 // Thuần logic (không đụng tới DOM) để dễ kiểm thử; rng truyền vào được.
+import { activeQuestions } from './textbook.js';
 import {
   RARITIES, ZONES, FISH, RODS, ITEMS, SHOP, QUESTS, GRADES, BUCKETS, bucketById,
   rarityIndex, zoneById, fishById, rodById, LINES, lineById,
@@ -63,7 +64,7 @@ export function normalizeSettings(st) {
 // Câu hỏi của mọi bộ đề đang bật (giáo viên / phụ huynh cấu hình).
 export function setQuestions(state) {
   return (state.sets || []).filter((s) => s.enabled !== false)
-    .flatMap((s) => (s.questions || []).map((q) => (s.fromCode ? { ...q, setCode: s.fromCode } : q)));
+    .flatMap((s) => activeQuestions(s).map((q) => (s.fromCode ? { ...q, setCode: s.fromCode } : q)));
 }
 
 export function normalizeState(raw) {

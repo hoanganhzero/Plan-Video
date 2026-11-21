@@ -135,6 +135,14 @@ Trò chơi vừa học vừa chơi trong thư mục `fishing/` – mở `http://
   - **Học sinh** chỉ chọn *khối lớp* trong ⚙️ Cài đặt khi chơi cá nhân; khi vào lớp của thầy cô thì dùng đúng khối lớp và môn thầy cô chọn.
   - **Thầy cô** chọn khối lớp + môn cho từng lớp (trang thầy cô → ⚙️ Cài đặt server) và soạn / giao **📝 Bộ đề** (trang thầy cô → 📝 Bộ đề).
     Học sinh không còn thấy Bộ đề hay phần quản lý server trong trò chơi – chỉ có *👤 Tài khoản* (đăng nhập, vào lớp bằng mã).
+- **📖 Sách giáo khoa → câu hỏi theo từng bài** (trang thầy cô → 📝 Bộ đề → 📖 Sách giáo khoa):
+  - Tải cả cuốn SGK (PDF có chữ, Word, .txt hoặc dán nội dung). Hệ thống tự chia bài theo tiêu đề "Bài / Unit / Tiết / Chủ đề / Chương", bỏ qua mục lục và tiêu đề lặp đầu trang. Có thể gộp bài, đổi tên, bỏ chọn bài.
+  - Sách scan (ảnh chụp): bấm **✨ AI tìm bài**. Sách được tải lên Gemini một lần, AI liệt kê bài và số trang.
+  - Chọn **dạng câu hỏi**: trắc nghiệm 4 đáp án, Đúng/Sai, điền vào chỗ trống, chọn ý KHÔNG đúng, vận dụng – tình huống (AI). Chọn số câu mỗi bài và mức độ (nhận biết / thông hiểu / vận dụng).
+  - Có hai cách tạo: **AI (Gemini)** viết ý trọng tâm và câu hỏi cho từng bài; hoặc **tự động không cần mạng** (Đúng/Sai, điền khuyết, phát biểu đúng / không đúng, lấy từ câu định nghĩa, số liệu, tên riêng, mục "Ghi nhớ").
+  - Mỗi bài có **nội dung trọng tâm** (sửa được). Mỗi câu hỏi mang theo đoạn **nội dung liên quan**. Khi học sinh trả lời sai (lúc câu cá, ôn tập, thi đấu), trò chơi hiện **📖 Xem lại · tên bài** cùng đoạn đó.
+  - Bật/tắt **bài đang học**, rồi bấm **Chia sẻ** (tối đa 1000 câu mỗi lần). Chỉ câu của các bài đang bật được gửi đi. Đổi bài thì chia sẻ lại, mã giữ nguyên, và lớp được giao mã tự cập nhật.
+- **📱 Điện thoại**: menu trái gói gọn sau nút **☰ Menu** (lưới giữa màn hình, có chấm đỏ khi có thông báo). Thanh trang bị chỉ còn biểu tượng. Dùng được cả màn hình dọc và ngang.
 - **🛒 Cửa hàng 5 ngăn** – Cần câu · Dây câu · Mồi câu · Hỗ trợ · Thùng cá:
   - **10 cần câu** từ Cần tre đến Cần phượng hoàng, mỗi cần một kỹ năng riêng (mới: Gió giật, Ngọc hồi sinh, Sấm sét, Phượng hoàng – hồi độ bền dây, làm cá choáng).
   - **9 loại mồi**: giun, bánh mì, dế, tôm, cá con, mực, vàng, phát sáng, cầu vồng. Có mồi tăng may mắn, mồi giúp câu **cá to hơn**, mồi **hợp khu vực** (mực ở Biển xanh/Vực sâu, phát sáng ở Hồ/Vực sâu…). Bấm ô mồi dưới màn hình để đổi mồi nhanh.
@@ -219,6 +227,8 @@ fishing/                Trò chơi Câu Cá Học Giỏi
   js/content.js         Bộ đề: chuẩn hoá câu hỏi, đọc đề trắc nghiệm, câu điền khuyết, CSV
   js/extract.js         Đọc chữ từ PDF (pdf.js) và Word .docx ngay trong trình duyệt
   js/ai.js              Gemini soạn câu hỏi từ bài học / ảnh / PDF
+  js/textbook.js        Sách giáo khoa: chia bài, nội dung trọng tâm, câu hỏi theo dạng (không cần mạng)
+  js/book-ui.js         Trang thầy cô: tab 📖 Sách giáo khoa
   js/sets-ui.js         Giao diện Bộ đề (soạn tay, tạo từ tài liệu, chia sẻ mã, báo cáo)
   js/match.js           Thi đấu: xếp hạng đội, đồng hồ theo giờ máy chủ, báo cáo giáo viên
   js/match-ui.js        Giao diện Thi đấu (tạo / tham gia / phòng chờ / bảng điểm / kết quả)

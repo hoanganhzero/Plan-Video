@@ -21,14 +21,16 @@
   <main class="wrap" id="sets-view" hidden>
     <div class="card sets-area">
       <h2>📝 Bộ đề của thầy cô</h2>
-      <p class="muted small">Soạn câu hỏi theo bài đang học: gõ tay, nhập từ Excel (CSV), tạo tự động từ PDF / Word / ảnh trang SGK (có thể dùng AI),
+      <p class="muted small">Soạn câu hỏi theo bài đang học: đưa <b>cả cuốn SGK</b> vào để tự tạo câu hỏi theo từng bài, gõ tay, nhập từ Excel (CSV), tạo từ PDF / Word / ảnh trang SGK (có thể dùng AI),
         rồi bấm <b>Chia sẻ</b> để lấy mã. Giao bộ đề cho lớp ở 🏫 Server lớp học → ⚙️ Cài đặt server. Bộ đề lưu trên máy này.</p>
       <div class="tabs-row" id="sets-tabs" role="tablist">
         <button data-stab="mine">📚 Bộ đề của tôi</button>
+        <button data-stab="book">📖 Sách giáo khoa</button>
         <button data-stab="import">✨ Tạo từ tài liệu</button>
         <button data-stab="join">🔑 Nhập mã</button>
       </div>
       <div id="sets-body"></div>
+      <div id="book-body" hidden></div>
     </div>
   </main>
   <main class="wrap layout" id="classes-view">

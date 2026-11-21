@@ -38,8 +38,10 @@
     </div>
   </header>
 
-  <!-- MENU BÊN TRÁI -->
-  <nav class="side-menu" aria-label="Menu">
+  <!-- MENU BÊN TRÁI (điện thoại: gói gọn sau nút ☰) -->
+  <button class="menu-toggle" id="menu-toggle" aria-label="Mở menu" aria-expanded="false" aria-controls="side-menu"><span class="ico">☰</span><span class="lbl">Menu</span><i class="badge dot" id="menu-badge" hidden></i></button>
+  <div class="menu-backdrop" id="menu-backdrop" hidden></div>
+  <nav class="side-menu" id="side-menu" aria-label="Menu">
     <button data-open="rank" class="rank-btn"><span class="ico">🏆</span><span class="lbl">Xếp hạng</span></button>
     <button data-open="match" class="match-btn"><span class="ico">⚔️</span><span class="lbl">Thi đấu</span></button>
     <button data-open="quests"><span class="ico">📜</span><span class="lbl">Nhiệm vụ</span><i class="badge" id="quest-badge" hidden></i></button>
