@@ -42,7 +42,7 @@ export function newGame() {
       streak: 0, bestStreak: 0, catches: 0, catchesByRarity: {},
       escaped: 0, fishSold: 0, coinsEarned: 0, reviewedOk: 0,
     },
-    settings: { subjects: subjectsForGrade(1), grade: 1, sound: true },
+    settings: { subjects: subjectsForGrade(1), grade: 1, sound: true, music: true, musicVolume: 0.5 },
     nextUid: 1,
     online: { key: null, nickname: '', rank: null, total: null },
   };

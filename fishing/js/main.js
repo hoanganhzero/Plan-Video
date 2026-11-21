@@ -11,6 +11,7 @@ import { initMatchUI } from './match-ui.js';
 import { createWorld, assignSlots, EMOTES, makePublicId, colorFor } from './world.js';
 import { ONLINE } from './online.js';
 import { initChatUI } from './chat-ui.js';
+import { createMusic } from './music.js';
 import { GRADE_LIST, levelLabel, gradeLabel, subjectsForGrade, cleanSubjects, normalizeGrade } from './curriculum.js';
 import { initServerUI } from './server-ui.js';
 import { serverApi, knownServers, activeWorld, setActiveWorld, applyServerIdentity, serverSnapshot, slotKey, isNewer, getAccount, accountApi, accountSnapshot, logoutAccount } from './servers.js';
@@ -684,6 +685,9 @@ RENDER.settings = () => {
        <div class="subject-list" style="margin-top:8px">${subjectChips(ids)}</div>
        <p class="muted small">Câu hỏi lấy theo đúng các môn của khối lớp. Khi vào lớp của thầy cô, thầy cô sẽ chọn môn cho cả lớp.</p>`;
   $('#sound-toggle').checked = state.settings.sound;
+  $('#music-toggle').checked = state.settings.music !== false;
+  $('#music-volume').value = Math.round((state.settings.musicVolume ?? 0.5) * 100);
+  $('#music-volume').disabled = state.settings.music === false;
   $('#world-toggle').checked = state.settings.showWorld !== false;
   renderCloud();
 };
@@ -700,6 +704,25 @@ $('#sheet-settings').addEventListener('click', (e) => {
   if (e.target.id === 'open-account') { $('#sheet-settings').close(); openSheet('server'); }
 });
 $('#sound-toggle').addEventListener('change', (e) => { state.settings.sound = e.target.checked; save(); });
+
+// ---------- Nhạc nền ----------
+var music = createMusic(); // var: setMode (khai báo phía trên) có thể gọi trước dòng này
+music.setVolume(state.settings.musicVolume ?? 0.5);
+// Trình duyệt chỉ cho phát nhạc sau lần chạm/bấm đầu tiên của người chơi.
+const unlockMusic = () => { if (state.settings.music !== false) music.unlock(); };
+document.addEventListener('pointerdown', unlockMusic, true);
+document.addEventListener('keydown', unlockMusic, true);
+$('#music-toggle').addEventListener('change', (e) => {
+  state.settings.music = e.target.checked;
+  music.setEnabled(e.target.checked);
+  $('#music-volume').disabled = !e.target.checked;
+  save();
+});
+$('#music-volume').addEventListener('input', (e) => {
+  state.settings.musicVolume = Number(e.target.value) / 100;
+  music.setVolume(state.settings.musicVolume);
+});
+$('#music-volume').addEventListener('change', () => save());
 // ---------- Thế giới chung: thấy các bạn cùng câu ----------
 // Khoá "anon" công khai (dành cho trình duyệt) – Realtime dùng khoá dạng JWT này.
 const REALTIME_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNrYmRiY3Byc2dzaXVubGlxaGhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0NzUyNTMsImV4cCI6MjEwMTA1MTI1M30.jokp_ihSS_-EsOVmn6Vd830XO8F5t2c7_mb6JHjqdq0';
@@ -790,7 +813,7 @@ $('#world-pill').addEventListener('click', () => {
 });
 $('#world-toggle').addEventListener('change', (e) => { state.settings.showWorld = e.target.checked; save(); syncWorld(); });
 // Chỉ ở chế độ thử nhiều người trên một máy: cho script kiểm thử điều khiển.
-if (worldMode === 'local') window.__fishTest = { world, scene, get pr() { return pr; }, rescue: (qs) => runRescue(qs), get state() { return state; } };
+if (worldMode === 'local') window.__fishTest = { world, scene, music, get pr() { return pr; }, rescue: (qs) => runRescue(qs), get state() { return state; } };
 
 // ---------- Thi đấu ----------
 const matchUI = initMatchUI({
@@ -1197,6 +1220,7 @@ function setAction(mode) {
 
 function setMode(mode) {
   game.mode = mode;
+  if (typeof music !== 'undefined') music.setMood(mode === 'fight' || mode === 'question' ? 'fight' : 'calm');
   if (typeof world !== 'undefined') world.act(mode === 'question' ? 'fight' : mode, { dist: attempt?.distance || 12, tension: fight?.tension || 0 });
   setAction(mode === 'cast' ? 'wait' : mode === 'question' || mode === 'result' ? 'busy' : mode);
   $('#power').hidden = mode !== 'charge';

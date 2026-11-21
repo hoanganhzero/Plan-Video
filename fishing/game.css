@@ -884,3 +884,7 @@ button.server-item { cursor: pointer; }
 .enter-grid.four { grid-template-columns: 1fr 1fr 1fr 1fr auto; }
 @media (max-width: 760px) { .enter-grid.four { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 560px) { .enter-grid.four { grid-template-columns: 1fr; } }
+
+.music-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; }
+.music-row .vol { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; font-size: .9rem; }
+.music-row input[type=range] { width: 150px; accent-color: var(--gold); }
